@@ -5,7 +5,7 @@ const BASE = process.env.BASE || 'http://localhost:8765/', SHOTS = '/workspace/t
 mkdirSync(SHOTS, { recursive: true });
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 // unique spot each run so earlier runs' reports don't interfere: somewhere along I-95 in the Bronx, jittered
-const j = (Date.now() % 1000) / 1e5, A_POS = { latitude: 40.8350 + j, longitude: -73.8650 }, B_POS = { latitude: 40.8200 + j, longitude: -73.8650 }, C_POS = { latitude: 39.9526, longitude: -75.1652 };
+const j = Math.random() * 0.06, L = -73.95 + Math.random() * 0.12, A_POS = { latitude: 40.8350 + j, longitude: L }, B_POS = { latitude: 40.8200 + j, longitude: L }, C_POS = { latitude: 39.9526, longitude: -75.1652 };
 const browser = await chromium.launch();
 async function driver(name, geo, clock) { const ctx = await browser.newContext({ ...devices['iPhone 13'], geolocation: geo, permissions: ['geolocation'] });
   const page = await ctx.newPage(); page.on('pageerror', e => { console.log(name, 'PAGE ERROR', e.message); fails++; });
@@ -19,26 +19,26 @@ ok(true, `3 drivers online over public relays: ${await A.evaluate(() => TruckNav
 // B is driving north (heading 0) toward A's spot
 await B.evaluate(() => { TruckNav.pos.heading = 0; });
 // A files 3 reports via the one-tap UI (tap ⚠ → tap type)
-const near = [[40.8350 + j, -73.8650], [40.8330 + j, -73.8648], [40.8370 + j, -73.8652]];
+const near = [[40.8350 + j, L], [40.8330 + j, L + 0.0002], [40.8370 + j, L - 0.0002]];
 const types = ['accident', 'police', 'construction']; let ts;
 ts = Date.now(); await A.click('#reportBtn'); await A.waitForSelector('#hzGrid'); await A.screenshot({ path: `${SHOTS}/01-one-tap-grid.png` });
-for (let i = 0; i < 3; i++) { await A.evaluate(([lat, lon]) => { TruckNav.pos = { ...TruckNav.pos, lat, lon }; }, near[i]); if (i) await A.click('#reportBtn'); await A.click(`[data-hz="${types[i]}"]`); }
+for (let i = 0; i < 3; i++) { await A.evaluate(([lat, lon]) => { TruckNav.pos = { ...TruckNav.pos, lat, lon }; }, near[i]); if (i) await A.click('#reportBtn'); await A.click(`#hzGrid [data-hz="${types[i]}"]`); }
 const aIds = await A.evaluate(() => TruckNav.hz.list.filter(r => r.mine).map(r => ({ id: r.id, type: r.type })));
 ok(aIds.length === 3, `A filed 3 reports: ${aIds.map(r => r.type).join(', ')}`);
-const dup = await A.evaluate(() => { TruckNav.hzFile('accident', true); return TruckNav.hz.list.filter(r => r.type === 'accident').length; });
+const dup = await A.evaluate(([lat, lon]) => { TruckNav.pos = { ...TruckNav.pos, lat, lon }; const before = TruckNav.hz.list.length; TruckNav.hzFile('accident', true); return TruckNav.hz.list.length - before + 1; }, near[0]);
 ok(dup === 1, 'A re-reporting the same accident is deduped (no second pin)');
 await A.screenshot({ path: `${SHOTS}/02-driver-A-filed.png` });
 // B sees them
 const got = await B.waitForFunction(ids => ids.every(x => TruckNav.hz.visible().some(r => r.id === x.id)), aIds, { timeout: N * 1000, polling: 250 }).then(() => true).catch(() => false);
 ok(got, `driver B (1.7 km south) received all 3 over the relays within ${((Date.now() - ts) / 1000).toFixed(1)} s of A's first tap (limit ${N} s)`);
-await B.evaluate(() => { const m = TruckNav.map; m.jumpTo({ center: [-73.865, TruckNav.pos.lat + 0.008], zoom: 14.3 }); });
+await B.evaluate(() => { const m = TruckNav.map; m.jumpTo({ center: [TruckNav.pos.lon, TruckNav.pos.lat + 0.008], zoom: 14.3 }); });
 await B.clock.runFor(6000); await B.waitForTimeout(800);
 const bv = await B.evaluate(() => ({ pins: [...document.querySelectorAll('.hz-pin')].map(e => e.dataset.hz), calls: [...document.querySelectorAll('.hz-pin .hz-call')].filter(e => e.style.display !== 'none').map(e => e.textContent), ahead: TruckNav.hzAhead, alert: TruckNav.hzLastAlert, banner: document.querySelector('#hzBanner')?.textContent }));
 ok(types.every(t => bv.pins.includes(t)), `B's map shows pins: ${bv.pins.join(', ')}`);
 ok(bv.calls.length >= 3, `B sees callouts: ${bv.calls.join(' | ')}`);
 ok(/reported ahead in/.test(bv.alert || '') && bv.banner, `B gets approaching alert: voice "${bv.alert}", banner "${bv.banner}"`);
 await B.screenshot({ path: `${SHOTS}/03-driver-B-sees-reports.png` });
-await B.click('.hz-pin[data-hz="police"]'); await B.waitForTimeout(500); await B.screenshot({ path: `${SHOTS}/04-driver-B-popup-vote.png` });
+await B.evaluate(id => { const el = document.querySelector(`.hz-pin[data-id="${id}"]`); TruckNav.map.jumpTo({ center: TruckNav.hz.byId.get(id) ? [TruckNav.hz.byId.get(id).lon, TruckNav.hz.byId.get(id).lat - 0.004] : TruckNav.map.getCenter() }); el.click(); }, aIds[1].id); await B.waitForTimeout(500); await B.screenshot({ path: `${SHOTS}/04-driver-B-popup-vote.png` });
 // B votes thumbs-up on police → A sees the vote
 await B.click('.maplibregl-popup [data-v="up"]');
 const upSeen = await A.waitForFunction(id => TruckNav.hz.byId.get(id)?.up >= 1, aIds[1].id, { timeout: N * 1000 }).then(() => true).catch(() => false);
