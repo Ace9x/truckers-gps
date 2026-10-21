@@ -107,14 +107,14 @@ await page.reload(); await page.waitForFunction(() => window.TruckNav?.ready);
 ok(await T(() => TruckNav.avoids.length === 1), 'reported restriction persists after reload');
 await T(() => { TruckNav.avoids.length = 0; localStorage.setItem('tn_avoids', '[]'); });
 // Look-ahead danger: route planned for an 8' truck under the 11'8" bridge, then driver is actually 13'6" -> announced 2 mi / 0.5 mi with profile comparison + auto reroute
-const la = await T(async () => { TruckNav.setTruck({ heightFt: 8, heightIn: 0 }); TruckNav.pos = { lat: 41.2700, lon: -72.6954, t: Date.now() }; TruckNav.dest = { lat: 41.2670, lon: -72.6953, name: 'Guilford CT test' };
+const la = await T(async () => { TruckNav.setTruck({ heightFt: 8, heightIn: 0 }); TruckNav.pos = { lat: 41.2740, lon: -72.6956, t: Date.now() }; TruckNav.dest = { lat: 41.2670, lon: -72.6953, name: 'Guilford CT test' };
   const r = await TruckNav.valhalla(TruckNav.pos, TruckNav.dest, 'truck'); TruckNav.routes = [r]; TruckNav.chosen = r; TruckNav.route = r; TruckNav.setTruck({ heightFt: 13, heightIn: 6 });
   await TruckNav.analyzeRoute(r); return { d: TruckNav.dangers.map(x => x.kind + ':' + x.sev + ':' + x.short), edges: TruckNav.routeEdges }; });
 ok(la.d.some(x => /^height:stop/.test(x)), `look-ahead finds Guilford CT's 11'8" Water St rail bridge vs 13'6" truck (${la.edges} road segments checked): ${la.d.join(' | ')}`);
 const la2 = await T(async () => { TruckNav.off.reset(); TruckNav.dangerSpoken = {}; TruckNav.nav = true; TruckNav.along = 0; TruckNav.lastReroute = 0; const r = TruckNav.route, d = TruckNav.dangers.find(x => x.kind === 'height'); const before = TruckNav.rerouteCount;
   TruckNav.along = Math.max(0, d.along - 200); const p = r.line[0]; TruckNav.pos = { lon: p[0], lat: p[1], speed: 10, acc: 5, t: Date.now() };
   // call the alert routine via a nav tick on route
-  TruckNav.hint = 0; TruckNav.onFix({ lon: r.line[1][0], lat: r.line[1][1], speed: 10, acc: 5, t: Date.now() + 1000 });
+  TruckNav.hint = 0; const i0 = Math.max(1, r.cum.findIndex(c => c >= d.along - 250)); TruckNav.onFix({ lon: r.line[i0][0], lat: r.line[i0][1], speed: 10, acc: 5, t: Date.now() + 1000 });
   await new Promise(res => setTimeout(res, 6000)); const out = { said: TruckNav.spokenLog.filter(t => /clearance/i.test(t)), rerouted: TruckNav.rerouteCount > before, len: TruckNav.route.length }; TruckNav.endNav(); return out; });
 ok(la2.said.some(t => /Low clearance 11 foot \d+ (just ahead|in half a mile)\. Your truck is 13 foot 6\. Rerouting/.test(t)) && la2.rerouted && la2.len > 3000, `danger announced + rerouted around it (${(la2.len / 1609).toFixed(1)} mi): ${JSON.stringify(la2.said[0])}`);
 await T(() => { TruckNav.avoids.length = 0; localStorage.setItem('tn_avoids', '[]'); TruckNav.setTruck({ heightFt: 13, heightIn: 6 }); });
