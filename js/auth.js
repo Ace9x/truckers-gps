@@ -18,12 +18,13 @@ export class DeviceAuth {
   onChange(cb) { this.cbs.push(cb); } _emit() { this.cbs.forEach(c => { try { c(this.user); } catch {} }); }
   _persist() { if (this.sk) localStorage.setItem(LSK, JSON.stringify({ sk: hex(this.sk), user: this.user })); else localStorage.removeItem(LSK); }
   async _key(sk) { return aesKey(sk, 'profile'); }
-  async fetchProfile(sk) { const pk = pubkeyOf(sk), evs = await bus().query({ kinds: [KIND_PROFILE], authors: [pk], '#d': [D] }, 6000);
+  async fetchProfile(sk, tries = 2) { const pk = pubkeyOf(sk); let evs = [];
+    for (let i = 0; i < tries && !evs.length; i++) { if (i) await new Promise(r => setTimeout(r, 1500)); evs = await bus().query({ kinds: [KIND_PROFILE], authors: [pk], '#d': [D] }, 6000); }
     const ev = evs.sort((a, b) => b.created_at - a.created_at)[0]; if (!ev) return null; try { return await open(await this._key(sk), ev.content); } catch { return null; } }
   async _publish(sk, p) { const ev = finalizeEvent({ kind: KIND_PROFILE, created_at: Math.floor(Date.now() / 1000), tags: [['d', D]], content: await seal(await this._key(sk), p) }, sk); return bus().pub(ev); }
   async signUp({ email, password, name, username = '', truck = null }) {
     if (!validEmail(email)) throw new Error('Enter a valid email'); if (String(password).length < 8) throw new Error('Password must be at least 8 characters');
-    const sk = await deriveKey(email, password); if (await this.fetchProfile(sk)) throw new Error('An account with this email + password already exists — use Sign in');
+    const sk = await deriveKey(email, password); if (await this.fetchProfile(sk, 1)) throw new Error('An account with this email + password already exists — use Sign in');
     const p = { v: 1, email: email.trim().toLowerCase(), name: name || email.split('@')[0], username: username.trim().toLowerCase(), truck, created: Date.now(), updated: Date.now() };
     await this._publish(sk, p); return this._set(sk, p, 'password'); }
   async signIn({ email, password }) { const sk = await deriveKey(email, password), p = await this.fetchProfile(sk);

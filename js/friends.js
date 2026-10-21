@@ -25,12 +25,15 @@ export function passPrediction({ me, fr, myRoute, frRoute = null, names = [], wh
       const fs = snap(frRoute, fr), tFr = Math.max(0, x.alongFr - fs.along) / Math.max(fr.speed || 0, 13.4);
       if (Math.abs(tMe - tFr) < 20 * 60) return { kind: 'ahead', miles: mi, minutes: tMe / 60, near: nameAt(names, x.along), text: `Your route crosses ${who}'s in ~${Math.round(mi)} mi${nameAt(names, x.along) ? ' near ' + nameAt(names, x.along) : ''} — about the same time` }; }
     return null; }
+  if (!onMine) return null;
   const gap = s.along - m.along, vMe = Math.max(me.speed || 0, 1); const opposite = fr.heading != null && angDiff(fr.heading, s.brg) > 120, vFr = Math.max(fr.speed || 0, 0);
   if (gap > 0) { const close = opposite ? vMe + vFr : vMe - vFr; if (close <= 0.5) return { kind: 'ahead', miles: gap / 1609.34, minutes: null, text: `${who} is ${Math.round(gap / 1609.34)} mi ahead on your route` };
-    const tSec = gap / close, mi = vMe * tSec / 1609.34, at = m.along + vMe * tSec, nm = nameAt(names, at);
+    const tSec = gap / close, mi = vMe * tSec / 1609.34, at = m.along + vMe * tSec, nm = nameAt(names, at), total = routeLen(myRoute);
+    if (at > total + 500) return { kind: 'ahead', miles: gap / 1609.34, minutes: null, text: `${who} is ${Math.max(1, Math.round(gap / 1609.34))} mi ahead on your route` };
     return { kind: 'ahead', miles: mi, minutes: tSec / 60, near: nm, text: `You'll pass ${who} in ~${Math.max(1, Math.round(mi))} mi${nm ? ' near ' + nm : ''}` }; }
   const back = -gap, close = opposite ? vMe + vFr : vMe - vFr, ago = close > 0.5 ? back / close / 60 : null;
   return { kind: 'behind', miles: back / 1609.34, minutes: ago, text: ago != null && ago < 180 ? `You passed ${who} ${Math.max(1, Math.round(ago))} min ago` : `${who} is ${Math.round(back / 1609.34)} mi behind you` }; }
+function routeLen(l) { let a = 0; for (let i = 1; i < l.length; i++) a += hav({ lon: l[i - 1][0], lat: l[i - 1][1] }, { lon: l[i][0], lat: l[i][1] }); return a; }
 function nameAt(names, along) { let n = null; for (const x of names || []) if (x.along <= along + 300 && x.name) n = x.name; return n; }
 export function crossing(a, b, tol = 400) { let acc = 0; for (let i = 0; i < a.length; i++) { if (i) acc += hav({ lon: a[i - 1][0], lat: a[i - 1][1] }, { lon: a[i][0], lat: a[i][1] });
     if (i % 3) continue; const p = { lon: a[i][0], lat: a[i][1] }, s = snap(b, p); if (s.dist <= tol) return { along: acc, alongFr: s.along, lon: p.lon, lat: p.lat }; } return null; }

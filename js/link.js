@@ -37,7 +37,7 @@ export class Bus {
   async pub(ev) { await this.ready(); const m = JSON.stringify(['EVENT', ev]); let n = 0; this.rs.forEach(r => { if (r.open) try { r.ws.send(m); n++; } catch {} }); if (!n) throw new Error('No relay connected'); return n; }
   // fetch stored events once (resolves after first EOSE from enough relays or timeout)
   async query(filter, ms = 5000) { await this.ready(); const out = []; return new Promise(res => { let done = 0, fin = () => { un(); res(out); };
-    const un = this.sub(filter, ev => out.push(ev), () => { if (++done >= Math.max(1, Math.min(2, this.openCount))) fin(); }); setTimeout(fin, ms); }); }
+    const un = this.sub(filter, ev => out.push(ev), () => { if (++done >= Math.max(1, this.openCount)) fin(); }); setTimeout(fin, ms); }); }
   close() { this.closed = true; this.rs.forEach(r => r.ws.close()); }
 }
 let _bus; export const bus = () => (_bus ||= new Bus(globalThis.RR_RELAYS || RELAYS));

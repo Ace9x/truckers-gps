@@ -699,4 +699,5 @@ import('./extras.js').then(m => m.init(S, H_)).catch(e => console.error('extras'
   .finally(() => import('./planner.js').then(m => m.init(S, { ...H_, truckCosting })).catch(e => console.error('planner', e)))
   .finally(() => import('./offline.js').then(m => { m.init(S, H_); S.offlineReady = true; }).catch(e => console.error('offline', e)));
 S.openPanel = openPanel;
+import('./account.js').then(m => m.init(S, H_)).catch(e => console.error('account', e));
 S.ready = true;

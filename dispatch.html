@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RigRoute Dispatch — test console</title>
+<style>body{font:15px system-ui;background:#111;color:#eee;margin:0;padding:16px;max-width:980px}h1{font-size:20px}section{background:#1c1c1c;border-radius:12px;padding:12px;margin:10px 0}input,textarea,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#eee}button{background:#ff6d00;color:#111;font-weight:700;border:0;cursor:pointer}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid label{display:flex;flex-direction:column;font-size:12px;color:#aaa}.code{font:700 34px ui-monospace,monospace;letter-spacing:3px;color:#ff9e40}.log{font:12px ui-monospace,monospace;white-space:pre-wrap;max-height:260px;overflow:auto}.drv{border:1px solid #333;border-radius:10px;padding:8px;margin:6px 0}.pod{max-width:200px;border-radius:8px}</style></head><body>
+<h1>📋 RigRoute Dispatch — test console <small style="color:#888">(Dispatch API v1, free encrypted relay transport)</small></h1>
+<section><label>Dispatcher name <input id="dName" value="Rocapulco Freight"></label> <button id="newCode">Show pairing code</button> <span id="relays" style="color:#888"></span>
+<div id="codeBox" hidden><p>Driver: open RigRoute → 📋 Loads → enter code, or scan:</p><div class="code" id="code"></div><img id="qr" width="150" height="150" style="background:#fff"><p id="codeExp" style="color:#888"></p></div></section>
+<section><h3>Drivers</h3><div id="drivers">None paired yet.</div></section>
+<section><h3>Send a load</h3><label>To driver <select id="to"></select></label>
+<div class="grid"><label>Load ID<input id="lid"></label><label>Ref / PO<input id="ref" value="PO-55821"></label>
+<label>Pickup name<input id="pName" value="Hunts Point Produce Market"></label><label>Pickup address<input id="pAddr" value="355 Food Center Dr, Bronx, NY 10474"></label>
+<label>Pickup lat,lon<input id="pLL" value="40.8085,-73.8740"></label><label>Pickup window (start,end)<input id="pWin" type="text"></label>
+<label>Drop name<input id="dNameS" value="Port Newark Terminal"></label><label>Drop address<input id="dAddr" value="1 Export St, Newark, NJ 07114"></label>
+<label>Drop lat,lon<input id="dLL" value="40.6930,-74.1520"></label><label>Drop window (start,end)<input id="dWin"></label>
+<label>Rate $<input id="rate" type="number" value="850"></label><label>Commodity<input id="comm" value="Fresh produce (reefer)"></label>
+<label>Weight lb<input id="wt" type="number" value="38000"></label><label>Equipment<input id="eq" value="53' reefer"></label>
+<label>Hazmat class (blank = none)<input id="hz"></label><label>UN number<input id="un"></label>
+<label>BOL refs (comma)<input id="bol" value="BOL-77812"></label><label>Notes<input id="notes" value="Check in at gate 3. Keep reefer at 34°F."></label></div>
+<button id="send" style="margin-top:8px">Send load</button> <span id="sendMsg"></span></section>
+<section><h3>Loads & updates</h3><div id="loads"></div></section><section><h3>Raw log</h3><div class="log" id="log"></div></section>
+<script type="module">
+import { DispatcherConsole, STATUS_LABEL } from './js/dispatch.js'; import { bus, hex, unhex, newSecret, uid } from './js/link.js';
+const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let k = localStorage.getItem('rr_disp_key'); if (!k) { k = hex(newSecret()); localStorage.setItem('rr_disp_key', k); }
+const D = new DispatcherConsole(unhex(k), $('#dName').value); window.RRD = D;
+const iso = h => { const d = new Date(Date.now() + h * 3600e3); d.setMinutes(0, 0, 0); return d.toISOString().slice(0, 16); };
+$('#pWin').value = iso(2) + ',' + iso(4); $('#dWin').value = iso(6) + ',' + iso(8); $('#lid').value = 'L-' + uid().slice(0, 6).toUpperCase();
+setInterval(() => $('#relays').textContent = bus().openCount + ' relays connected', 1000);
+$('#newCode').onclick = async () => { D.name = $('#dName').value; const { code, expires } = await D.newCode(p => log('paired with ' + (p.driver?.name || 'driver')));
+  $('#codeBox').hidden = false; $('#code').textContent = code; $('#codeExp').textContent = 'Expires ' + new Date(expires).toLocaleTimeString() + ' · one driver per code';
+  const url = new URL('./?pair=' + code, location.href).href; import('https://esm.sh/qrcode@1.5.4').then(q => q.toDataURL(url, { margin: 1 })).then(u => $('#qr').src = u).catch(() => $('#qr').remove()); };
+const ll = s => s.split(',').map(Number), win = s => { const [a, b] = s.split(','); return a ? { start: new Date(a).toISOString(), end: b ? new Date(b).toISOString() : null } : null; };
+$('#send').onclick = async () => { try { const [pl, pn] = ll($('#pLL').value), [dl, dn] = ll($('#dLL').value);
+  const load = { id: $('#lid').value, ref: $('#ref').value, pickup: { name: $('#pName').value, address: $('#pAddr').value, lat: pl, lon: pn, window: win($('#pWin').value) },
+    drop: { name: $('#dNameS').value, address: $('#dAddr').value, lat: dl, lon: dn, window: win($('#dWin').value) }, rate: { amount: +$('#rate').value, currency: 'USD', per: 'flat' },
+    commodity: $('#comm').value, weight_lb: +$('#wt').value || null, equipment: $('#eq').value, hazmat: $('#hz').value ? { is: true, class: $('#hz').value, un: $('#un').value } : { is: false },
+    bol: $('#bol').value.split(',').map(s => s.trim()).filter(Boolean), notes: $('#notes').value };
+  await D.sendLoad($('#to').value, load); $('#sendMsg').textContent = '✅ sent ' + load.id; $('#lid').value = 'L-' + uid().slice(0, 6).toUpperCase(); } catch (e) { $('#sendMsg').textContent = '⚠ ' + e.message; } };
+const log = s => $('#log').textContent = new Date().toLocaleTimeString() + ' ' + s + '\n' + $('#log').textContent;
+const seen = new Set();
+function render() { const sel = $('#to').value; $('#to').innerHTML = D.drivers.map(p => `<option value="${p.session}">${esc(p.driver?.name || 'Driver')} (${p.driverPk.slice(0, 8)})</option>`).join(''); if (sel) $('#to').value = sel;
+  $('#drivers').innerHTML = D.drivers.map(p => `<div class="drv" data-driver="${p.driverPk}"><b>${esc(p.driver?.name || 'Driver')}</b> ${p.unpaired ? '(disconnected)' : ''} · location sharing: <b data-sharing>${p.sharing ? 'ON' : 'off'}</b>
+    ${p.last ? `<br><span data-loc>📍 ${p.last.lat}, ${p.last.lon} · ${new Date(p.last.t).toLocaleTimeString()}</span> <a target="_blank" href="https://www.openstreetmap.org/?mlat=${p.last.lat}&mlon=${p.last.lon}#map=14/${p.last.lat}/${p.last.lon}">map</a>` : ''}</div>`).join('') || 'None paired yet.';
+  $('#loads').innerHTML = D.drivers.flatMap(p => Object.values(D.loads(p.session)).map(L => `<div class="drv" data-load="${esc(L.load.id)}"><b>${esc(L.load.id)}</b> → ${esc(p.driver?.name)} · <b data-state="${L.state}">${esc(STATUS_LABEL[L.state] || L.state)}</b>${L.counter ? ' · counter $' + L.counter.amount + ` <button data-cr="${p.session}|${L.load.id}|1">Accept counter</button> <button data-cr="${p.session}|${L.load.id}|0">Reject</button>` : ''}${L.reason ? ' · ' + esc(L.reason) : ''}
+    <div style="font-size:12px;color:#aaa">${L.history.map(h => new Date(h.t).toLocaleTimeString() + ' ' + (h.status ? STATUS_LABEL[h.status] : h.action || h.type)).join(' → ')}</div>${L.pod ? `<img class="pod" src="${L.pod.photo}" alt="POD">` : ''}</div>`)).join('');
+  document.querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { const [s, id, a] = b.dataset.cr.split('|'); D.send(s, { type: 'counter_reply', loadId: id, accept: a === '1' }); });
+  for (const p of D.drivers) for (const m of D.logs[p.session] || []) if (!seen.has(m.id)) { seen.add(m.id); log(`${m.type}${m.action ? ' ' + m.action : ''}${m.status ? ' ' + m.status : ''}${m.loadId ? ' ' + m.loadId : ''}${m.load ? ' ' + m.load.id : ''}`); } }
+D.onChange(render); render();
+</script></body></html>

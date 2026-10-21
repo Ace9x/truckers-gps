@@ -1,0 +1,27 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+globalThis.localStorage = { m: {}, getItem(k) { return this.m[k] ?? null; }, setItem(k, v) { this.m[k] = String(v); }, removeItem(k) { delete this.m[k]; } };
+const L = await import('../js/link.js'), A = await import('../js/auth.js'), D = await import('../js/dispatch.js'), F = await import('../js/friends.js');
+test('encrypt roundtrip + wrong key fails', async () => { const k = await L.aesKey(L.rand(32), 'x'), k2 = await L.aesKey(L.rand(32), 'x'); const s = await L.seal(k, { a: 1 });
+  assert.deepEqual(await L.open(k, s), { a: 1 }); await assert.rejects(L.open(k2, s)); });
+test('email+password derive the same key on any device; different password differs', async () => { const a = await A.deriveKey('Me@X.com ', 'hunter222', 1000), b = await A.deriveKey('me@x.com', 'hunter222', 1000), c = await A.deriveKey('me@x.com', 'hunter223', 1000);
+  assert.equal(L.hex(a), L.hex(b)); assert.notEqual(L.hex(a), L.hex(c)); });
+test('recovery code roundtrip', () => { const sk = L.newSecret(), c = A.toRecovery(sk); assert.match(c, /^RR1-([0-9A-F]{8}-){7}[0-9A-F]{8}$/); assert.equal(L.hex(A.fromRecovery(c.toLowerCase())), L.hex(sk)); assert.throws(() => A.fromRecovery('RR1-123')); });
+test('pair codes + channel derivation agree on both sides', async () => { const c = L.shortCode(); assert.match(c, /^[A-Z2-9]{4}-[A-Z2-9]{4}$/); const a = await L.Channel.fromCode(c, 'pair'), b = await L.Channel.fromCode(c.toLowerCase().replace('-', ' '), 'pair'); assert.equal(a.tag, b.tag);
+  assert.deepEqual(await L.open(b.key, await L.seal(a.key, { hi: 1 })), { hi: 1 }); });
+const load = { id: 'L1', pickup: { address: 'a', lat: 40.8, lon: -73.9 }, drop: { address: 'b', lat: 40.7, lon: -74.1 }, rate: { amount: 900 }, weight_lb: 30000, hazmat: { is: false } };
+test('load validation', () => { assert.deepEqual(D.validateLoad(load), []); assert.ok(D.validateLoad({ ...load, pickup: { lat: 1 } }).length); assert.ok(D.validateLoad({ ...load, hazmat: { is: true } }).includes('hazmat.class')); });
+test('fold: offer -> accept -> statuses -> delivered with POD', () => { const m = [{ type: 'load', load, t: 1 }, { type: 'response', loadId: 'L1', action: 'accept', t: 2 }, { type: 'status', loadId: 'L1', status: 'en_route_pickup', t: 3 }, { type: 'status', loadId: 'L1', status: 'delivered', pod: { photo: 'x' }, t: 5 }, { type: 'status', loadId: 'L1', status: 'loaded', t: 4 }];
+  const s = D.fold(m).L1; assert.equal(s.state, 'delivered'); assert.equal(s.pod.photo, 'x'); assert.equal(s.history.length, 4); assert.equal(D.nextStatus('accepted'), 'en_route_pickup'); assert.equal(D.nextStatus('delivered'), null);
+  assert.equal(D.fold([{ type: 'load', load, t: 1 }, { type: 'response', loadId: 'L1', action: 'counter', counter: { amount: 1000 }, t: 2 }]).L1.state, 'countered'); });
+test('routeStops order pickup -> stops -> drop', () => { assert.deepEqual(D.routeStops({ ...load, stops: [{ address: 's', lat: 1, lon: 1 }] }).map(s => s.kind), ['pickup', 'stop', 'drop']); });
+// I-95 north-ish straight line, 0.01 deg lat ≈ 1.11 km
+const route = Array.from({ length: 120 }, (_, i) => [-74.0, 40.0 + i * 0.01]);
+test("pass prediction: friend ahead, same direction slower -> You'll pass", () => { const p = F.passPrediction({ me: { lat: 40.0, lon: -74.0, speed: 29, heading: 0 }, fr: { lat: 40.2, lon: -74.0, speed: 20, heading: 0, t: Date.now() }, myRoute: route, names: [{ along: 0, name: 'I-95' }, { along: 60000, name: 'Exit 12' }], who: 'Mike' });
+  assert.equal(p.kind, 'ahead'); assert.match(p.text, /You'll pass Mike in ~\d+ mi near Exit 12/); assert.ok(p.miles > 40 && p.miles < 50, String(p.miles)); });
+test('pass prediction: oncoming friend closes faster', () => { const p = F.passPrediction({ me: { lat: 40.0, lon: -74.0, speed: 25, heading: 0 }, fr: { lat: 40.2, lon: -74.0, speed: 25, heading: 180, t: Date.now() }, myRoute: route, who: 'Mike' }); assert.ok(Math.abs(p.miles - 6.9) < 0.6, String(p.miles)); });
+test('pass prediction: passed friend', () => { const p = F.passPrediction({ me: { lat: 40.2, lon: -74.0, speed: 29, heading: 0 }, fr: { lat: 40.1, lon: -74.0, speed: 20, heading: 0, t: Date.now() }, myRoute: route, who: 'Mike' }); assert.equal(p.kind, 'behind'); assert.match(p.text, /You passed Mike \d+ min ago/); });
+test('pass prediction: stale or off-route friend -> null; near -> near', () => { assert.equal(F.passPrediction({ me: { lat: 40, lon: -74 }, fr: { lat: 40.2, lon: -74, t: Date.now() - 3600e3 }, myRoute: route }), null);
+  assert.equal(F.passPrediction({ me: { lat: 40, lon: -74, speed: 20 }, fr: { lat: 40.2, lon: -73.5, t: Date.now() }, myRoute: route }), null);
+  assert.equal(F.passPrediction({ me: { lat: 40, lon: -74 }, fr: { lat: 40.003, lon: -74, t: Date.now() }, myRoute: route }).kind, 'near'); });
+test('crossing routes -> meeting prediction', () => { const fr = Array.from({ length: 40 }, (_, i) => [-74.2 + i * 0.01, 40.3]); const p = F.passPrediction({ me: { lat: 40.0, lon: -74.0, speed: 25 }, fr: { lat: 40.3, lon: -74.2, speed: 15, t: Date.now() }, myRoute: route, frRoute: fr, who: 'Mike' });
+  assert.ok(p && /crosses Mike/.test(p.text), JSON.stringify(p)); });
