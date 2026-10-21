@@ -33,3 +33,5 @@ test('feed parsers', () => { const f = parseNycDot([{ link_id: '1', speed: '12.4
   const h = parseHere({ sourceUpdated: '2026-10-21T21:00:00Z', results: [{ location: { description: 'I-95', shape: { links: [{ points: [{ lat: 40, lng: -74 }, { lat: 40.01, lng: -74 }] }] } }, currentFlow: { speed: 10, freeFlow: 25 } }] });
   assert.equal(h[0].ratio, 0.4); assert.equal(h[0].src, 'HERE');
   const t = parseTomTom({ flowSegmentData: { currentSpeed: 40, freeFlowSpeed: 100, coordinates: { coordinate: [{ latitude: 40, longitude: -74 }, { latitude: 40.01, longitude: -74 }] } } }); assert.equal(t.ratio, 0.4); });
+test('NYC DOT direction comes from link name, not point order', () => { const [w] = parseNycDot([{ link_id: '9', speed: '8', status: '0', data_as_of: '2026-10-21T15:00:00.000', link_name: 'CBE W MORRIS AVE - GWB', link_points: '40.6,-74.0 40.6,-73.99' }]);
+  assert.equal(w.dir, 270); assert.equal(linkObs(w)[0].h, 270); });

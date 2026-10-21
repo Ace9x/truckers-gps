@@ -24,7 +24,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   .tf-row{margin-top:4px;font-size:13px} .tf-row b{padding:1px 6px;border-radius:6px;color:#fff}
   #tfBox{margin:8px 0;padding:8px;border-radius:12px;background:#ffffff10;font-size:13px}
   #tfBox .links{display:flex;gap:6px;margin-top:6px} #tfBox .links a{flex:1;text-align:center;padding:9px 4px;border-radius:10px;background:#2d3748;color:#fff;text-decoration:none;font-weight:700}
-  #tfLegend{position:fixed;left:10px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:6;font:700 11px system-ui;background:#000b;color:#ddd;padding:4px 8px;border-radius:9px;pointer-events:none;max-width:60vw}
+  #tfLegend{position:fixed;left:10px;bottom:calc(262px + env(safe-area-inset-bottom));z-index:6;font:700 11px system-ui;background:#000b;color:#ddd;padding:4px 8px;border-radius:9px;pointer-events:none;max-width:60vw}
   #tfLegend i{display:inline-block;width:14px;height:4px;margin:0 3px 2px 6px;vertical-align:middle}`;
   document.head.appendChild(css);
   const legend = document.createElement('div'); legend.id = 'tfLegend'; document.body.appendChild(legend);
@@ -85,9 +85,11 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       tags: [['g', geohash(pos.lat, pos.lon, 4)], ['t', TTAG], ['expiration', String(Math.floor(Date.now() / 1000) + 1800)]] }, sk);
     ingest(ev); const m = JSON.stringify(['EVENT', ev]); let n = 0; rel.forEach(r => { if (r.open) try { r.ws.send(m); n++; } catch {} }); return n; }
   T.share = share; T.aggregate = () => aggregate(T.crowd);
-  let lastShare = 0;
-  setInterval(() => { const p = S.pos; if (!p) return; setArea(p.lat, p.lon);
-    const mph = (p.speed || 0) * MPH; if ((S.nav || mph > 3) && Date.now() - lastShare > 30e3) { lastShare = Date.now(); share(mph); } }, 5000);
+  // Auto-share only while actually rolling (>= 60 m since last share or > 3 mph) so parked/idling trucks never paint fake jams; never from automated test browsers.
+  let lastShare = 0, lastAt = null;
+  setInterval(() => { const p = S.pos; if (!p) return; setArea(p.lat, p.lon); if (navigator.webdriver) return;
+    const mph = (p.speed || 0) * MPH, moved = lastAt ? Math.hypot((p.lon - lastAt.lon) * 84e3, (p.lat - lastAt.lat) * 111e3) : 1e9;
+    if (S.nav && (mph > 3 || moved >= 60) && Date.now() - lastShare > 30e3) { lastShare = Date.now(); lastAt = { lat: p.lat, lon: p.lon }; share(mph); } }, 5000);
 
   // ---------- combine ----------
   function allLinks() { const out = []; for (const k of ['here', 'tomtom', 'nyc']) for (const l of T.feeds[k]?.links || []) out.push(l);
@@ -134,8 +136,12 @@ export function init(S, { $, map, say, toast, esc, LS }) {
         showBanner(`<div class="t">🚦 ${esc(txt)}<div class="d">${s.mph} mph · ${esc(tr.sources.join(' + '))} · ${ageText(Date.now() - tr.newest)}</div></div>`, s.level === 'slow' ? 'slow' : '', [['✕', null, true]]); } }
     if (Date.now() - lastCheck > 120e3 && tr.delay >= T.thresholdMin * 60 && !suggesting) { lastCheck = Date.now(); suggest(tr); } }
   async function suggest(tr) { suggesting = true; try { const from = S.pos, to = S.dest; if (!from || !to || !S.valhalla) return;
-      const alts = await S.valhalla(from, to, 'truck', { alternates: 2, heading: from.heading }); // truck costing: clearance/weight/hazmat/length restrictions kept
-      const cur = { time: S.remT ?? S.route.time, delay: tr.delay };
+      // truck costing on every candidate: clearance/weight/hazmat/length restrictions kept. Also ask for a route that steers around the worst jam (Waze-style).
+      const along = S.along || 0, worst = [...tr.slowdowns].filter(s => s.end > along).sort((a, b) => b.delay - a.delay)[0], ex = [];
+      if (worst) for (let a = Math.max(worst.start, along + 300); a < Math.min(worst.end, worst.start + 3000); a += 250) { const i = S.route.cum.findIndex(c => c >= a); if (i > 0) ex.push(sq(S.route.line[i], 40)); }
+      const [r1, r2] = await Promise.all([S.valhalla(from, to, 'truck', { alternates: 2, heading: from.heading }).catch(() => []), ex.length ? S.valhalla(from, to, 'truck', { heading: from.heading, exclude: ex }).then(r => [r]).catch(() => []) : []]);
+      const alts = [...r1, ...r2];
+      const cur = { time: S.remT != null ? S.remT - (S.trafficDelay || 0) : S.route.time, delay: tr.delay };
       const cand = alts.map(r => ({ r, time: r.time, delay: T.routeTraffic(r, 0).delay })).filter(c => Math.abs(c.r.length - (S.route.length - (S.along || 0))) > 200 || c.r.time < cur.time - 60);
       const best = rerouteDecision(cur, cand, { minDelay: T.thresholdMin * 60 }); T.suggestion = best ? { save: best.save, delay: best.delay, len: best.r.length } : { none: true, delay: tr.delay };
       if (!best) return; const min = Math.round(best.save / 60);
@@ -143,6 +149,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       showBanner(`<div class="t">⚡ Faster truck‑safe route<div class="d">saves ~${min} min · avoids ${Math.round(tr.delay / 60)} min delay · still checked for your ${S.truck.heightFt}'${S.truck.heightIn}" / ${Math.round(S.truck.weightLbs / 1000)}k lbs rig</div></div>`, '', [['Switch', () => { S.routes = [best.r]; S.sel = 0; S.chosen = best.r; S.selectRoute?.(0); say('Switched to the faster truck route.', 'info', true); refresh(); }], ['Keep', null, true]]);
     } catch (e) { T.suggestion = { error: e.message }; } finally { suggesting = false; } }
   T.suggest = suggest;
+  const sq = ([lon, lat], m) => { const dy = m / 111320, dx = dy / Math.cos(lat * Math.PI / 180); return [[lon - dx, lat - dy], [lon + dx, lat - dy], [lon + dx, lat + dy], [lon - dx, lat + dy], [lon - dx, lat - dy]]; };
   // ---------- settings: free keys ----------
   T.setKeys = (k) => { Object.assign(T.keys, k); LS.set('tomtomKey', T.keys.tomtom || ''); LS.set('hereKey', T.keys.here || ''); if (map.getLayer('ttflow')) { map.removeLayer('ttflow'); map.removeSource('ttflow'); } layers(); tick(true); };
   const me = $('#mePanel'); if (me) { const d = document.createElement('details'); d.innerHTML = `<summary>🚦 Traffic sources</summary><div class="small muted">Built in, free: NYC DOT live speeds (keyless), RigRoute drivers' anonymous speeds. Optional free developer keys add nationwide coverage (TomTom 2,500 req/day, HERE free tier). Keys stay on this phone.</div>

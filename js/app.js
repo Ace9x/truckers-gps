@@ -185,11 +185,11 @@ function mergeLegs(trip, costing) {
     ln.push(...pts); man.push(...ms); }
   return { line: ln, cum: cumulative(ln), maneuvers: man, length: trip.summary.length * 1000, time: trip.summary.time, summary: trip.summary, costing };
 }
-async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [] } = {}) {
+async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [], exclude = [] } = {}) {
   const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
   const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: 'en-US', directions_options: { units: 'kilometers' } };
   if (costing === 'truck') body.costing_options = { truck: truckCosting(S.truck) };
-  if (avoid) { const ex = excludePolys(from, to); if (ex.length) body.exclude_polygons = ex; }
+  { const ex = [...(avoid ? excludePolys(from, to) : []), ...exclude]; if (ex.length) body.exclude_polygons = ex; } // exclude: e.g. a live traffic jam
   if (alternates && !stops.length) body.alternates = alternates;
   const r = await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
   const j = await r.json(); if (!r.ok || !j.trip) throw new Error(j.error || 'No route found');
