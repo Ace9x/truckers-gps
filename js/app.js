@@ -206,6 +206,7 @@ async function setDest(d) {
 }
 async function plan(isReroute = false) {
   if (!S.pos || !S.dest) return;
+  if (isReroute && !navigator.onLine) { S.pendingReroute = true; return; } // offline: keep current route, reroute queued until signal returns
   if (!isReroute) { $('#routeSummary').textContent = 'Finding truck‑safe routes…'; if ($('#routePanel').classList.contains('hidden')) openPanel('routePanel'); }
   try {
     const from = S.pos, to = destTarget();
@@ -289,7 +290,7 @@ function dangerAlerts() {
 // Wrong-road check: ask Valhalla what road we're on (truck access, class)
 let wrTimer = 0;
 async function checkWrongRoad() {
-  if (!S.nav || !S.pos || Date.now() - wrTimer < 10000 || (S.pos.speed || 0) < 2) return; wrTimer = Date.now(); S.wrChecks = (S.wrChecks || 0) + 1;
+  if (!S.nav || !S.pos || !navigator.onLine || Date.now() - wrTimer < 10000 || (S.pos.speed || 0) < 2) return; wrTimer = Date.now(); S.wrChecks = (S.wrChecks || 0) + 1;
   try { const r = await fetch(VALHALLA.replace('/route', '/locate'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
       body: JSON.stringify({ locations: [{ lat: S.pos.lat, lon: S.pos.lon, heading: S.pos.heading != null ? Math.round(S.pos.heading) : undefined, radius: 15 }], costing: 'auto', verbose: true }) }); // auto: so roads closed to trucks are still found
     const j = await r.json(); const e = j[0]?.edges?.[0]; S.lastLocate = e?.edge_info?.names; showWrongRoad(wrongRoad(e, { offRoute: (S.distFromRoute || 0) > 40, nearDest: S.route && S.route.length - S.along < 800 }));
@@ -415,7 +416,8 @@ function bboxOf(ln, pad) { let a = [180, 90, -180, -90]; for (const [x, y] of ln
 async function overpassChunk(pts) {
   const key = 'op_' + pts[0].map(v => v.toFixed(3)).join() + '_' + pts.at(-1).map(v => v.toFixed(3)).join() + '_' + pts.length;
   const c = LS.get(key, null); if (c && Date.now() - c.t < 7 * 864e5) return c.els;
-  if (S.overpassBusyUntil > Date.now()) return null;
+  if (S.overpassBusyUntil > Date.now() || !navigator.onLine) return null;
+
   for (let round = 0; round < 1; round++) {
     for (const url of OVERPASS) { try { const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(overpassQuery(pts, 1200)), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: AbortSignal.timeout(20000) });
       if (!r.ok) continue; const j = await r.json(); if (j.remark && !j.elements?.length) continue; LS.set(key, { t: Date.now(), els: j.elements }); return j.elements; } catch {} } }

@@ -11,7 +11,7 @@ const mk = async geo => { const ctx = await browser.newContext({ ...devices['iPh
 const A = await mk(HP), page = A.page, T = (f, a) => page.evaluate(f, a), shot = n => page.screenshot({ path: `${SHOTS}/${n}.png` });
 const ready = async p => { await p.waitForFunction(() => window.TruckNav?.ready && TruckNav.offlineReady, null, { timeout: 30000 }); };
 await page.goto(BASE); await ready(page);
-await T(async () => { await navigator.serviceWorker.ready; }); await page.reload(); await ready(page); // page now controlled by the service worker
+await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.active, null, { timeout: 60000, polling: 1000 }); await page.reload(); await ready(page); // page now controlled by the service worker
 ok(await T(() => !!navigator.serviceWorker.controller), 'service worker controls the page (offline app shell + tile cache)');
 await page.waitForFunction(() => TruckNav.pos, null, { timeout: 15000 });
 await T(d => TruckNav.setDest(d), NJ);
@@ -42,7 +42,7 @@ ok(vc.length === 2 && /left/.test(vc[0]) && /fuel|truck stop/i.test(vc[1]), `voi
 const mu = await T(() => { TruckNav.runCommand('mute'); const m = !TruckNav.voiceObj.enabled; TruckNav.runCommand('unmute'); return m && TruckNav.voiceObj.enabled; }); ok(mu, 'voice commands "mute" / "unmute"');
 
 // ===== GO OFFLINE mid-navigation =====
-let netCalls = 0; A.ctx.on('request', r => { if (/valhalla|overpass|photon/.test(r.url())) netCalls++; });
+let netCalls = 0; A.ctx.on('request', r => { if (/valhalla|overpass|photon/.test(r.url())) { netCalls++; console.log('INFO offline call', r.url().slice(0, 80)); } });
 await A.ctx.setOffline(true); await page.waitForTimeout(800);
 const pill = await T(() => ({ on: navigator.onLine, t: document.querySelector('#netPill').textContent }));
 ok(!pill.on && /OFFLINE/.test(pill.t), `offline indicator: "${pill.t}"`);

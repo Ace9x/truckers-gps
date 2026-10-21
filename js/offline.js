@@ -156,7 +156,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     if (r.sent) toast(`Back online — sent ${r.sent} report${r.sent > 1 ? 's' : ''}/vote${r.sent > 1 ? 's' : ''} made offline${r.dropped ? `, dropped ${r.dropped} expired` : ''}`, 4000); return r; }
   S.flushOutbox = flush;
   function goOnline() { renderNet(); flush(); let k = 0; const burst = setInterval(async () => { if (++k > 30 || !online() || !(await outbox.size())) return clearInterval(burst); flush(); }, 2000);
-    if (S.nav && S.off.isOff() && S.pendingReroute) { S.pendingReroute = false; $('#offGuide').classList.add('hidden'); say('Signal is back. Recalculating.', 'reroute'); S.rerouting = true; S.lastReroute = Date.now(); S.plan(true).finally(() => S.rerouting = false); } }
+    if (S.nav && S.pendingReroute) { S.pendingReroute = false; $('#offGuide').classList.add('hidden'); say('Signal is back. Recalculating.', 'reroute'); S.rerouting = true; S.lastReroute = Date.now(); S.plan(true).finally(() => S.rerouting = false); } }
   function goOffline() { renderNet(); saveTrip(); }
   addEventListener('online', goOnline); addEventListener('offline', goOffline); S.goOnline = goOnline; S.goOffline = goOffline;
   setInterval(() => { if (online()) flush(); }, 30e3); renderNet();
