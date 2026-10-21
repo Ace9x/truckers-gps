@@ -103,3 +103,12 @@ export function parseTrace(j, decode) { if (!j?.shape) return null; const m = j.
   const cnt = {}; for (const e of j.edges || []) cnt[e.road_class] = (cnt[e.road_class] || 0) + 1;
   const cls = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || (CLS_RANK[a] ?? 9) - (CLS_RANK[b] ?? 9))[0] || 'unknown';
   return { coords, cls }; }
+// Colour the route line itself by congestion (UX P7, code D5): MapLibre line-gradient over line-progress (0..1 of the full route).
+export function routeGradient(slowdowns, length, base = '#2e8bff') { if (!slowdowns?.length || !(length > 0)) return null;
+  const col = { slow: LEVELS[1].color, heavy: LEVELS[2].color, jam: LEVELS[3].color }, eps = 1e-6, stops = [[0, base]];
+  for (const s of [...slowdowns].sort((a, b) => a.start - b.start)) { const p0 = Math.max(0, s.start / length), p1 = Math.min(1, s.end / length), c = col[s.level] || base;
+    if (p1 <= p0) continue; const last = stops.at(-1)[0];
+    if (p0 - eps > last) stops.push([p0 - eps, base]); stops.push([Math.max(p0, stops.at(-1)[0] + eps), c]); stops.push([Math.max(p1, stops.at(-1)[0] + eps), c]);
+    if (p1 + eps < 1) stops.push([p1 + eps, base]); }
+  if (stops.at(-1)[0] < 1) stops.push([1, stops.at(-1)[1]]);
+  return ['interpolate', ['linear'], ['line-progress'], ...stops.filter(x => x[0] <= 1).flat()]; }

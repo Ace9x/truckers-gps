@@ -86,7 +86,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
   .hz-call:after{content:'';position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:#fff}
   #hzBanner{position:fixed;left:10px;right:10px;top:calc(96px + env(safe-area-inset-top));z-index:30;display:flex;gap:12px;align-items:center;background:#f59e0b;color:#111;border-radius:18px;padding:12px 14px;box-shadow:0 8px 24px #000a;font-weight:800}
   #hzBanner.red{background:#e53935;color:#fff} #hzBanner b{font-size:34px} #hzBanner .t{flex:1;font-size:17px} #hzBanner .d{font-size:13px;opacity:.85;font-weight:700}
-  #hzBanner button{border:0;border-radius:12px;padding:10px;font-size:20px;background:#fff3}
+  #hzBanner button{border:0;border-radius:12px;padding:10px;font-size:16px;background:#fff3}
   #hzLive{position:fixed;right:10px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:6;font:700 11px system-ui;background:#000a;color:#9f9;padding:3px 7px;border-radius:9px;pointer-events:none}`;
   document.head.appendChild(css);
   const color = t => ['accident', 'closed', 'clearance', 'weigh_closed'].includes(t) ? 'red' : t === 'police' || t === 'camera' ? 'blue' : t === 'weigh_open' ? 'green' : '';
@@ -114,9 +114,11 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
   // approaching alerts
   const warned = new Map(); let banner;
   function showBanner(r, d) { banner?.remove(); banner = document.createElement('div'); banner.id = 'hzBanner'; banner.className = color(r.type) === 'red' ? 'red' : '';
-    banner.innerHTML = `<b>${HZ[r.type].icon}</b><div class="t">${HZ[r.type].label} ahead<div class="d">${(d / 1609.34).toFixed(1)} mi · reported ${ago(Date.now() - r.t)} · 👍 ${r.up || 0}</div></div>` + (r.mine ? '' : '<button data-v="up" aria-label="Still there">👍</button><button data-v="down" aria-label="Not there">👎</button>');
-    banner.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v); banner.remove(); });
-    document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), 15000); }
+    // UX P9: approach-triggered, two equal 76 px answers, auto-dismiss after 8 s (progress bar), spoken at the same time.
+    banner.innerHTML = `<div class="hzb-top"><b>${HZ[r.type].icon}</b><div class="t">${HZ[r.type].label} ahead<div class="d">${(d / 1609.34).toFixed(1)} mi · reported ${ago(Date.now() - r.t)} · 👍 ${r.up || 0}</div></div></div>` +
+      (r.mine ? '' : '<div class="hzb-btns"><button data-v="up" aria-label="Thanks, still there">Thanks, still there</button><button data-v="down" aria-label="Not there">Not there</button></div>') + '<i class="hzb-bar"></i>';
+    banner.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v); banner.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — marked not there'); });
+    document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), 8000); }
   function checkAhead() { const p = S.pos; if (!p) return;
     const route = S.nav && S.route ? { line: S.route.line, cum: S.route.cum, along: S.along || 0 } : null;
     const list = ahead(hz.visible(), { pos: p, heading: p.heading, route, snap: snapToRoute }).filter(x => !x.r.mine);

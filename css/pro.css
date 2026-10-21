@@ -211,3 +211,31 @@ html body #hzGrid button{min-width:0;min-height:88px;font-size:13px;padding:8px 
 html body #hzGrid button .pi svg{width:28px;height:28px}
 html body #hzSheet{left:0;right:0;box-sizing:border-box;max-width:100vw}
 .maplibregl-popup{z-index:32}
+
+/* ---- Round 2 ---- */
+/* Corner tidy: legend chip + live-reports pill share ONE row, 12px above the speed circle, never overlapping it (UX P3 clear map corners) */
+html body #tfLegend{bottom:calc(236px + var(--safe-b))!important;height:28px;display:flex;align-items:center;box-sizing:border-box}
+html body #hzLive{left:138px!important;right:auto!important;bottom:calc(236px + var(--safe-b))!important;height:28px;display:flex;align-items:center;gap:6px;box-sizing:border-box;border:1px solid var(--line);color:var(--mut);padding:0 10px}
+html body #tfLegend:not(.min){max-width:calc(100vw - 24px)}
+html body #tfLegend:not(.min) ~ #hzLive,body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(272px + var(--safe-b))!important;left:12px!important}
+
+/* Hazard alert banner, 120px, two equal 76px answers, 8s progress bar (UX P9) */
+html body #hzBanner{position:fixed;left:8px;right:8px;top:calc(8px + var(--safe-t,0px));z-index:31;min-height:120px;box-sizing:border-box;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-left:6px solid var(--warn,#f5a524);box-shadow:var(--sh3,0 8px 24px #0008);overflow:hidden;transform:none;width:auto;max-width:none}
+body.st-nav #hzBanner,body.st-arriving #hzBanner{top:calc(176px + var(--safe-t,0px))}
+#hzBanner .hzb-top{display:flex;align-items:center;gap:12px}
+#hzBanner .hzb-top>b{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--warn,#f5a524);color:#111;font-size:22px;flex:none}
+#hzBanner .t{font:700 20px/1.15 var(--font)}#hzBanner .d{font:500 13px var(--font);color:var(--mut);margin-top:2px}
+#hzBanner .hzb-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+html body #hzBanner .hzb-btns button{height:76px;font:700 17px var(--font);border-radius:var(--r2);border:1px solid var(--line);background:var(--surface-2,#ffffff14);color:var(--txt);padding:0 8px}
+html body #hzBanner .hzb-btns button[data-v=up]{background:var(--ok,#2e7d32);border-color:transparent;color:#fff}
+#hzBanner .hzb-bar{position:absolute;left:0;bottom:0;height:4px;background:var(--brand);animation:hzbar 8s linear forwards}
+@keyframes hzbar{from{width:100%}to{width:0}}
+
+/* Restriction rail (spec §1): right edge under the turn card, max 3 chips, 56x56, distance underneath */
+#restrictRail{position:fixed;right:8px;top:calc(184px + var(--safe-t,0px));z-index:12;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#restrictRail[hidden]{display:none}
+#restrictRail .rr-chip{width:56px;min-height:56px;box-sizing:border-box;border-radius:var(--r2);background:#fff;color:#111;border:3px solid #111;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:var(--sh2);padding:4px 2px 2px;font-family:var(--font)}
+#restrictRail .rr-chip .ic{font:800 13px/1 var(--font)}#restrictRail .k-weigh .ic{font-size:9px;letter-spacing:.06em}
+#restrictRail .rr-chip b{font:800 14px/1.1 var(--font);font-variant-numeric:tabular-nums}
+#restrictRail .rr-chip i{font:700 10px/1.2 var(--font);font-style:normal;background:#111;color:#fff;border-radius:4px;padding:0 4px;margin-top:2px}
+#restrictRail .s-stop{border-color:var(--bad,#d32f2f);background:#fff5f5}#restrictRail .s-warn{border-color:#f5a524;background:#fffbea}

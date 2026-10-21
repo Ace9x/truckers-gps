@@ -42,3 +42,9 @@ test('NYC DOT: no straight lines across the map, stale data dropped', () => {
   assert.ok(f.length >= 1 && f.every(s => s.coords.length >= 2));
   const now = Date.parse('2026-10-21T19:50:00Z'); assert.equal(freshLinks(f, now).length, f.length); assert.equal(freshLinks(f, now + 2.3 * 3600e3).length, 0);
 });
+import { routeGradient } from '../js/trafficlogic.js';
+test('route line gradient by congestion: ascending stops, colours only on slow parts', () => {
+  assert.equal(routeGradient([], 1000), null);
+  const g = routeGradient([{ start: 200, end: 400, level: 'heavy' }, { start: 390, end: 600, level: 'jam' }], 1000); const st = g.slice(3);
+  for (let i = 2; i < st.length; i += 2) assert.ok(st[i] > st[i - 2], 'strictly ascending');
+  assert.ok(st.includes('#e53935') && st.includes('#7f0000') && st[1] === '#2e8bff'); });

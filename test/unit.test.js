@@ -178,3 +178,8 @@ test('sun altitude / auto day-night for NYC', () => {
   assert.ok(sunAltitude(40.71, -74.0, new Date('2026-06-21T16:50:00Z')) > 70); // ~local solar noon in June
   assert.ok(sunAltitude(40.71, -74.0, new Date('2026-10-22T04:00:00Z')) < -30); // midnight
   assert.equal(isDaylight(40.71, -74.0, new Date('2026-10-21T16:00:00Z')), true); assert.equal(isDaylight(40.71, -74.0, new Date('2026-10-22T00:30:00Z')), false); });
+import { railItems, distLabel } from '../js/rail.js';
+test('restriction rail: nearest 3 restrictions/scales ahead with values', () => {
+  const it = railItems({ along: 1000, dangers: [{ kind: 'height', sev: 'warn', along: 20000, short: `Tight clearance 13'8"` }, { kind: 'weight', sev: 'stop', along: 5000, short: 'Weight limit 40k lb' }, { kind: 'curve', along: 3000 }, { kind: 'height', along: 500, short: `Low bridge 11'0"` }],
+    pois: [{ kind: 'weigh', along: 80000, name: 'I-95 scale' }, { kind: 'fuel', along: 2000 }] });
+  assert.deepEqual(it.map(x => x.kind), ['weight', 'height', 'weigh']); assert.equal(it[0].value, '40k'); assert.equal(it[1].value, `13'8"`); assert.equal(distLabel(it[0].dist), '2 mi'); });

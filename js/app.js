@@ -57,7 +57,7 @@ function addLayers() {
   if (!map.getSource('sat')) map.addSource('sat', { type: 'raster', tileSize: 256, maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] });
   const firstSym = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
   if (!map.getLayer('sat')) map.addLayer({ id: 'sat', type: 'raster', source: 'sat', layout: { visibility: S.sat ? 'visible' : 'none' } }, firstSym);
-  for (const id of ['car', 'alts', 'route', 'done']) if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: empty });
+  for (const id of ['car', 'alts', 'route', 'done']) if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: empty, ...(id === 'route' ? { lineMetrics: true } : {}) }); // lineMetrics: route coloured by traffic via line-gradient
   if (!map.getLayer('car')) map.addLayer({ id: 'car', type: 'line', source: 'car', paint: { 'line-color': '#9e9e9e', 'line-width': 4, 'line-dasharray': [2, 2] } });
   if (!map.getLayer('alts')) map.addLayer({ id: 'alts', type: 'line', source: 'alts', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#78909c', 'line-width': 7, 'line-opacity': 0.8 } });
   if (!map.getLayer('route-casing')) map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#0d47a1', 'line-width': 13 } });

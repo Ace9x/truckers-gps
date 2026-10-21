@@ -2,6 +2,8 @@
 // trucking map style, splash, help button, first-run tour with Ace. Styling/markup only — no feature logic.
 import { ICONS } from './iconset.js';
 import { HZ } from './hazlogic.js';
+import { railItems, distLabel } from './rail.js';
+import { routeGradient } from './trafficlogic.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
@@ -167,3 +169,22 @@ function state() { const b = document.body, mph = (S.pos?.speed || 0) * 2.23694,
   const rp = $('#rpTruck'); if (rp && rp.dataset.t !== txt) { rp.dataset.t = txt; rp.innerHTML = svg(ICONS['🚛']) + ` Routing for ${txt} <span class="muted">· edit</span>`; rp.onclick = () => document.querySelector('[data-panel=truckPanel]')?.click(); } }
 function placeChip() { const row = $('#acctChips'), c = $('#truckChip'); if (row && c && c.parentElement !== row) { c.classList.add('chip'); row.prepend(c); } }
 setInterval(() => { state(); placeChip(); }, 1000); state();
+
+// ---- Round 2: route line coloured by traffic (UX P7 / code D5) ----
+// The route line itself carries congestion colour via line-gradient (source has lineMetrics) instead of a second overlay line.
+function routeTraffic() { if (!map?.getLayer('route')) return;
+  const W = ['interpolate', ['exponential', 1.5], ['zoom'], 8, 4, 14, 8, 18, 14], WC = ['interpolate', ['exponential', 1.5], ['zoom'], 8, 6, 14, 12, 18, 20];
+  if (!routeTraffic.styled) { try { map.setPaintProperty('route', 'line-width', W); map.setPaintProperty('route-casing', 'line-width', WC); map.setPaintProperty('route-casing', 'line-color', '#0b2e59'); map.setPaintProperty('route', 'line-color', '#2e8bff'); if (map.getLayer('done')) map.setPaintProperty('done', 'line-opacity', 0.4); routeTraffic.styled = true; } catch {} }
+  const T = S.traffic, r = S.route, g = r && T?.cur ? routeGradient(T.cur.slowdowns, r.length) : null, key = g ? JSON.stringify(g) : '';
+  if (key === routeTraffic.key) return; routeTraffic.key = key;
+  try { map.setPaintProperty('route', 'line-gradient', g || ['interpolate', ['linear'], ['line-progress'], 0, '#2e8bff', 1, '#2e8bff']);
+    if (map.getLayer('tfRoute')) map.setLayoutProperty('tfRoute', 'visibility', 'none'); document.body.dataset.routeTraffic = g ? 'on' : 'off'; } catch (e) { console.warn('route gradient', e); } }
+if (map) { map.on('styledata', () => { routeTraffic.styled = false; routeTraffic.key = null; }); setInterval(routeTraffic, 1500); }
+
+// ---- Round 2: restriction rail (spec §1) ----
+const RAIL_ICON = { height: '↕', weight: '⚖', length: '↔', hazmat: '☣', notrucks: '⛔', weigh: '⚖' };
+function rail() { let el = $('#restrictRail'); if (!el) { el = document.createElement('div'); el.id = 'restrictRail'; el.setAttribute('aria-label', 'Upcoming restrictions'); document.body.appendChild(el); }
+  const items = S.nav ? railItems({ dangers: S.dangers || [], pois: S.pois || [], along: S.along || 0 }) : [];
+  const html = items.map(x => `<div class="rr-chip k-${x.kind} s-${x.sev || 'info'}" role="note" title="${x.label}"><span class="ic">${x.kind === 'weigh' ? 'SCALE' : RAIL_ICON[x.kind]}</span><b>${x.value || ''}</b><i>${distLabel(x.dist, S.truck?.units)}</i></div>`).join('');
+  if (el.innerHTML !== html) el.innerHTML = html; el.hidden = !items.length; }
+setInterval(rail, 1000);
