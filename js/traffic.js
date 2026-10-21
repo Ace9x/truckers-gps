@@ -35,9 +35,9 @@ export function init(S, { $, map, say, toast, esc, LS }) {
     const before = map.getLayer('route-casing') ? 'route-casing' : undefined;
     // UX P7 / code C2: casing + exponential width; motorway/trunk only below z12, primary+ from z12, everything matched from z14.
     const clsFilter = ['any', ['in', ['get', 'cls'], ['literal', ['motorway', 'trunk']]], ['all', ['>=', ['zoom'], 12], ['==', ['get', 'cls'], 'primary']], ['>=', ['zoom'], 14]];
-    const W = k => ['interpolate', ['exponential', 1.5], ['zoom'], 9, 1.5 * k, 12, 3 * k, 15, 6 * k, 18, 14 * k];
+    const W = (k, add = 0) => ['interpolate', ['exponential', 1.5], ['zoom'], 9, 1.5 * k + add, 12, 3 * k + add, 15, 6 * k + add, 18, 14 * k + add]; // zoom must be the top-level interpolate input (no ['+', interpolate, n])
     if (!map.getLayer('tf-casing')) map.addLayer({ id: 'tf-casing', type: 'line', source: 'tf', minzoom: 9, filter: clsFilter, layout: { 'line-cap': 'round', 'line-join': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
-      paint: { 'line-color': '#000', 'line-opacity': 0.6, 'line-width': ['+', W(1), 3] } }, before);
+      paint: { 'line-color': '#000', 'line-opacity': 0.6, 'line-width': W(1, 3) } }, before);
     if (!map.getLayer('tf')) map.addLayer({ id: 'tf', type: 'line', source: 'tf', minzoom: 9, filter: clsFilter, layout: { 'line-cap': 'round', 'line-join': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
       paint: { 'line-color': ['match', ['get', 'level'], 'free', LEVELS[0].color, 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': W(1) } }, before);
     if (!map.getLayer('tfRoute')) map.addLayer({ id: 'tfRoute', type: 'line', source: 'tfRoute', layout: { 'line-cap': 'round', 'line-join': 'round' },

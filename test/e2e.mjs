@@ -145,7 +145,7 @@ if (sbMode) { await page.waitForSelector('#acctPanel [data-state="check-email"]'
   await shot('acct-check-email'); await page.unroute('**/auth/v1/signup**'); }
 else { await page.waitForFunction(() => !!TruckNav.auth.user, null, { timeout: 60000 }); await closeP(); await page.click('#meBtn'); await page.waitForSelector('#signOut');
   ok(await T(a => TruckNav.auth.user.email === a, ACC), 'device account sign-up signs in; Me shows Sign out'); }
-await closeP();
+await closeP(); await page.click('#meBtn'); await page.waitForSelector('#vPersona', { state: 'visible' }); // voice settings live in the Me panel
 // Voice personalities
 await page.selectOption('#vPersona', 'oldschool'); await page.click('#vPreview'); await page.waitForTimeout(300);
 const vl = await T(() => TruckNav.spokenLog.at(-1)); ok(/Ten-four\?$/.test(vl) && /Interstate 95 South/.test(vl), 'voice personality + preview: ' + vl);

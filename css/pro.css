@@ -220,12 +220,13 @@ html body #tfLegend:not(.min){max-width:calc(100vw - 24px)}
 html body #tfLegend:not(.min) ~ #hzLive,body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(272px + var(--safe-b))!important;left:12px!important}
 
 /* Hazard alert banner, 120px, two equal 76px answers, 8s progress bar (UX P9) */
-html body #hzBanner{position:fixed;left:8px;right:8px;top:calc(8px + var(--safe-t,0px));z-index:31;min-height:120px;box-sizing:border-box;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-left:6px solid var(--warn,#f5a524);box-shadow:var(--sh3,0 8px 24px #0008);overflow:hidden;transform:none;width:auto;max-width:none}
+html body #hzBanner{position:fixed;left:8px;right:8px;top:calc(8px + var(--safe-t,0px));z-index:31;height:120px;box-sizing:border-box;padding:8px 8px 10px;display:flex;flex-direction:column;gap:6px;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-left:6px solid var(--warn,#f5a524);box-shadow:var(--sh3,0 8px 24px #0008);overflow:hidden;transform:none;width:auto;max-width:none}
 body.st-nav #hzBanner,body.st-arriving #hzBanner{top:calc(176px + var(--safe-t,0px))}
-#hzBanner .hzb-top{display:flex;align-items:center;gap:12px}
-#hzBanner .hzb-top>b{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--warn,#f5a524);color:#111;font-size:22px;flex:none}
-#hzBanner .t{font:700 20px/1.15 var(--font)}#hzBanner .d{font:500 13px var(--font);color:var(--mut);margin-top:2px}
-#hzBanner .hzb-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+html body #hzBanner .hzb-top{display:flex;align-items:center;gap:8px;width:100%}
+#hzBanner .hzb-top>b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--warn,#f5a524);color:#111;font-size:14px;flex:none}
+#hzBanner .hzb-top>b svg{width:15px;height:15px}
+#hzBanner .t{font:700 16px/22px var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;gap:8px;align-items:baseline}#hzBanner .d{display:inline;font:500 12px var(--font);color:var(--mut)}
+html body #hzBanner .hzb-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}html body #hzBanner .hzb-btns button{width:100%}
 html body #hzBanner .hzb-btns button{height:76px;font:700 17px var(--font);border-radius:var(--r2);border:1px solid var(--line);background:var(--surface-2,#ffffff14);color:var(--txt);padding:0 8px}
 html body #hzBanner .hzb-btns button[data-v=up]{background:var(--ok,#2e7d32);border-color:transparent;color:#fff}
 #hzBanner .hzb-bar{position:absolute;left:0;bottom:0;height:4px;background:var(--brand);animation:hzbar 8s linear forwards}
@@ -239,3 +240,5 @@ html body #hzBanner .hzb-btns button[data-v=up]{background:var(--ok,#2e7d32);bor
 #restrictRail .rr-chip b{font:800 14px/1.1 var(--font);font-variant-numeric:tabular-nums}
 #restrictRail .rr-chip i{font:700 10px/1.2 var(--font);font-style:normal;background:#111;color:#fff;border-radius:4px;padding:0 4px;margin-top:2px}
 #restrictRail .s-stop{border-color:var(--bad,#d32f2f);background:#fff5f5}#restrictRail .s-warn{border-color:#f5a524;background:#fffbea}
+/* Drive mode (offline.js #drive, at speed) already has its own 4-button bar: never show two Report/Mute rows */
+body.driving #navStack{display:none!important}

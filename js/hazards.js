@@ -93,7 +93,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
   const live = document.createElement('div'); live.id = 'hzLive'; live.textContent = '● reports: connecting'; document.body.appendChild(live);
   let markers = new Map();
   const hz = new LiveHazards({ onChange: () => draw(), onStatus: s => { live.textContent = `● live reports: ${s}`; live.style.color = /live/.test(s) ? '#9f9' : '#fc6'; } });
-  S.hz = hz;
+  S.hz = hz; S.hzShowBanner = (r, d) => showBanner(r, d); // test/screenshot hook
   const here = () => S.pos || (() => { const c = map.getCenter(); return { lat: c.lat, lon: c.lng }; })();
   const syncArea = () => { const p = here(); hz.setArea(p.lat, p.lon); }; syncArea();
   map.on('moveend', () => { if (!S.pos) syncArea(); });
@@ -116,7 +116,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
   function showBanner(r, d) { banner?.remove(); banner = document.createElement('div'); banner.id = 'hzBanner'; banner.className = color(r.type) === 'red' ? 'red' : '';
     // UX P9: approach-triggered, two equal 76 px answers, auto-dismiss after 8 s (progress bar), spoken at the same time.
     banner.innerHTML = `<div class="hzb-top"><b>${HZ[r.type].icon}</b><div class="t">${HZ[r.type].label} ahead<div class="d">${(d / 1609.34).toFixed(1)} mi · reported ${ago(Date.now() - r.t)} · 👍 ${r.up || 0}</div></div></div>` +
-      (r.mine ? '' : '<div class="hzb-btns"><button data-v="up" aria-label="Thanks, still there">Thanks, still there</button><button data-v="down" aria-label="Not there">Not there</button></div>') + '<i class="hzb-bar"></i>';
+      (r.mine ? '' : '<div class="hzb-btns"><button data-v="up" aria-label="Thanks, still there">Thanks</button><button data-v="down" aria-label="Not there">Not there</button></div>') + '<i class="hzb-bar"></i>';
     banner.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v); banner.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — marked not there'); });
     document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), 8000); }
   function checkAhead() { const p = S.pos; if (!p) return;

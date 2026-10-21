@@ -31,7 +31,8 @@ for (const [X, mph] of [[P, 7], [Q, 11]]) ok(await X.evaluate(m => { TruckNav.po
 const seen = await C.waitForFunction(() => Object.values(TruckNav.traffic.aggregate()).find(a => a.n >= 2), null, { timeout: 30000, polling: 500 }).then(h => h.jsonValue()).catch(() => null);
 ok(seen && ['heavy', 'jam'].includes(seen.level), `third driver C sees crowd congestion: ${seen ? `${seen.mph} mph from ${seen.n} drivers → ${seen.level}` : 'nothing'}`);
 await C.evaluate(() => { TruckNav.traffic.refresh(); TruckNav.map.jumpTo({ center: [TruckNav.pos.lon, TruckNav.pos.lat], zoom: 16 }); }); await C.waitForTimeout(2500);
-ok(await C.evaluate(() => TruckNav.traffic.geo.features.some(f => f.properties.src === 'RigRoute drivers' && f.properties.level !== 'free')), 'crowd segment drawn on C\'s traffic layer');
+// UX spec D4: crowd point-speeds are no longer drawn as short sticks on the map; they feed route ETA/traffic instead.
+ok(await C.evaluate(() => TruckNav.traffic.links.some(l => /RigRoute drivers/.test(l.name || l.src || '') && l.ratio < 0.9) && !TruckNav.traffic.geo.features.some(f => f.properties.src === 'RigRoute drivers')), 'crowd segment received by C (used for routing, not drawn as a stick)');
 await C.screenshot({ path: `${SHOTS}/03-crowd-congestion-third-driver.png` });
 // one driver alone never shows (privacy / anti-spoof)
 const solo = await P.evaluate(() => { const p = { ...TruckNav.pos, lat: TruckNav.pos.lat + 0.02 + Math.random() * 0.01 }; TruckNav.traffic.share(3, p, 55); return Object.values(TruckNav.traffic.aggregate()).filter(a => Math.abs(a.lat - p.lat) < 0.003 && Math.abs(a.lon - p.lon) < 0.003).length; });
