@@ -22,14 +22,14 @@ await T(() => TruckNav.planner.addMany([{ address: 'Hudson Yards New York NY' },
 const n = await T(() => TruckNav.planner.plan.stops.length); ok(n === 8, `8 NYC-area stops imported & geocoded (CSV + pasted list): ${n}`);
 // time window on Barclays (must be early) via edit
 await T(() => { const s = TruckNav.planner.plan.stops.find(s => /Barclays/.test(s.name)); const d = new Date(); const now = d.getHours() * 3600 + d.getMinutes() * 60; s.tw = [null, 8 * 3600 + 90 * 60]; TruckNav.planner.render(); });
-await shot('02-stops-entered');
+await T(() => { document.querySelector('#plImport').open = false; }); await shot('02-stops-entered');
 const r = await T(async () => { document.querySelector('#plStart').value = '08:00'; const r = await TruckNav.planner.optimize(); return { src: r.src, before: r.before.dist, after: r.dist, late: r.lateCount, order: TruckNav.planner.plan.stops.map(s => s.name), sum: document.querySelector('#plSum').innerText }; });
 ok(/Valhalla truck/.test(r.src), 'travel times from Valhalla truck matrix: ' + r.src);
 ok(r.after < r.before, `optimized shorter than entered order: ${(r.before / 1609).toFixed(1)} → ${(r.after / 1609).toFixed(1)} mi`);
 ok(r.late === 0 && r.order.indexOf(r.order.find(x => /Barclays/.test(x))) <= 2, `Barclays 9:30 window respected (position ${r.order.findIndex(x => /Barclays/.test(x)) + 1}), late stops: ${r.late}`);
 console.log('  order:', r.order.join(' → ')); console.log('  ' + r.sum.replace(/\n/g, ' | '));
 const etas = await T(() => [...document.querySelectorAll('#plList li small')].filter(x => /ETA/.test(x.textContent)).length); ok(etas === 8, `ETA shown per stop (${etas})`);
-await shot('03-optimized'); await T(() => TruckNav.map.resize()); 
+await T(() => document.querySelector('#plList').scrollIntoView()); await shot('03-optimized'); await T(() => TruckNav.map.resize()); 
 // lock first + reorder via move, then save + share link
 await T(() => { TruckNav.planner.move(7, 0); }); const firstAfterMove = await T(() => TruckNav.planner.plan.stops[0].name);
 const lk = await T(async () => { document.querySelector('#plLF').checked = true; document.querySelector('#plLF').dispatchEvent(new Event('change')); const r = await TruckNav.planner.optimize(); return TruckNav.planner.plan.stops[0].name; });
