@@ -73,11 +73,12 @@ export function init(S, H) {
     $('#plSum').textContent = 'Optimizing with truck travel times…'; const M = await matrix(nodes); const tf = traffic(); if (tf) M.time = M.time.map(r => r.map(x => x * tf));
     const before = simulate(pend.map((_, i) => i + 1), nodes, M, o), res = optimize(nodes, M, o);
     const ordered = res.order.map(i => pend[i - 1]); const done = all.filter(s => !pend.includes(s)); P.plan.stops = [...done, ...ordered];
-    P.result = { ...res, M, nodes: [depot, ...ordered], before, src: M.source + (tf ? ' + live traffic' : '') }; P.plan.opts = { ...P.plan.opts, ...o }; save(); render(); drawMap(); return P.result; }
+    const perm = [0, ...res.order], M2 = { time: perm.map(a => perm.map(b => M.time[a][b])), dist: perm.map(a => perm.map(b => M.dist[a][b])), source: M.source };
+    P.result = { ...res, M: M2, nodes: [depot, ...ordered], before, src: M.source + (tf ? ' + live traffic' : '') }; P.plan.opts = { ...P.plan.opts, ...o }; if (!onlyPending) P.plan.plannedMi = +(res.dist / 1609).toFixed(1); save(); render(); drawMap(); return P.result; }
   P.optimize = runOpt;
   $('#plOpt').onclick = () => runOpt();
   function schedule() { const pend = P.plan.stops; if (!P.result || !pend.length) return null; const nodes = [P.result.nodes[0], ...pend];
-    const idx = pend.map(s => P.result.nodes.indexOf(s)); if (idx.some(i => i < 1)) return null; const M = { time: [0, ...idx].map(a => [0, ...idx].map(b => P.result.M.time[a === 0 ? 0 : a][b === 0 ? 0 : b])), dist: [0, ...idx].map(a => [0, ...idx].map(b => P.result.M.dist[a][b])) };
+    const idx = pend.map(s => P.result.nodes.indexOf(s)); if (idx.some(i => i < 1)) return null; const M = { time: [0, ...idx].map(a => [0, ...idx].map(b => P.result.M.time[a][b])), dist: [0, ...idx].map(a => [0, ...idx].map(b => P.result.M.dist[a][b])) };
     return simulate(pend.map((_, i) => i + 1), nodes, M, P.plan.opts.startSec ? P.plan.opts : opts()); }
   // ---------- render ----------
   function render() { $('#plName').value = P.plan.name; const ul = $('#plList'); ul.innerHTML = ''; const sc = schedule();
@@ -145,7 +146,7 @@ export function init(S, H) {
     if (a === 'skip') { const s = P.plan.stops[P.cur]; const a2 = P.plan.stops; a2.splice(P.cur, 1); a2.push(s); save(); try { S.endNav?.(); } catch {} toast('Skipped — moved to the end. Re-optimizing the rest…'); runOpt({ onlyPending: true, from: S.pos }).then(() => goTo(next())); }
     if (a === 'list') { openP(); } };
   function finish() { P.active = false; bar.classList.add('hidden'); try { S.endNav?.(); } catch {} const st = P.plan.stops, dn = st.filter(s => s.status === 'done').length, fl = st.filter(s => s.status === 'failed').length;
-    const mins = P.startedAt ? Math.round((Date.now() - P.startedAt) / 60000) : 0; const sum = `Route complete: ${dn} delivered, ${fl} failed of ${st.length} stops${mins ? ` in ${Math.floor(mins / 60)}h ${mins % 60}m` : ''}.`; P.summary = { done: dn, failed: fl, total: st.length, mins, mi: P.result ? +(P.result.dist / 1609).toFixed(1) : null }; say?.(sum, 'info'); toast(sum, 8000); openP(); P.startedAt = null; }
+    const mins = P.startedAt ? Math.round((Date.now() - P.startedAt) / 60000) : 0; const sum = `Route complete: ${dn} delivered, ${fl} failed of ${st.length} stops${mins ? ` in ${Math.floor(mins / 60)}h ${mins % 60}m` : ''}.`; P.summary = { done: dn, failed: fl, total: st.length, mins, mi: P.plan.plannedMi ?? null, drivenMi: S.tripMiles ?? null }; say?.(sum, 'info'); toast(sum, 8000); openP(); P.startedAt = null; }
   // ---------- proof of delivery (IndexedDB, on device only) ----------
   const idb = () => new Promise((res, rej) => { const r = indexedDB.open('rr-pod', 1); r.onupgradeneeded = () => r.result.createObjectStore('pod'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   P.podPut = async (k, v) => { const db = await idb(); return new Promise(r => { const t = db.transaction('pod', 'readwrite'); t.objectStore('pod').put(v, k); t.oncomplete = r; }); };
