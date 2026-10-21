@@ -106,15 +106,14 @@ export function init(S, h) {
 #dBtns button i{font-style:normal;font-size:38px}#dBtns #dReport{background:#e65100}#dBtns #dAce.listen{background:#1565c0;animation:pulse 1s infinite}
 #dRep{position:fixed;inset:auto 0 0 0;z-index:36;background:#000;border-top:4px solid #ffeb3b;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
 #dRep button{min-height:96px;border-radius:18px;border:3px solid #fff;background:#222;color:#fff;font:800 17px system-ui}#dRep button i{display:block;font-style:normal;font-size:40px}
-#dExit{position:absolute;right:10px;top:calc(170px + env(safe-area-inset-top));background:#000a;color:#fff;border:2px solid #fff;border-radius:12px;padding:6px 10px;font:600 13px system-ui}
-body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tripBar,body.driving #speedBox,body.driving #limitSign,body.driving #thenBox{display:none!important}
+#dTurn{position:relative}#dExit{position:absolute;right:8px;top:8px;background:#000a;color:#fff;border:2px solid #fff;border-radius:12px;padding:6px 10px;font:600 13px system-ui}
+body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tripBar,body.driving #speedBox,body.driving #limitSign,body.driving #thenBox,body.driving #offGuide{display:none!important}
 #regionPanel .est{font:700 18px system-ui;margin:8px 0}
 </style>`);
   document.body.insertAdjacentHTML('beforeend', `<div id="netPill" class="ok" role="status" aria-live="polite">● Online</div>
 <div id="offGuide" class="hidden" role="alert"><b id="ogArrow">↑</b><div><div id="ogText">Offline — follow the route line</div><small id="ogSub"></small></div></div>
 <div id="drive" class="hidden" aria-label="Drive mode">
- <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div></div>
- <button id="dExit">✕ Exit drive mode</button>
+ <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div><button id="dExit" aria-label="Exit drive mode">✕ Exit</button></div>
  <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden">LIMIT<b id="dLim">--</b></div></div>
  <div id="dBtns"><button id="dReport"><i>⚠️</i>Report</button><button id="dMute"><i>🔊</i>Mute</button><button id="dAce"><i>🎤</i>Ace</button><button id="dCenter"><i>🎯</i>Recenter</button></div>
 </div>
@@ -133,7 +132,8 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
   const online = () => navigator.onLine !== false && !S.forceOffline;
   async function renderNet() { const n = await outbox.size().catch(() => 0), el = $('#netPill'); S.outboxSize = n;
     if (online()) { el.className = n ? '' : 'ok'; el.textContent = n ? `● Online — sending ${n} report${n > 1 ? 's' : ''}…` : '● Online'; if (!n) setTimeout(() => el.classList.add('ok'), 2500); }
-    else { el.className = 'off'; el.textContent = `⚡ OFFLINE${S.nav ? ' — navigation still working' : ''}${n ? ` · ${n} report${n > 1 ? 's' : ''} waiting` : ''}`; } }
+    const hl = $('#hzLive'); if (hl && !online()) { hl.textContent = '● live reports: offline — saved on phone'; hl.style.color = '#fc6'; }
+    if (!online()) { el.className = 'off'; el.textContent = `⚡ OFFLINE${S.nav ? ' — navigation still working' : ''}${n ? ` · ${n} report${n > 1 ? 's' : ''} waiting` : ''}`; } }
   S.renderNet = renderNet;
 
   // ----- wrap backend: queue when offline or send fails -----
@@ -207,7 +207,9 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     if (v) { document.activeElement?.blur?.(); $$('.panel').forEach(p => p.classList.add('hidden')); renderDrive((S.pos?.speed || 0) * 2.23694); } }
   S.setDrive = setDrive;
   function renderDrive(mph) {
-    $('#dArrow').textContent = $('#bArrow')?.textContent || '↑'; $('#dDist').textContent = $('#bDist')?.textContent || '--'; $('#dStreet').textContent = $('#bInstr')?.textContent || '';
+    const og = !$('#offGuide').classList.contains('hidden') && S.offGuide;
+    $('#dArrow').textContent = og ? $('#ogArrow').textContent : $('#bArrow')?.textContent || '↑'; $('#dDist').textContent = og ? fmtDist(S.offGuide.dist, U()) : $('#bDist')?.textContent || '--';
+    $('#dStreet').textContent = og ? 'No signal — back to the route line' : $('#bInstr')?.textContent || '';
     $('#dSpd').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
     const lim = $('#limitSign') && !$('#limitSign').classList.contains('hidden') ? $('#limitVal').textContent : null;
     $('#dLimit').classList.toggle('hidden', !lim); if (lim) $('#dLim').textContent = lim; $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
