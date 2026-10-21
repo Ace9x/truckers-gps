@@ -1,5 +1,5 @@
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
-  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine } from './logic.js';
+  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
@@ -331,7 +331,9 @@ $('#endBtn').onclick = () => endNav('Navigation ended');
 function navTick() {
   const r = S.route, p = [S.pos.lon, S.pos.lat];
   const sn = snapToRoute(p, r.line, r.cum, S.hint); S.distFromRoute = sn.dist;
-  if (S.off.update(sn.dist, S.demo ? 0 : S.pos.acc) && !S.rerouting && Date.now() - S.lastReroute > 8000) {
+  const offNow = S.off.update(sn.dist, S.demo ? 0 : S.pos.acc);
+  if (offNow && !navigator.onLine && S.offlineOffRoute) { S.offlineOffRoute(sn); return; } // no signal: guide back to the line, reroute queued until online
+  if (offNow && !S.rerouting && Date.now() - S.lastReroute > 8000) {
     S.rerouting = true; S.lastReroute = Date.now(); S.rerouteCount++; $('#bInstr').textContent = 'Rerouting…'; say('Off route. Recalculating.', 'reroute'); mascot.say("Whoops! New route coming up — I've got you.", 'worried');
     plan(true).finally(() => { S.rerouting = false; if (S.demo) S.demo.reset(); });
     return;
@@ -421,15 +423,18 @@ async function overpassChunk(pts) {
 }
 function showPois(raw, note) { S.lastPoiRaw = raw; S.lastPoiNote = note;
   const seen = new Set(), base = S.nav ? S.along : 0, r = S.route;
-  S.pois = raw.map(e => { const lon = e.lon ?? e.center?.lon, lat = e.lat ?? e.center?.lat; if (lon == null) return null; const k = classifyPoi(e.tags || {});
+  const pos = e => ({ lon: e.lon ?? e.center?.lon, lat: e.lat ?? e.center?.lat, tags: e.tags || {} });
+  const helpers = raw.filter(e => isHelperAmenity(e.tags)).map(pos).filter(h => h.lon != null); S.amenHelpers = helpers.length;
+  S.pois = raw.filter(e => !isHelperAmenity(e.tags)).map(e => { const lon = e.lon ?? e.center?.lon, lat = e.lat ?? e.center?.lat; if (lon == null) return null; const k = classifyPoi(e.tags || {});
     const sn = snapToRoute([lon, lat], r.line, r.cum, 0); return { id: e.id || (e.type?.[0] + e.id) || `${lat},${lon}`, lon, lat, kind: k, name: e.tags?.name || e.tags?.brand || POI_NAME[k], tags: e.tags || {}, along: sn.along, off: sn.dist }; })
     .filter(p => p && p.off <= 1700 && (k => !seen.has(k) && seen.add(k))(p.kind + Math.round(p.lat * 500) + ',' + Math.round(p.lon * 500))).sort((a, b) => a.along - b.along);
-  const pf = S.poiFilter || 'all', match = p => pf === 'all' || (pf === 'diesel' ? (p.kind === 'fuel' || p.kind === 'stop') && p.tags['fuel:diesel'] !== 'no' : pf === 'truck' ? p.kind === 'stop' || p.tags.hgv === 'yes' || p.tags['fuel:HGV_diesel'] === 'yes' : pf === 'rest' ? p.kind === 'rest' || p.kind === 'parking' : p.kind === pf);
+  attachAmenities(S.pois, helpers, 250, LS.get('amenConf', {}));
+  const pf = S.poiFilter || 'all', match = p => pf === 'all' || (pf === 'diesel' ? (p.kind === 'fuel' || p.kind === 'stop') && p.tags['fuel:diesel'] !== 'no' : pf === 'truck' ? p.kind === 'stop' || p.tags.hgv === 'yes' || p.tags['fuel:HGV_diesel'] === 'yes' : pf === 'rest' ? p.kind === 'rest' || p.kind === 'parking' : pf === 'showers' ? !!p.amen?.showers : pf === 'restrooms' ? !!p.amen?.restrooms : pf === 'food' ? !!p.amen?.food : p.kind === pf);
   const ahead = S.pois.filter(p => p.along >= base - 50 && match(p));
   poiMarkers.forEach(m => m.remove());
   poiMarkers = ahead.map(p => { const el = document.createElement('div'); el.className = 'poi-marker'; el.textContent = POI_ICON[p.kind]; el.style.fontSize = '22px';
-    return new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<b style="color:#111">${esc(p.name)}</b><br><span style="color:#333">${POI_NAME[p.kind]} · ${fmtDist(p.along - base, U())} ahead · ≈${detourMinutes(p.off)} min detour</span>`)).addTo(map); });
-  $('#poiList').innerHTML = `<div class="muted small">${esc(note)}</div>` + (ahead.length ? ahead.map(p => `<div class="poi" data-i="${S.pois.indexOf(p)}"><i>${POI_ICON[p.kind]}</i><div><b>${esc(p.name)}</b><br><span class="muted small">${POI_NAME[p.kind]} · in ${fmtDist(p.along - base, U())} · ${p.off < 150 ? 'on route' : '≈' + detourMinutes(p.off) + ' min detour'}${p.tags.opening_hours ? ' · ' + esc(p.tags.opening_hours) : ''}${p.tags['capacity:hgv'] ? ' · ' + esc(p.tags['capacity:hgv']) + ' truck spots' : ''}</span></div></div>`).join('') : '<p>No mapped truck stops/rest areas within ~1 mile ahead on this route.</p>');
+    return new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<b style="color:#111">${esc(p.name)}</b><br><span style="color:#333">${POI_NAME[p.kind]} · ${fmtDist(p.along - base, U())} ahead · ≈${detourMinutes(p.off)} min detour</span>${p.amen && amenityLine(p.amen) ? `<br><span style="color:#333">${esc(amenityLine(p.amen))}</span>` : ''}${amenConfirmHTML(p)}`)).addTo(map); });
+  $('#poiList').innerHTML = `<div class="muted small">${esc(note)}</div>` + (ahead.length ? ahead.map(p => `<div class="poi" data-i="${S.pois.indexOf(p)}"><i>${POI_ICON[p.kind]}</i><div><b>${esc(p.name)}</b><br><span class="muted small">${POI_NAME[p.kind]} · in ${fmtDist(p.along - base, U())} · ${p.off < 150 ? 'on route' : '≈' + detourMinutes(p.off) + ' min detour'}${p.tags.opening_hours ? ' · ' + esc(p.tags.opening_hours) : ''}${p.tags['capacity:hgv'] ? ' · ' + esc(p.tags['capacity:hgv']) + ' truck spots' : ''}</span>${S.priceFor?.(p) || ''}${amenityLine(p.amen) ? `<div class="amen small">${esc(amenityLine(p.amen))}${Object.values(p.amen).includes('chain') ? ' <i class="muted">(chain standard — confirm 👍)</i>' : ''}</div>` : ''}</div></div>`).join('') : '<p>No mapped truck stops/rest areas within ~1 mile ahead on this route.</p>');
   if (S.layers && !S.layers.pois) poiMarkers.forEach(m => m.getElement().style.display = 'none');
   $$('.poi').forEach(el => el.onclick = () => { const p = S.pois[+el.dataset.i]; setFollow(false); closePanels(); map.flyTo({ center: [p.lon, p.lat], zoom: 15, pitch: 0 }); });
 }
@@ -448,16 +453,27 @@ async function loadPois(quiet) {
     showPois(all, `${st.length ? 'Built‑in extract + ' : ''}live OpenStreetMap: ${okN}/${chunks.length} route sections${i < chunks.length - 1 ? '…' : ''}`); }
   if (!okN) showPois(all, st.length ? 'Live servers busy — showing built‑in OpenStreetMap extract (US Northeast, Oct 2026).' : 'Live POI servers busy and this route is outside the built‑in extract. Try again later.');
   S.poiLive = okN; S.poiDone = true;
+  try { S.bestPrice?.(S.nav && S.opts?.bestPrice); } catch {}
+  if (S.nav && !S.showerSaid && S.pois.some(p => p.amen?.showers)) { S.showerSaid = true; nextAmenity('showers'); }
 }
 $('#poiBtn').onclick = () => loadPois();
-$$('[data-pf]').forEach(b => b.onclick = () => { S.poiFilter = b.dataset.pf; $$('[data-pf]').forEach(x => x.classList.toggle('on', x === b)); if (S.route && S.lastPoiRaw) showPois(S.lastPoiRaw, S.lastPoiNote); }); S.loadPois = loadPois;
+function amenConfirmHTML(p) { if (!['stop', 'rest', 'parking', 'fuel'].includes(p.kind)) return ''; return `${p.kind === 'fuel' || p.kind === 'stop' ? `<div class="vote"><button onclick="TruckNav.reportPrice('${esc(p.id)}')">💲 Report diesel price</button></div>` : ''}<div class="vote">${['showers', 'restrooms', 'food'].map(k => `<button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',true)">👍 ${k}</button><button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',false)">👎</button>`).join('')}</div>`; }
+S.refreshPois = () => { if (S.route && S.lastPoiRaw) showPois(S.lastPoiRaw, S.lastPoiNote); };
+S.confirmAmenity = async (id, key, val) => { const c = LS.get('amenConf', {}); (c[id] ||= {})[key] = val; LS.set('amenConf', c); const p = S.pois.find(x => String(x.id) === String(id));
+  try { await backend.addReport({ id: crypto.randomUUID?.() || String(Math.random()).slice(2), type: 'amenity', poi: id, key, val, lat: p?.lat, lon: p?.lon, t: Date.now(), up: 0, down: 0, mine: true }); } catch {}
+  award(5, `Confirmed ${key}`); if (S.lastPoiRaw) showPois(S.lastPoiRaw, S.lastPoiNote); toast(`${val ? 'Confirmed' : 'Marked no'} ${key} — thanks, driver`); };
+const AMEN_WORD = { showers: 'showers', restrooms: 'restrooms', food: 'food' };
+function nextAmenity(key, speak = true) { const p = nextWithAmenity(S.pois, S.nav ? S.along : 0, key); const msg = p ? `Next ${p.kind === 'rest' ? 'rest area' : 'truck stop'} with ${AMEN_WORD[key]} is ${spokenDist(p.along - (S.nav ? S.along : 0))} ahead${p.name && !/^(Truck stop|Rest area|Fuel|Truck parking)$/.test(p.name) ? ', ' + p.name : ''}.` : `No ${AMEN_WORD[key]} found ahead on this route.`;
+  if (speak) say(msg, 'info'); S.lastAmenMsg = msg; return msg; }
+S.nextAmenity = nextAmenity;
+$$('[data-pf]').forEach(b => b.onclick = () => { S.poiFilter = b.dataset.pf; $$('[data-pf]').forEach(x => x.classList.toggle('on', x === b)); if (S.route && S.lastPoiRaw) showPois(S.lastPoiRaw, S.lastPoiNote); if (['showers', 'restrooms', 'food'].includes(b.dataset.pf) && S.pois.length) toast(nextAmenity(b.dataset.pf), 5000); }); S.loadPois = loadPois;
 
 // ---------- Offline tiles ----------
 async function prefetchTiles(quiet) {
   if (!S.route) return; const src = map.getStyle()?.sources; const vec = src && Object.values(src).find(s => s.type === 'vector' && s.url);
   let tmpl = null; try { tmpl = (await (await fetch(vec.url)).json()).tiles[0]; } catch {}
   if (!tmpl) { if (!quiet) toast('Could not read map tile source'); return; }
-  const tiles = tilesForLine(S.route.line, [8, 10, 12, 13, 14], 1).slice(0, 2500); let done = 0, fail = 0;
+  const tiles = [...new Set([...tilesForLine(S.route.line, [6, 8], 1), ...tilesForLine(S.route.line, [10, 11, 12, 13, 14], 1)])].slice(0, 6000); let done = 0, fail = 0;
   if (!quiet) toast(`Saving ${tiles.length} map tiles along the route…`);
   const q = tiles.slice(); const worker = async () => { while (q.length) { const t = q.shift(); const [z, x, y] = t.split('/');
     try { const r = await fetch(tmpl.replace('{z}', z).replace('{x}', x).replace('{y}', y)); r.ok ? done++ : fail++; } catch { fail++; } } };
@@ -497,7 +513,7 @@ function drawReports() {
     return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
 }
 async function vote(r, dir) { const uid = profile.p.uid || 'me'; const res = await backend.vote(r.id, dir, uid); if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
-S.vote = vote;
+S.vote = vote; S.drawReports = drawReports; S.drawRoute = drawRoute;
 $('#reportBtn').onclick = () => openPanel('reportPanel');
 
 // ---------- Points, badges, leaderboard ----------
@@ -675,5 +691,7 @@ if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => masco
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
 setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
 import('./hazards.js').then(m => m.init(S, { $, map, say, toast, report, openPanel, closePanels, esc })).catch(e => console.error('hazards', e));
-import('./extras.js').then(m => m.init(S, { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report })).catch(e => console.error('extras', e));
+const H_ = { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report, types: () => REPORT_TYPES };
+import('./extras.js').then(m => m.init(S, H_)).catch(e => console.error('extras', e))
+  .finally(() => import('./offline.js').then(m => { m.init(S, H_); S.offlineReady = true; }).catch(e => console.error('offline', e)));
 S.ready = true;

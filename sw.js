@@ -1,8 +1,8 @@
-const V = 'tn-v2.3.1', SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/logic.js', 'js/voice.js', 'js/myvoice.js', 'js/community.js', 'js/config.js', 'js/mascot.js', 'js/garage.js', 'js/safety.js', 'js/trip.js', 'js/extras.js', 'js/hazards.js', 'js/hazlogic.js', 'js/vendor/nostr.js', 'data/restrictions-northeast.json', 'data/diesel-northeast.geojson', 'data/truck-pois-northeast.geojson', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
+const V = 'tn-v2.4.0h', SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/logic.js', 'js/voice.js', 'js/myvoice.js', 'js/community.js', 'js/config.js', 'js/mascot.js', 'js/garage.js', 'js/safety.js', 'js/trip.js', 'js/extras.js', 'data/eia-diesel.json', 'js/offline.js', 'js/hazards.js', 'js/hazlogic.js', 'js/vendor/nostr.js', 'data/restrictions-northeast.json', 'data/diesel-northeast.geojson', 'data/truck-pois-northeast.geojson', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js', 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css'];
 self.addEventListener('install', e => e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V && k !== 'tn-tiles').map(k => caches.delete(k)))).then(() => self.clients.claim())));
-const MAX_TILES = 8000; let tileCount = 0;
+const MAX_TILES = 30000; let tileCount = 0;
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url); if (e.request.method !== 'GET') return;
   if (u.hostname === 'tiles.openfreemap.org') { // map tiles/styles/fonts: cache-first w/ background refresh -> map of areas you've driven works offline

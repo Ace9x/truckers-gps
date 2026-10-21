@@ -13,8 +13,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: node --test test/unit.test.js
+      - run: node --test test/unit.test.js test/offline.test.js
       - run: node scripts/build-closures.mjs || true
+      - run: node scripts/build-eia.mjs || true
       - run: mkdir -p _site && cp -r index.html manifest.webmanifest sw.js css js icons data _site/ && rm -f _site/data/*.sh _site/data/*.log _site/data/raw*.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
