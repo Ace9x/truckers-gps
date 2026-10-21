@@ -1,4 +1,4 @@
-// "Coney" — original cartoon traffic-cone co-pilot (our own SVG art). Tips, cheers, reactions. Never covers the map near a turn.
+// "Ace" — original cartoon traffic-cone co-pilot (our own SVG art). Tips, cheers, reactions. Never covers the map near a turn.
 const SVG = `<svg viewBox="0 0 80 96" width="64" height="77" aria-hidden="true">
  <ellipse cx="40" cy="90" rx="30" ry="5" fill="#0005"/>
  <g class="coneBody"><rect x="10" y="78" width="60" height="9" rx="3" fill="#e65100" stroke="#111" stroke-width="2.5"/>

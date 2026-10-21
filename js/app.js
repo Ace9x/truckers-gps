@@ -530,7 +530,7 @@ function renderGarage() { const lv = profile.level.index;
   $('#swatches').innerHTML = Object.entries(COLORS).map(([k, c]) => `<button data-col="${k}" title="${k}${colorUnlocked(k, lv) ? '' : ' (level 3)'}" class="${S.ride.color === k ? 'on' : ''}" style="background:${c};${colorUnlocked(k, lv) ? '' : 'opacity:.3'}"></button>`).join('');
   $$('[data-veh]').forEach(b => b.onclick = () => { if (!unlocked(b.dataset.veh, lv)) return toast(`Reach level ${VEHICLES[b.dataset.veh].level} to unlock`); S.ride.type = b.dataset.veh; LS.set('ride', S.ride); drawRide(); renderGarage(); });
   $$('[data-col]').forEach(b => b.onclick = () => { if (!colorUnlocked(b.dataset.col, lv)) return toast('Reach level 3 to unlock'); S.ride.color = b.dataset.col; LS.set('ride', S.ride); drawRide(); renderGarage(); }); }
-$('#mascotOn').onchange = e => { mascot.enabled = e.target.checked; LS.set('mascot', mascot.enabled); if (mascot.enabled) mascot.say("Hey! I'm Coney, your co-pilot. Tap me for tips.", 'happy'); else mascot.hide(); };
+$('#mascotOn').onchange = e => { mascot.enabled = e.target.checked; LS.set('mascot', mascot.enabled); if (mascot.enabled) mascot.say("Hey! I'm Ace, your co-pilot. Tap me for tips.", 'happy'); else mascot.hide(); };
 S.renderGarage = renderGarage; S.drawRide = drawRide;
 $('#pNameIn').addEventListener('change', e => { profile.p.name = e.target.value.trim() || 'Driver'; profile.save(backend); renderMe(); });
 async function renderAcct() {
@@ -637,7 +637,7 @@ makeBackend().then(async b => { backend = b; S.backend = b; const u = await b.se
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 window.addEventListener('offline', () => toast('Offline — current route keeps working; rerouting & search need signal', 5000));
 document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && S.nav && !wakeLock) try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} });
-if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Coney 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
+if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Ace 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
 setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
 S.ready = true;

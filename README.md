@@ -37,7 +37,7 @@ Built for drivers first: big buttons, night map, voice turn‑by‑turn, and rou
 - **HOS**: 11 h / 14 h / 30‑min break plus the **70 h/8‑day (or 60/7) cycle with 34 h restart**. Still a helper, not an ELD.
 - **Driver types**: OTR / Local / Owner‑Op / Fleet presets. Also a **Hazmat** quick toggle, a **HUD** mode (mirrored, to reflect on the windshield) and **map layer toggles**.
 - **Voices**: pick any device voice plus speed and pitch, with personalities (Standard, Calm co‑pilot, Old‑school trucker, NYC dispatcher) and a preview button. Road names are read naturally ("I 278 W" → "Interstate 278 West", "NJ Tpke" → "New Jersey Turnpike").
-- **Coney the co‑pilot**: an original animated cone mascot with tips, cheers and reactions. It hides whenever a turn is under 600 m away and can be switched off.
+- **Ace the co‑pilot**: an original animated cone mascot with tips, cheers and reactions. It hides whenever a turn is under 600 m away and can be switched off.
 - **Garage**: original cartoon vehicles (semi, box, flatbed, tanker, reefer, pickup, sedan, taxi) in 9 colors. Some unlock as you level up.
 - **Community & points** (Waze‑style): reports with 👍 Still there / 👎 Not there, points for miles, confirmed reports, on‑time arrivals, HOS breaks taken early and smooth trips (no hard braking, judged from GPS speed), plus levels, badges, streaks, a weekly leaderboard and a profile with a truck avatar and mood.
 - **Accounts**: email magic link with an optional phone code, using a Supabase adapter (`js/config.js` + `supabase/schema.sql`). Until it's configured, everything stays on the phone and the leaderboard shows only you. No fake users.

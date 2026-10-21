@@ -73,7 +73,8 @@ ok(wa.length === 2 && /two miles/.test(wa[0]) && /one mile/.test(wa[1]), 'weigh-
 
 // Mascot + garage
 const mz = await T(() => ({ log: TruckNav.mascot.log.map(x => x.text), busyHidden: (() => { TruckNav.nav = true; TruckNav.toNext = 200; TruckNav.mascot.say('test tip'); const v = TruckNav.mascot.visible; TruckNav.toNext = 1e9; TruckNav.nav = false; return !v; })() }));
-ok(mz.log.some(t => /new route|Whoops/i.test(t)) && mz.log.some(t => /Weigh station/i.test(t)) && mz.busyHidden, 'mascot Coney reacts to reroute + weigh station, stays out of the way near turns');
+ok(mz.log.some(t => /new route|Whoops/i.test(t)) && mz.log.some(t => /Weigh station/i.test(t)) && mz.busyHidden, 'mascot Ace reacts to reroute + weigh station, stays out of the way near turns');
+ok(await T(() => /Show Ace/.test(document.querySelector('label:has(#mascotOn)').textContent) && !/Coney/.test(document.body.innerHTML)), 'mascot is named Ace in settings, no Coney left');
 // Resume after crash/reload
 await page.reload(); await page.waitForFunction(() => window.TruckNav?.ready); await page.waitForTimeout(800);
 ok(await T(() => TruckNav.resumed && TruckNav.nav && !!TruckNav.route), 'navigation resumes automatically after reload/crash');
