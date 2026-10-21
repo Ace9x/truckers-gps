@@ -50,3 +50,12 @@ test('voice commands', () => {
   assert.equal(parseCommand('how long left').cmd, 'eta'); assert.equal(parseCommand('blah').cmd, null);
   assert.equal(pickReportType('accident', { hazard: {} }), 'hazard'); assert.equal(pickReportType('accident', { accident: {}, hazard: {} }), 'accident');
 });
+test('live (nostr) events: original created_at kept, expire by hazard TTL', async () => {
+  const ob = new Outbox(memoryStore()), sent = [];
+  const ev = (id, sec, c) => ({ ev: { id, created_at: sec, content: JSON.stringify(c) }, c });
+  await ob.add('nostr', ev('e1', (NOW - 30 * 60e3) / 1000, { a: 'r', type: 'accident' }), NOW - 30 * 60e3);  // accident TTL 2h → send
+  await ob.add('nostr', ev('e2', (NOW - 90 * 60e3) / 1000, { a: 'r', type: 'police' }), NOW - 90 * 60e3);    // police TTL 1h → drop
+  await ob.add('nostr', ev('e1', (NOW - 30 * 60e3) / 1000, { a: 'r', type: 'accident' }), NOW - 30 * 60e3);  // duplicate → deduped
+  const res = await ob.flush(async (k, p) => sent.push(p.ev), NOW);
+  assert.deepEqual(res, { sent: 1, dropped: 1, failed: 0 }); assert.equal(sent[0].created_at, (NOW - 30 * 60e3) / 1000);
+});

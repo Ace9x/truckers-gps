@@ -69,7 +69,7 @@ ok(netCalls === 0, `no routing/network calls attempted while offline (${netCalls
 await shot('04-offline-off-route');
 // file a report offline
 await T(() => TruckNav.setDrive(true)); await page.click('#dReport'); await page.waitForTimeout(300); await shot('05-drive-report-grid');
-const rid = await T(async () => { const before = TruckNav.reports.length; document.querySelector('[data-dr]').click(); await new Promise(r => setTimeout(r, 800)); const r = TruckNav.reports.at(-1); return { id: r.id, t: r.t, type: r.type, lat: r.lat, lon: r.lon, n: TruckNav.reports.length - before, q: await TruckNav.outbox.size(), pill: document.querySelector('#netPill').textContent }; });
+const rid = await T(async () => { const before = TruckNav.hz.list.length; document.querySelector('[data-dr]').click(); await new Promise(r => setTimeout(r, 1200)); const r = TruckNav.hz.list.filter(x => x.mine).sort((a, b) => b.t - a.t)[0]; return { id: r.id, t: r.t, type: r.type, lat: r.lat, lon: r.lon, n: TruckNav.hz.list.length - before, q: await TruckNav.outbox.size(), pill: document.querySelector('#netPill').textContent }; });
 ok(rid.n === 1 && rid.q >= 1 && /waiting/.test(rid.pill), `report filed offline queued in IndexedDB outbox (${rid.type}; pill "${rid.pill}")`);
 await shot('06-offline-report-queued');
 // reload with no signal: app shell + saved trip + outbox survive
@@ -81,13 +81,14 @@ await page.waitForTimeout(2500); await shot('07-offline-reload');
 // ===== another driver nearby, online =====
 const B = await mk({ latitude: rid.lat, longitude: rid.lon }); await B.page.goto(BASE); await ready(B.page);
 const hasLive = await B.page.evaluate(() => TruckNav.backend?.name); console.log('INFO backend:', hasLive);
-const seenBefore = await B.page.evaluate(id => TruckNav.reports.some(r => r.id === id), rid.id); ok(!seenBefore, 'other driver does not see the report while reporter is offline');
+await B.page.waitForFunction(() => /live/.test(TruckNav.hz?.status || ''), null, { timeout: 20000 }).catch(() => {}); const hasLive2 = await B.page.evaluate(() => TruckNav.hz?.status); console.log('INFO other driver live network:', hasLive2);
+const seenBefore = await B.page.evaluate(id => TruckNav.hz.list.some(r => r.id === id), rid.id); ok(!seenBefore, 'other driver does not see the report while reporter is offline');
 // back online
 await A.ctx.setOffline(false); await page.waitForTimeout(500);
 await page.waitForFunction(() => TruckNav.lastFlush && TruckNav.outboxSize === 0, null, { timeout: 30000 }).catch(() => {});
 const fl = await T(() => ({ f: TruckNav.lastFlush, n: TruckNav.outboxSize, pill: document.querySelector('#netPill').textContent }));
 ok(fl.f?.sent >= 1 && fl.n === 0, `back online: outbox synced (${JSON.stringify(fl.f)}), pill "${fl.pill}"`);
-const seen = await B.page.waitForFunction(id => TruckNav.reports.find(r => r.id === id), rid.id, { timeout: 45000 }).then(h => h.jsonValue()).catch(() => null);
-ok(seen && seen.t === rid.t, seen ? `report made offline appears for another nearby driver with original timestamp (${new Date(seen.t).toISOString()})` : 'report made offline did NOT reach the other driver (backend: ' + hasLive + ')');
-await B.page.waitForTimeout(1500); await B.page.screenshot({ path: `${SHOTS}/08-other-driver-sees-report.png` });
+const seen = await B.page.waitForFunction(id => { const r = TruckNav.hz.list.find(r => r.id === id); return r && { t: r.t, type: r.type }; }, rid.id, { timeout: 45000 }).then(h => h.jsonValue()).catch(() => null);
+ok(seen && Math.abs(seen.t - rid.t) < 1000, seen ? `report made offline appears for another nearby driver with original timestamp (${new Date(seen.t).toISOString()})` : 'report made offline did NOT reach the other driver (backend: ' + hasLive + ')');
+await B.page.evaluate(([lon, lat]) => TruckNav.map.jumpTo({ center: [lon, lat], zoom: 15 }), [rid.lon, rid.lat]); await B.page.waitForTimeout(2500); await B.page.screenshot({ path: `${SHOTS}/08-other-driver-sees-report.png` });
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED'); await browser.close(); process.exit(fails ? 1 : 0);

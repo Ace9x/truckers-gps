@@ -2,6 +2,7 @@
 // map-region download, glanceable Drive mode with voice commands. No paid services.
 import { haversine, bearing, snapToRoute, tilesForLine, fmtDist, fmtDur, cumulative } from './logic.js';
 import { TTL_H, REPORT_TYPES } from './community.js';
+import { HZ } from './hazlogic.js';
 
 // ---------- Tiny IndexedDB key/value store (falls back to memory) ----------
 const DBN = 'rr-offline';
@@ -13,8 +14,10 @@ export function memoryStore() { const m = new Map(); return { getAll: async () =
 
 // ---------- Outbox (pure logic, store injected → unit-testable) ----------
 export const VOTE_TTL_MS = 12 * 3600e3, DEFAULT_REPORT_TTL_H = 24;
-export function outboxKey(kind, p) { return kind === 'vote' ? `vote:${p.id}:${p.uid}` : `report:${p.id}`; }
+export function outboxKey(kind, p) { if (kind === 'nostr') return outboxKeyEv(p.ev); return kind === 'vote' ? `vote:${p.id}:${p.uid}` : `report:${p.id}`; }
+export function outboxKeyEv(ev) { return `nostr:${ev.id}`; }
 export function isExpired(it, now = Date.now()) {
+  if (it.kind === 'nostr') { const c = it.payload.c || {}; if (c.a === 'r') return now - it.t > (HZ[c.type]?.ttl ?? 2 * 3600e3); return now - it.t > VOTE_TTL_MS; }
   if (it.kind === 'vote') return now - it.t > VOTE_TTL_MS;
   const ttl = TTL_H[it.payload.type] ?? DEFAULT_REPORT_TTL_H; return now - it.t > ttl * 3600e3;
 }
@@ -31,7 +34,7 @@ export class Outbox {
     if (this.flushing) return res; this.flushing = true;
     try { for (const it of await this.list()) {
       if (isExpired(it, now)) { await this.store.del(it.key); res.dropped++; continue; }
-      try { await send(it.kind, it.payload); await this.store.del(it.key); res.sent++; } catch { res.failed++; break; } } }
+      try { await send(it.kind, it.payload); await this.store.del(it.key); res.sent++; } catch { res.failed++; } } }
     finally { this.flushing = false; }
     return res; }
 }
@@ -134,18 +137,25 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
   S.renderNet = renderNet;
 
   // ----- wrap backend: queue when offline or send fails -----
-  async function sendNow(kind, p) { const b = S.backend; if (!b?._raw) throw new Error('no backend');
+  async function sendNow(kind, p) { if (kind === 'nostr') { if (!S.hz?._rawSend || !S.hz._rawSend(p.ev)) throw new Error('no relay open'); return; }
+    const b = S.backend; if (!b?._raw) throw new Error('no backend');
     if (kind === 'report') return b._raw.addReport(p); const r = await b._raw.vote(p.id, p.dir, p.uid); if (r === undefined && b.name !== 'local') throw new Error('vote failed'); return r; }
   function wrap(b) { if (!b || b._raw) return; b._raw = { addReport: b.addReport.bind(b), vote: b.vote.bind(b) };
     b.addReport = async r => { if (!online()) { await outbox.add('report', r, r.t); renderNet(); cacheReports(); toast('Offline — report saved, will send when signal returns', 4000); return r; }
       try { return await b._raw.addReport(r); } catch (e) { await outbox.add('report', r, r.t); renderNet(); return r; } };
     b.vote = async (id, dir, uid) => { if (!online()) { await outbox.add('vote', { id, dir, uid, t: Date.now() }); renderNet(); return null; }
       try { return await b._raw.vote(id, dir, uid); } catch { await outbox.add('vote', { id, dir, uid, t: Date.now() }); renderNet(); return null; } }; }
+  // live hazard network (Nostr): signed events made offline (or with no relay open) are persisted; original created_at kept in the signature
+  function wrapHz(hz) { if (!hz || hz._rawSend) return; hz._rawSend = hz._send.bind(hz);
+    hz._send = ev => { let c = {}; try { c = JSON.parse(ev.content); } catch {}
+      const n = online() ? hz._rawSend(ev) : 0; if (!n) { outbox.add('nostr', { ev, c }, ev.created_at * 1000).then(() => { renderNet(); cacheReports(); if (c.a === 'r') toast('📵 No signal — report saved on this phone, sends automatically when signal returns', 4500); }); } return n; };
+    outbox.list().then(l => { for (const it of l) if (it.kind === 'nostr') hz._event(it.payload.ev); }); } // show my queued reports after a reload
+  const waitH = setInterval(() => { if (S.hz) { clearInterval(waitH); wrapHz(S.hz); flush(); } }, 200);
   const waitB = setInterval(() => { if (S.backend) { clearInterval(waitB); wrap(S.backend); flush(); if (!online() || !(S.reports || []).length) restoreReports(); } }, 200);
-  async function flush() { if (!online() || !S.backend?._raw) return; const r = await outbox.flush(sendNow); S.lastFlush = r; renderNet();
+  async function flush() { if (!online()) return; const r = await outbox.flush(sendNow); S.lastFlush = r; renderNet();
     if (r.sent) toast(`Back online — sent ${r.sent} report${r.sent > 1 ? 's' : ''}/vote${r.sent > 1 ? 's' : ''} made offline${r.dropped ? `, dropped ${r.dropped} expired` : ''}`, 4000); return r; }
   S.flushOutbox = flush;
-  function goOnline() { renderNet(); flush();
+  function goOnline() { renderNet(); flush(); let k = 0; const burst = setInterval(async () => { if (++k > 30 || !online() || !(await outbox.size())) return clearInterval(burst); flush(); }, 2000);
     if (S.nav && S.off.isOff() && S.pendingReroute) { S.pendingReroute = false; $('#offGuide').classList.add('hidden'); say('Signal is back. Recalculating.', 'reroute'); S.rerouting = true; S.lastReroute = Date.now(); S.plan(true).finally(() => S.rerouting = false); } }
   function goOffline() { renderNet(); saveTrip(); }
   addEventListener('online', goOnline); addEventListener('offline', goOffline); S.goOnline = goOnline; S.goOffline = goOffline;
@@ -208,10 +218,13 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
   $('#dCenter').onclick = () => { $('#followBtn')?.click(); say('Recentered', 'info'); };
   $('#dMute').onclick = () => { $('#muteBtn').click(); S.renderDrive(); };
   const QUICK = ['accident', 'camera', 'construction', 'police', 'debris', 'hazard', 'closed', 'ice', 'clearance'];
-  $('#dReport').onclick = () => { const types = h.types?.() || REPORT_TYPES, ks = [...new Set(QUICK.map(k => pickReportType(k, types)))].slice(0, 6);
+  $('#dReport').onclick = () => { const types = S.hzFile ? HZ : (h.types?.() || REPORT_TYPES), ks = [...new Set(QUICK.map(k => pickReportType(k, types)))].slice(0, 6);
     $('#dRep').innerHTML = ks.map(k => `<button data-dr="${k}"><i>${types[k].icon}</i>${types[k].label}</button>`).join(''); $('#dRep').classList.toggle('hidden');
     $$('[data-dr]').forEach(b => b.onclick = async () => { $('#dRep').classList.add('hidden'); await doReport(b.dataset.dr); }); };
-  async function doReport(type) { const types = h.types?.() || REPORT_TYPES; const k = pickReportType(type, types); const r = await report(k); setDrive(S.drive);
+  async function doReport(type) { setDrive(S.drive);
+    if (S.hzFile) { const k = pickReportType(type, HZ), res = S.hzFile(k, true); S.lastDriveReport = res;
+      say(`${HZ[k].say} reported${online() ? '' : '. It will send when signal returns'}. Thanks, driver.`, 'info', true); return res; }
+    const types = h.types?.() || REPORT_TYPES; const k = pickReportType(type, types); const r = await report(k);
     say(`${types[k].label} reported${online() ? '' : '. It will send when signal returns'}. Thanks, driver.`, 'info', true); return r; }
   S.driveReport = doReport;
   // voice commands
