@@ -694,6 +694,7 @@ import('./hazards.js').then(m => m.init(S, { $, map, say, toast, report, openPan
 import('./traffic.js').then(m => { m.init(S, { $, map, say, toast, esc, LS }); S.trafficReady = true; }).catch(e => console.error('traffic', e));
 const H_ = { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report, types: () => REPORT_TYPES };
 import('./extras.js').then(m => m.init(S, H_)).catch(e => console.error('extras', e))
+  .finally(() => import('./planner.js').then(m => m.init(S, { ...H_, truckCosting })).catch(e => console.error('planner', e)))
   .finally(() => import('./offline.js').then(m => { m.init(S, H_); S.offlineReady = true; }).catch(e => console.error('offline', e)));
 S.openPanel = openPanel;
 S.ready = true;
