@@ -235,7 +235,10 @@ nwr["amenity"="parking"]["hgv"~"yes|designated"]${a};
 nwr["amenity"="weighbridge"]${a};
 nwr["highway"="weigh_station"]${a};
 nwr["hgv"="weigh_station"]${a};
-);out center tags 300;`;
+nwr["amenity"="shower"]${a};
+nwr["amenity"~"^(restaurant|fast_food)$"](around:350,${pts});
+nwr["amenity"="toilets"](around:350,${pts});
+);out center tags 700;`;
 }
 
 export function classifyPoi(tags = {}) {
@@ -274,3 +277,30 @@ export function encodePolyline(coords, precision = 6) { // [[lon,lat]] -> Valhal
   for (const [lon, lat] of coords) { const la = Math.round(lat * f), lo = Math.round(lon * f); out += enc(la - pl) + enc(lo - pn); pl = la; pn = lo; }
   return out;
 }
+
+// ===== Driver amenities: showers / restrooms / food from real OSM tags (+ chain standard, + nearby amenity nodes, + driver confirmations) =====
+export const SHOWER_CHAINS = /pilot|flying j|love'?s|travelcenters|\bta\b|petro|sapp|ambest|am best|kwik ?trip|bucky|iowa 80|roady'?s/i;
+export const isHelperAmenity = t => ['restaurant', 'fast_food', 'cafe', 'shower', 'toilets'].includes(t?.amenity) && !t.highway;
+export function amenitiesOf(tags = {}, kind = '') {
+  const yes = v => v && v !== 'no'; const nm = `${tags.name || ''} ${tags.brand || ''} ${tags.operator || ''}`;
+  const chain = (kind === 'stop' || tags.amenity === 'fuel' || tags.highway === 'services') && SHOWER_CHAINS.test(nm);
+  const a = { showers: yes(tags.shower) || tags.amenity === 'shower' ? 'tagged' : chain ? 'chain' : null,
+    restrooms: yes(tags.toilets) || tags.amenity === 'toilets' ? 'tagged' : (tags.highway === 'rest_area' || tags.highway === 'services') ? 'rest area' : chain ? 'chain' : null,
+    food: ['restaurant', 'fast_food', 'cafe'].includes(tags.amenity) || yes(tags.food) || yes(tags.restaurant) ? 'tagged' : chain ? 'chain' : null, foodNames: [] };
+  a.restrooms24 = !!a.restrooms && (tags['toilets:opening_hours'] === '24/7' || tags.opening_hours === '24/7');
+  return a;
+}
+// Merge helper amenity elements (shower/toilets/food nodes) within maxM of each stop
+export function attachAmenities(pois, helpers, maxM = 250, confirmations = {}) {
+  for (const p of pois) { p.amen = amenitiesOf(p.tags, p.kind);
+    for (const h of helpers) { if (Math.abs(h.lat - p.lat) > 0.004 || Math.abs(h.lon - p.lon) > 0.005 || haversine([h.lon, h.lat], [p.lon, p.lat]) > maxM) continue;
+      const t = h.tags || {}; if (t.amenity === 'shower') p.amen.showers = 'nearby';
+      if (t.amenity === 'toilets') { p.amen.restrooms ||= 'nearby'; if (t.opening_hours === '24/7') p.amen.restrooms24 = true; }
+      if (['restaurant', 'fast_food', 'cafe'].includes(t.amenity)) { p.amen.food ||= 'nearby'; if (t.name && p.amen.foodNames.length < 3 && !p.amen.foodNames.includes(t.name)) p.amen.foodNames.push(t.name); } }
+    const c = confirmations[p.id] || {}; for (const k of ['showers', 'restrooms', 'food']) { if (c[k] === true) p.amen[k] = 'driver-confirmed'; else if (c[k] === false) p.amen[k] = null; } }
+  return pois;
+}
+export function amenityLine(a) { if (!a) return ''; const o = [];
+  if (a.showers) o.push('🚿 Showers'); if (a.restrooms) o.push(a.restrooms24 ? '🚻 Restrooms 24h' : '🚻 Restrooms'); if (a.food) o.push('🍔 Food' + (a.foodNames?.length ? ` (${a.foodNames.join(', ')})` : ''));
+  return o.join(' · '); }
+export function nextWithAmenity(pois, along, key, kinds = ['stop', 'rest', 'parking', 'fuel']) { return pois.filter(p => p.along > along && kinds.includes(p.kind) && p.amen?.[key] && p.off < 1700).sort((a, b) => a.along - b.along)[0] || null; }
