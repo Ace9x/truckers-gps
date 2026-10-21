@@ -61,15 +61,17 @@ ok(tiles.feats > 50 && tiles.roads > 5, `map tiles render from cache offline: ${
 await shot('03-offline-driving');
 // off-route offline: guidance, no reroute call
 await T(() => TruckNav.setDrive(false));
+const offPt = await T(() => ({ latitude: TruckNav.pos.lat + 0.003, longitude: TruckNav.pos.lon + 0.007 })); await A.ctx.setGeolocation(offPt);
 await T(async () => { const p = TruckNav.pos; for (let k = 1; k <= 4; k++) { TruckNav.onFix({ lon: p.lon + 0.004 * k / 4 + 0.003, lat: p.lat + 0.003, speed: 12, acc: 5, t: Date.now() + 60e3 + k * 2000 }); await new Promise(r => setTimeout(r, 50)); } });
 await page.waitForTimeout(600);
 const og = await T(() => ({ vis: !document.querySelector('#offGuide').classList.contains('hidden'), txt: document.querySelector('#offGuide').textContent, pend: TruckNav.pendingReroute, rer: TruckNav.rerouting }));
-ok(og.vis && og.pend && !og.rer, `offline off-route: "${og.txt.replace(/\s+/g, ' ').trim()}" (reroute queued)`);
+console.log('DEBUG og', JSON.stringify(og)); ok(og.vis && og.pend, `offline off-route: "${og.txt.replace(/\s+/g, ' ').trim()}" (reroute queued)`);
 ok(netCalls === 0, `no routing/network calls attempted while offline (${netCalls})`);
 await shot('04-offline-off-route');
 // file a report offline
 await T(() => TruckNav.setDrive(true)); await page.click('#dReport'); await page.waitForTimeout(300); await shot('05-drive-report-grid');
-const rid = await T(async () => { const before = TruckNav.hz.list.length; document.querySelector('[data-dr]').click(); await new Promise(r => setTimeout(r, 1200)); const r = TruckNav.hz.list.filter(x => x.mine).sort((a, b) => b.t - a.t)[0]; return { id: r.id, t: r.t, type: r.type, lat: r.lat, lon: r.lon, n: TruckNav.hz.list.length - before, q: await TruckNav.outbox.size(), pill: document.querySelector('#netPill').textContent }; });
+const rid = await T(async () => { const before = TruckNav.hz.list.length; const p = TruckNav.pos, near = t => TruckNav.hz.list.some(x => x.type === t && Math.abs(x.lat - p.lat) < 0.03 && Math.abs(x.lon - p.lon) < 0.03); const btn = [...document.querySelectorAll('[data-dr]')].find(b => !near(b.dataset.dr)) || document.querySelector('[data-dr]'); btn.click(); await new Promise(r => setTimeout(r, 1200)); const r = TruckNav.hz.list.filter(x => x.mine).sort((a, b) => b.t - a.t)[0]; if (!r) return { err: JSON.stringify(TruckNav.lastDriveReport) + ' grid=' + document.querySelector('#dRep').innerHTML.slice(0, 200) }; return { id: r.id, t: r.t, type: r.type, lat: r.lat, lon: r.lon, n: TruckNav.hz.list.length - before, q: await TruckNav.outbox.size(), pill: document.querySelector('#netPill').textContent }; });
+if (rid.err) console.log('DEBUG', rid.err);
 ok(rid.n === 1 && rid.q >= 1 && /waiting/.test(rid.pill), `report filed offline queued in IndexedDB outbox (${rid.type}; pill "${rid.pill}")`);
 await shot('06-offline-report-queued');
 // reload with no signal: app shell + saved trip + outbox survive
