@@ -419,7 +419,8 @@ async function overpassChunk(pts) {
   if (S.overpassBusyUntil > Date.now() || !navigator.onLine) return null;
 
   for (let round = 0; round < 1; round++) {
-    for (const url of OVERPASS) { try { const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(overpassQuery(pts, 1200)), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: AbortSignal.timeout(20000) });
+    for (const url of OVERPASS) { if (!navigator.onLine) return null; try { const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(overpassQuery
+(pts, 1200)), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: AbortSignal.timeout(20000) });
       if (!r.ok) continue; const j = await r.json(); if (j.remark && !j.elements?.length) continue; LS.set(key, { t: Date.now(), els: j.elements }); return j.elements; } catch {} } }
   S.overpassBusyUntil = Date.now() + 5 * 60e3; return null; // all mirrors busy: back off 5 min, built-in extract covers it
 }
