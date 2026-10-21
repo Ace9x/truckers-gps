@@ -55,8 +55,8 @@ const { data: Lx } = await X.from('loads').select('status').eq('id', L.id).singl
 await new Promise(r => setTimeout(r, 3000)); console.log('realtime events:', got.join(',')); assert.ok(got.length >= 1); ok('realtime load updates delivered'); await D.removeChannel(ch);
 // taxi
 const { data: tb } = await D.from('taxi_bookings').insert({ pickup_address: 'Far Rockaway', dropoff_address: 'Jamaica', est_miles: 6, est_minutes: 20, payment_method: 'zelle' }).select().single(); assert.equal(Number(tb.fare_estimate), 26.5);
-const { data: jfk } = await D.from('taxi_bookings').insert({ pickup_address: 'Far Rockaway', dropoff_address: 'JFK', est_miles: 9, est_minutes: 25, flat_rate: 'JFK', payment_method: 'cash' }).select().single(); assert.equal(Number(jfk.fare_estimate), 50);
-const { data: mn } = await D.from('taxi_bookings').insert({ pickup_address: 'a', dropoff_address: 'b', est_miles: 0.5, est_minutes: 2 }).select().single(); assert.equal(Number(mn.fare_estimate), 8); ok('taxi fares: metered 26.50, JFK flat 50, minimum 8');
+const { data: jfk } = await D.from('taxi_bookings').insert({ pickup_address: 'Far Rockaway', dropoff_address: 'JFK', est_miles: 9, est_minutes: 25, flat_rate: 'JFK', payment_method: 'cash' }).select().single(); assert.equal(Number(jfk.fare_estimate), 75);
+const { data: mn } = await D.from('taxi_bookings').insert({ pickup_address: 'a', dropoff_address: 'b', est_miles: 0.5, est_minutes: 2 }).select().single(); assert.equal(Number(mn.fare_estimate), 10); ok('taxi fares: metered 26.50, JFK flat 75, minimum 10');
 const { data: q } = await X.from('taxi_bookings').select('id').in('id', [tb.id, jfk.id]); assert.equal(q.length, 2); ok('dispatcher sees ride queue');
 const asg = await X.from('taxi_bookings').update({ status: 'assigned', assigned_driver: users.driver.id }).eq('id', tb.id).select().single(); assert.equal(asg.data.status, 'assigned'); ok('dispatcher assigns driver');
 const { data: anonQ } = await anon.from('taxi_bookings').select('id'); assert.equal(anonQ.length, 0); ok('bookings hidden from public');
