@@ -110,3 +110,4 @@ body.day .alt.sel{background:#fff6d6}
 #hudExit{position:absolute;bottom:20px;transform:scaleY(-1);background:#111;color:#0f0;border-color:#0f0}
 #hudBtn{font-size:14px;font-weight:800}
 #driverType .on,#hazBtn.on,#weighBtn.on{background:var(--acc);color:#111}
+#splash{position:fixed;inset:0;z-index:100;background:#0b0f14;color:#ffb300;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}#splash h1{margin:8px 0 0;font-size:40px}#splash p{color:#8ea0b4}.splashLogo{font-size:80px}#splash.gone{opacity:0;pointer-events:none}

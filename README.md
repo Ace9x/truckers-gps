@@ -1,4 +1,4 @@
-# RigRoute — free truck GPS for drivers (web app)
+# RigRoute GPS — free truck GPS for drivers (web app)
 
 **Live app:** https://ace9x.github.io/truckers-gps/ — open on your phone, tap *Share → Add to Home Screen* (iPhone Safari) or *Install app* (Android Chrome).
 
@@ -21,7 +21,7 @@ Built for drivers first: big buttons, night map, voice turn‑by‑turn, and rou
 - **PWA**: installable, works in portrait and landscape, screen stays awake while navigating, app shell + already‑viewed map tiles cached; an active route keeps navigating with no signal (reroute/search need data).
 
 
-## New in v2 (RigRoute)
+## New in v2 (RigRoute GPS)
 - **Route options (up to 3)** with a "why this route" line (fastest / shortest / fewest turns / tolls / vs car). The route you pick is **locked**: reroutes rejoin *your* route via through‑points instead of snapping back to route #1.
 - **Ferrostar‑style off‑route detection**: fixes worse than 30 m accuracy are ignored; 3 bad fixes > 50 m needed; steps don't advance while off route. Reroute falls back to a wider snap radius so it can get you out of lots and driveways.
 - **Valhalla truck tuning**: `use_truck_route 0.8`, `low_class_penalty 60`, axle load/count.

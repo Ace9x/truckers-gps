@@ -6,7 +6,7 @@ import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
 import { makeBackend, Profile, REPORT_TYPES, POINTS, BADGES, LEVELS, DrivingMonitor, reportVisible, weekKey } from './community.js';
 
-const VERSION = '2.2.0';
+const VERSION = '2.2.1';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const PHOTON = 'https://photon.komoot.io/api/';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
@@ -309,7 +309,7 @@ async function startNav(resumed) {
   $('#banner').classList.remove('hidden'); $('#tripBar').classList.remove('hidden');
   try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
   LS.set('navActive', { t: Date.now(), sel: S.sel });
-  const first = S.route.maneuvers[0]; if (!resumed) say(first.verbal_pre_transition_instruction || first.instruction, 'turn'); else say('Navigation resumed', 'info');
+  const first = S.route.maneuvers[0]; if (!resumed) { if (!S.introDone) { S.introDone = true; say('RigRoute GPS. Truck route ready.', 'info'); } say(first.verbal_pre_transition_instruction || first.instruction, 'turn'); } else say('Navigation resumed', 'info');
   if (!S.pois.length) loadPois(true);
   prefetchTiles(true);
   if (S.pos) navTick();
@@ -637,6 +637,7 @@ makeBackend().then(async b => { backend = b; S.backend = b; const u = await b.se
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 window.addEventListener('offline', () => toast('Offline — current route keeps working; rerouting & search need signal', 5000));
 document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && S.nav && !wakeLock) try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} });
-if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Hi driver! I'm Coney 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
+if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Coney 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
+setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
 S.ready = true;
