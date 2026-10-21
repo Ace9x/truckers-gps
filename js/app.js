@@ -486,7 +486,7 @@ async function report(type, at) {
   else toast(`${t.label} reported — thanks, driver`);
   closePanels(); return r;
 }
-S.report = report;
+S.report = report; S.reportPoint = reportPoint;
 function drawAvoids() { avoidMarkers.forEach(m => m.remove()); avoidMarkers = S.avoids.map(a => { const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = '⛔'; return new maplibregl.Marker({ element: el }).setLngLat([a.lon, a.lat]).addTo(map); }); }
 function drawReports() {
   rptMarkers.forEach(m => m.remove());
@@ -674,5 +674,6 @@ document.addEventListener('visibilitychange', async () => { if (document.visibil
 if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Ace 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
 setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
+import('./hazards.js').then(m => m.init(S, { $, map, say, toast, report, openPanel, closePanels, esc })).catch(e => console.error('hazards', e));
 import('./extras.js').then(m => m.init(S, { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report })).catch(e => console.error('extras', e));
 S.ready = true;
