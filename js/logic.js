@@ -52,7 +52,7 @@ export function snapToRoute(p, line, cum, hint = 0) {
   const scan = (from, to) => {
     for (let i = Math.max(0, from); i < Math.min(line.length - 1, to); i++) {
       const r = projSeg(p, line[i], line[i + 1]);
-      if (r.dist < best.dist) best = { dist: r.dist, seg: i, along: cum[i] + r.t * (cum[i + 1] - cum[i]) };
+      if (r.dist < best.dist) best = { dist: r.dist, seg: i, along: cum[i] + r.t * (cum[i + 1] - cum[i]), pt: [line[i][0] + r.t * (line[i + 1][0] - line[i][0]), line[i][1] + r.t * (line[i + 1][1] - line[i][1])] };
     }
   };
   scan(hint - 5, hint + 400);
@@ -60,17 +60,51 @@ export function snapToRoute(p, line, cum, hint = 0) {
   return best;
 }
 
-// Off-route detector (Ferrostar-style): fixes worse than minAccuracy never count; N consecutive bad fixes needed.
+// Off-route detector (Ferrostar-style + CoMaps RoutingSession move-away counter): fixes worse than minAccuracy never count;
+// each bad fix adds 1 (slow / unknown speed) or 2 (fast, > fastMps) so missed highway exits reroute sooner but yards stay patient;
+// at speed > headingMps a heading more than headingTol off the route segment's bearing also counts as a deviation (parallel service roads / overpasses).
+export const angleDiff = (a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
 export class OffRouteDetector {
-  constructor({ threshold = 50, needed = 3, minAccuracy = 30 } = {}) { Object.assign(this, { threshold, needed, minAccuracy }); this.count = 0; this.ignored = 0; }
-  update(distFromRoute, accuracy = 0) {
+  constructor({ threshold = 50, needed = 3, minAccuracy = 30, fastMps = 13, headingMps = 5, headingTol = 60 } = {}) { Object.assign(this, { threshold, needed, minAccuracy, fastMps, headingMps, headingTol }); this.count = 0; this.ignored = 0; this.state = 'on'; }
+  update(distFromRoute, accuracy = 0, { speed = null, heading = null, segBearing = null } = {}) {
     if (accuracy && accuracy > this.minAccuracy) { this.ignored++; return false; } // too fuzzy to judge – hold state
-    this.count = distFromRoute > this.threshold + (accuracy || 0) ? this.count + 1 : 0;
+    const far = distFromRoute > this.threshold + (accuracy || 0);
+    const wrongWay = speed != null && speed > this.headingMps && heading != null && segBearing != null && angleDiff(heading, segBearing) > this.headingTol && distFromRoute > 15;
+    this.count = far || wrongWay ? this.count + (speed != null && speed > this.fastMps ? 2 : 1) : 0;
+    this.state = this.count >= this.needed ? 'needsRebuild' : this.count ? 'drifting' : 'on';
     return this.count >= this.needed;
   }
   isOff() { return this.count > 0; }
-  reset() { this.count = 0; }
+  reset() { this.count = 0; this.state = 'on'; }
 }
+
+// Remaining drive time from the route's own per-maneuver times (Valhalla), not distance-proportional:
+// remaining part of the maneuver we're on + every later maneuver. idx = index of the NEXT maneuver, toM = metres to it.
+export function etaRemaining(r, idx, toM) { const ms = r.maneuvers || []; let t = 0; const cur = ms[idx - 1];
+  if (cur) { const L = (cur.length || 0) * 1000; t += L > 0 ? (cur.time || 0) * Math.min(1, toM / L) : 0; }
+  for (let i = Math.max(0, idx); i < ms.length; i++) t += ms[i].time || 0;
+  return t; }
+// ETA smoothing: EMA on remaining seconds; the shown arrival minute only changes if the new value persists > holdMs (or jumps > jumpS).
+export class EtaSmoother {
+  constructor({ alpha = 0.25, holdMs = 30e3, jumpS = 180 } = {}) { Object.assign(this, { alpha, holdMs, jumpS }); this.ema = null; this.shown = null; this.pendingSince = null; }
+  update(remSec, now = Date.now()) {
+    this.ema = this.ema == null ? remSec : this.ema + this.alpha * (remSec - this.ema);
+    const arr = now + this.ema * 1000, minute = Math.round(arr / 60e3);
+    if (this.shown == null || Math.abs(minute - this.shown) * 60 >= this.jumpS) { this.shown = minute; this.pendingSince = null; }
+    else if (minute !== this.shown) { if (this.pendingSince == null) this.pendingSince = now; else if (now - this.pendingSince >= this.holdMs) { this.shown = minute; this.pendingSince = null; } }
+    else this.pendingSince = null;
+    return { remSec: Math.max(0, this.shown * 60e3 - now) / 1000, arrival: this.shown * 60e3 };
+  }
+  reset() { this.ema = null; this.shown = null; this.pendingSince = null; }
+}
+
+// Puck filter: accuracy-gated low-pass on position; heading only updated when moving (> minHeadingMps).
+export class PuckFilter {
+  constructor({ maxAcc = 50, minHeadingMps = 2 } = {}) { Object.assign(this, { maxAcc, minHeadingMps }); this.p = null; this.heading = null; }
+  update(f) { if (f.acc && f.acc > this.maxAcc && this.p) return this.p;
+    if (f.speed != null && f.speed > this.minHeadingMps && f.heading != null) this.heading = f.heading; else if (this.heading == null && f.heading != null) this.heading = f.heading;
+    if (!this.p) this.p = { lon: f.lon, lat: f.lat }; else { const a = Math.min(1, Math.max(0.35, 10 / ((f.acc || 10) + 5))); this.p = { lon: this.p.lon + a * (f.lon - this.p.lon), lat: this.p.lat + a * (f.lat - this.p.lat) }; }
+    return { ...this.p, heading: this.heading }; } }
 
 // maneuvers: [{begin_shape_index, ...}]; returns index of the NEXT maneuver to perform.
 export function currentStep(maneuvers, seg) {

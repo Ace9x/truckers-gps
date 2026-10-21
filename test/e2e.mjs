@@ -222,7 +222,7 @@ const fa = await T(() => { const p = TruckNav.pos, t0 = Date.now() + 3600e3; Tru
 ok(fa.length === 1, 'drowsy-driving reminder after 2 h continuous driving: ' + fa[0]);
 await T(() => TruckNav.endNav());
 // SOS
-await page.click('#sosBtn'); const so = await T(() => ({ tel: document.querySelector('#sos911').getAttribute('href'), where: document.querySelector('#sosWhere').textContent, sms: document.querySelector('#sosSms').getAttribute('href') }));
+await page.click('#moreBtn'); await page.click('#sosBtn'); const so = await T(() => ({ tel: document.querySelector('#sos911').getAttribute('href'), where: document.querySelector('#sosWhere').textContent, sms: document.querySelector('#sosSms').getAttribute('href') }));
 ok(so.tel === 'tel:911' && /40\.\d+/.test(so.where) && /sms:/.test(so.sms), `SOS: call 911 + share/text exact location (${so.where})`);
 await shot('v2-04-sos'); await closeP();
 // Multi-stop

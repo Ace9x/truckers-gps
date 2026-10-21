@@ -11,6 +11,7 @@ const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 
 // Reports filed by automated browsers (e2e tests) are tagged test:1 and only visible to other test browsers.
 export const IS_TEST = typeof navigator !== 'undefined' && (navigator.webdriver === true || (typeof location !== 'undefined' && /[?&]rrtest=1/.test(location.search)));
+export const CHAN = IS_TEST ? TAG + '-test' : TAG; // automated tests publish on their own channel, never the public one
 export class LiveHazards {
   constructor({ onChange = () => {}, onStatus = () => {}, relays = RELAYS } = {}) {
     let sk; try { sk = new Uint8Array(JSON.parse(localStorage.getItem('tn_hzsk'))); if (sk.length !== 32) throw 0; } catch { sk = generateSecretKey(); localStorage.setItem('tn_hzsk', JSON.stringify([...sk])); }
@@ -29,18 +30,18 @@ export class LiveHazards {
     r.ws.onerror = () => {};
   }
   _st(s) { this.status = s; this.onStatus(s); }
-  _req(r) { if (!this.cells.length) return; try { r.ws.send(JSON.stringify(['REQ', 'hz', { kinds: [KIND], '#g': this.cells, '#t': [TAG], since: Math.floor(Date.now() / 1000) - 31 * 86400, limit: 500 }])); } catch {} }
+  _req(r) { if (!this.cells.length) return; try { r.ws.send(JSON.stringify(['REQ', 'hz', { kinds: [KIND], '#g': this.cells, '#t': [CHAN], since: Math.floor(Date.now() / 1000) - 31 * 86400, limit: 500 }])); } catch {} }
   async _mqtt() { try { if (!window.mqtt) await new Promise((ok, no) => { const s = document.createElement('script'); s.src = MQTT_LIB; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
       this.mq = window.mqtt.connect(MQTT_URL, { clientId: 'rr_' + Math.random().toString(16).slice(2), clean: true });
       this.mq.on('connect', () => { this._st('live (mqtt)'); this._mqsub(); });
       this.mq.on('message', (_t, p) => { try { this._event(JSON.parse(p.toString())); } catch {} }); } catch { this._st('offline'); } }
-  _mqsub() { if (this.mq?.connected) this.cells.forEach(c => this.mq.subscribe(`${TAG}/${c}`)); }
+  _mqsub() { if (this.mq?.connected) this.cells.forEach(c => this.mq.subscribe(`${CHAN}/${c}`)); }
   setArea(lat, lon) { const c = geohash(lat, lon, AREA_P); if (c === this.cell) return; this.cell = c; this.cells = ghNeighbors(c); this.relays.filter(r => r.open).forEach(r => this._req(r)); this._mqsub(); }
   _send(ev) { const m = JSON.stringify(['EVENT', ev]); this.outbox = [...(this.outbox || []).slice(-20), m]; let n = 0;
     this.relays.forEach(r => { if (r.open) try { r.ws.send(m); n++; } catch {} });
-    if (this.mq?.connected) { this.mq.publish(`${TAG}/${ev.tags.find(t => t[0] === 'g')[1]}`, JSON.stringify(ev)); n++; } return n; }
+    if (this.mq?.connected) { this.mq.publish(`${CHAN}/${ev.tags.find(t => t[0] === 'g')[1]}`, JSON.stringify(ev)); n++; } return n; }
   _sign(content, lat, lon, expSec) { const ev = finalizeEvent({ kind: KIND, created_at: Math.floor(Date.now() / 1000), content: JSON.stringify({ ...content, v: 2, ...(IS_TEST ? { test: 1 } : {}) }),
-      tags: [['g', geohash(lat, lon, AREA_P)], ['g', geohash(lat, lon, 6)], ['t', TAG], ['expiration', String(expSec)]] }, this.sk); this.me = ev.pubkey; this.seen.add(ev.id); return ev; }
+      tags: [['g', geohash(lat, lon, AREA_P)], ['g', geohash(lat, lon, 6)], ['t', CHAN], ['expiration', String(expSec)]] }, this.sk); this.me = ev.pubkey; this.seen.add(ev.id); return ev; }
   // ---------- inbound ----------
   _event(ev) { if (!ev || this.seen.has(ev.id) || ev.kind !== KIND) return; this.seen.add(ev.id);
     let c; try { c = JSON.parse(ev.content); } catch { return; }

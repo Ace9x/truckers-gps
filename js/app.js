@@ -1,5 +1,5 @@
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
-  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine } from './logic.js';
+  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
@@ -22,7 +22,7 @@ const line = coords => ({ type: 'Feature', geometry: { type: 'LineString', coord
 
 const DEFAULT_TRUCK = { driverType: 'otr', cycle: 70, heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5, hazmat: false, avoidTolls: false, avoidWeigh: false, units: 'mi', theme: 'night' };
 const S = {
-  truck: { ...DEFAULT_TRUCK, ...LS.get('truck', {}) }, pos: LS.get('lastPos', null), dest: LS.get('dest', null),
+  truck: { ...DEFAULT_TRUCK, ...(LS.get('truck', null) || LS.get('truckBak', {})) }, // profile never silently resets (UX P15): backup copy kept by pro.js pos: LS.get('lastPos', null), dest: LS.get('dest', null),
   route: null, routes: [], sel: 0, chosen: null, carRoute: null, nav: false, demo: null, follow: true,
   hint: 0, spoken: {}, off: new OffRouteDetector({ threshold: 50, needed: 3, minAccuracy: 30 }), rerouting: false, lastReroute: 0, rerouteCount: 0,
   step: 0, along: 0, pois: [], events: LS.get('hos', []), stoppedSince: null, warned: {}, avoids: LS.get('avoids', []), facilities: LS.get('facilities', {}),
@@ -60,10 +60,10 @@ function addLayers() {
   if (!map.getLayer('route-casing')) map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#0d47a1', 'line-width': 13 } });
   if (!map.getLayer('route')) map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#29b6f6', 'line-width': 8 } });
   if (!map.getLayer('done')) map.addLayer({ id: 'done', type: 'line', source: 'done', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#607d8b', 'line-width': 8 } });
-  if (!map.getSource('wz')) map.addSource('wz', { type: 'geojson', data: S.closureGeo || empty });
-  if (!map.getLayer('wz')) map.addLayer({ id: 'wz', type: 'circle', source: 'wz', minzoom: 8, paint: { 'circle-radius': ['case', ['get', 'closed'], 8, 5], 'circle-color': ['case', ['get', 'closed'], '#ff1744', '#ff9100'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
-  if (!map.getSource('fuelAll')) map.addSource('fuelAll', { type: 'geojson', data: S.fuelGeo || empty });
-  if (!map.getLayer('fuelAll')) map.addLayer({ id: 'fuelAll', type: 'circle', source: 'fuelAll', minzoom: 10, paint: { 'circle-radius': 6, 'circle-color': ['case', ['==', ['get', 'truck'], true], '#ffb300', '#26a69a'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
+  if (!map.getSource('wz')) map.addSource('wz', { type: 'geojson', data: S.closureGeo || empty, cluster: true, clusterRadius: 45, clusterMaxZoom: 13, clusterProperties: { closed: ['max', ['case', ['get', 'closed'], 1, 0]] } }); // UX P8 / C3: clustered in the source
+  if (!map.getLayer('wz')) map.addLayer({ id: 'wz', type: 'circle', source: 'wz', minzoom: 11, filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': ['case', ['get', 'closed'], 8, 5], 'circle-color': ['case', ['get', 'closed'], '#ff1744', '#ff9100'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
+  if (!map.getSource('fuelAll')) map.addSource('fuelAll', { type: 'geojson', data: S.fuelGeo || empty, cluster: true, clusterRadius: 45, clusterMaxZoom: 13 });
+  if (!map.getLayer('fuelAll')) map.addLayer({ id: 'fuelAll', type: 'circle', source: 'fuelAll', minzoom: 10, filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': 6, 'circle-color': ['case', ['==', ['get', 'truck'], true], '#ffb300', '#26a69a'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
   drawRoute();
 }
 map.on('style.load', addLayers);
@@ -133,13 +133,23 @@ function powerManage(f) {
 S.powerManage = powerManage;
 
 const monitor = new DrivingMonitor(); S.monitor = monitor;
+// Puck: accuracy-gated filter, snapped to the route while on it, animated between ~1 Hz fixes (UX P6/C6).
+const puckFilter = new PuckFilter(); const etaSmooth = new EtaSmoother(); S.etaSmooth = etaSmooth;
+let puckAnim = null;
+function movePuck(lon, lat, heading) { if (!truckMarker._map) { truckMarker.setLngLat([lon, lat]).setRotation(heading).addTo(map); return; }
+  const from = truckMarker.getLngLat(), r0 = truckMarker.getRotation(), dr = ((heading - r0) % 360 + 540) % 360 - 180, t0 = performance.now(), D = S.demo ? 950 : 800;
+  if (Math.abs(from.lng - lon) + Math.abs(from.lat - lat) > 0.02 || document.hidden) { truckMarker.setLngLat([lon, lat]).setRotation(heading); return; }
+  cancelAnimationFrame(puckAnim); const step = now => { const k = Math.min(1, (now - t0) / D), e = k * (2 - k);
+    truckMarker.setLngLat([from.lng + (lon - from.lng) * e, from.lat + (lat - from.lat) * e]).setRotation(r0 + dr * e); if (k < 1) puckAnim = requestAnimationFrame(step); };
+  puckAnim = requestAnimationFrame(step); }
+S.movePuck = movePuck;
 function onFix(f) {
   const prev = S.pos;
   if (prev && (f.speed == null || !Number.isFinite(f.speed))) { const dt = (f.t - prev.t) / 1000; f.speed = dt > 0 ? haversine([prev.lon, prev.lat], [f.lon, f.lat]) / dt : 0; }
   if (f.heading == null && prev) { const d = haversine([prev.lon, prev.lat], [f.lon, f.lat]); f.heading = d > 3 ? bearing([prev.lon, prev.lat], [f.lon, f.lat]) : prev.heading; }
   if (S.nav && prev && (f.acc || 0) <= 30) { const d = haversine([prev.lon, prev.lat], [f.lon, f.lat]); if (d < 500) S.tripMiles += d / MI; }
   S.pos = f; LS.set('lastPos', { ...f });
-  truckMarker.setLngLat([f.lon, f.lat]).setRotation(f.heading || 0).addTo(map);
+  { const q = puckFilter.update(f); movePuck(q.lon, q.lat, q.heading ?? f.heading ?? 0); } // filtered + animated; snapped to route in navTick
   const mph = (f.speed || 0) * 2.23694; $('#speed').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
   if (S.nav) monitor.update(f, null);
   if (S.nav && S.route) navTick();
@@ -226,7 +236,7 @@ async function plan(isReroute = false) {
     return alts[0];
   } catch (e) { if (!isReroute) $('#routeSummary').textContent = '⚠ ' + (navigator.onLine ? e.message : 'Offline — routing needs a connection'); else toast('Reroute failed: ' + e.message); }
 }
-function setRoute(r) { S.route = r; S.hint = 0; S.spoken = {}; S.off.reset(); S.step = 0; S.dangers = []; S.dangerSpoken = {}; LS.set('route', { ...r, cum: undefined }); drawRoute(); renderSteps(); analyzeRoute(r); }
+function setRoute(r) { S.route = r; S.etaSmooth?.reset(); S.hint = 0; S.spoken = {}; S.off.reset(); S.step = 0; S.dangers = []; S.dangerSpoken = {}; LS.set('route', { ...r, cum: undefined }); drawRoute(); renderSteps(); analyzeRoute(r); }
 function selectRoute(i) { S.sel = i; S.chosen = S.routes[i]; LS.set('sel', i); setRoute(S.routes[i]); renderRoute(); S.pois = []; S.poiDone = false; clearPois(); }
 S.plan = plan; S.setDest = setDest; S.selectRoute = selectRoute;
 function fitRoute() { const b = new maplibregl.LngLatBounds(); S.routes.forEach(r => r.line.forEach(c => b.extend(c))); setFollow(false); map.fitBounds(b, { padding: { top: 80, bottom: window.innerHeight * 0.5, left: 40, right: 80 }, pitch: 0, bearing: 0 }); }
@@ -332,7 +342,8 @@ $('#endBtn').onclick = () => endNav('Navigation ended');
 function navTick() {
   const r = S.route, p = [S.pos.lon, S.pos.lat];
   const sn = snapToRoute(p, r.line, r.cum, S.hint); S.distFromRoute = sn.dist;
-  const offNow = S.off.update(sn.dist, S.demo ? 0 : S.pos.acc);
+  const si = Math.min(sn.seg, r.line.length - 2), segB = si >= 0 ? bearing(r.line[si], r.line[si + 1]) : null;
+  const offNow = S.off.update(sn.dist, S.demo ? 0 : S.pos.acc, { speed: S.pos.speed, heading: S.pos.heading, segBearing: segB });
   if (offNow && !navigator.onLine && S.offlineOffRoute) { S.offlineOffRoute(sn); return; } // no signal: guide back to the line, reroute queued until online
   if (offNow && !S.rerouting && Date.now() - S.lastReroute > 8000) {
     S.rerouting = true; S.lastReroute = Date.now(); S.rerouteCount++; $('#bInstr').textContent = 'Rerouting…'; say('Off route. Recalculating.', 'reroute'); mascot.say("Whoops! New route coming up — I've got you.", 'worried');
@@ -340,6 +351,7 @@ function navTick() {
     return;
   }
   if (S.off.isOff()) { checkWrongRoad(); return; } // Ferrostar: don't advance steps while (possibly) off route
+  if (sn.pt && sn.dist < 30) movePuck(sn.pt[0], sn.pt[1], segB ?? S.pos.heading ?? 0); // show the snapped point while on route
   S.hint = sn.seg; S.along = sn.along; LS.set('navActive', { t: Date.now(), sel: S.sel });
   const remaining = Math.max(0, r.length - sn.along);
   const idx = currentStep(r.maneuvers, sn.seg), m = r.maneuvers[idx];
@@ -348,8 +360,8 @@ function navTick() {
   $('#bArrow').textContent = arrow(m.type); $('#bDist').textContent = fmtDist(toM, U()); $('#bInstr').textContent = m.street_names?.join(' / ') || m.instruction;
   const nx = r.maneuvers[idx + 1], tb = $('#thenBox');
   if (nx && m.length * 1000 < 400 && idx > 0) { tb.textContent = `Then ${arrow(nx.type)} ${nx.instruction}`; tb.classList.remove('hidden'); } else tb.classList.add('hidden');
-  const remT = r.time * (remaining / r.length) + (S.trafficDelay || 0); S.remT = remT; // traffic-aware ETA
-  $('#tEta').textContent = new Date(Date.now() + remT * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const sm = etaSmooth.update(etaRemaining(r, idx, toM) + (S.trafficDelay || 0)), remT = sm.remSec; S.remT = remT; // remaining-leg times + traffic, smoothed (UX P6/C7)
+  $('#tEta').textContent = new Date(sm.arrival).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   $('#tLeft').textContent = fmtDur(remT); $('#tDist').textContent = U() === 'km' ? (remaining / 1000).toFixed(1) : (remaining / MI).toFixed(1);
   $('#tDist').nextElementSibling.textContent = U() === 'km' ? 'km' : 'miles';
   const sp = (S.spoken[idx] ||= {}), which = promptFor(toM, S.pos.speed || 0, sp, m.type);

@@ -87,3 +87,19 @@ export function parseHere(j, t = Date.now()) { return (j.results || []).flatMap(
 // TomTom flowSegmentData → link feature.
 export function parseTomTom(j, t = Date.now()) { const f = j.flowSegmentData; if (!f || !(f.freeFlowSpeed > 0)) return null;
   return { id: 'tt' + f.coordinates.coordinate[0].latitude, name: 'TomTom segment', mph: f.currentSpeed / 1.609344, ff: f.freeFlowSpeed / 1.609344, ratio: Math.min(1, f.currentSpeed / f.freeFlowSpeed), coords: f.coordinates.coordinate.map(c => [c.longitude, c.latitude]), t, src: 'TomTom', closed: !!f.roadClosure }; }
+// ---------- Map-matching (Valhalla trace_attributes, shape_match=map_snap) so traffic is drawn on real road geometry ----------
+// Densify a sparse link to ~step-metre points for the matcher (Valhalla advises dense traces, search_radius <= 100 m).
+export function densify(coords, step = 100) { const out = [];
+  for (let i = 0; i < coords.length - 1; i++) { const a = coords[i], b = coords[i + 1], n = Math.max(1, Math.round(haversine(a, b) / step)); for (let j = 0; j < n; j++) out.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
+  if (coords.length) out.push(coords.at(-1)); return out; }
+export const traceRequest = (coords, costing = 'auto') => ({ shape: densify(coords).map(([lon, lat]) => ({ lon: +lon.toFixed(6), lat: +lat.toFixed(6) })), costing, shape_match: 'map_snap',
+  trace_options: { search_radius: 60 }, filters: { attributes: ['shape', 'edge.road_class', 'matched.type'], action: 'include' } });
+const CLS_RANK = { motorway: 0, trunk: 1, primary: 2, secondary: 3, tertiary: 4, unclassified: 5, residential: 6, service_other: 7 };
+// Valhalla response → { coords, cls } or null when the trace didn't match the road network well.
+export function parseTrace(j, decode) { if (!j?.shape) return null; const m = j.matched_points || [];
+  const unmatched = m.filter(p => p.type === 'unmatched').length; if (m.length && unmatched / m.length > 0.2) return null;
+  const coords = decode(j.shape, 6); if (coords.length < 2) return null;
+  for (let i = 1; i < coords.length; i++) if (haversine(coords[i - 1], coords[i]) > 1000) return null; // discontinuity
+  const cnt = {}; for (const e of j.edges || []) cnt[e.road_class] = (cnt[e.road_class] || 0) + 1;
+  const cls = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || (CLS_RANK[a] ?? 9) - (CLS_RANK[b] ?? 9))[0] || 'unknown';
+  return { coords, cls }; }

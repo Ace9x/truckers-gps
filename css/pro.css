@@ -151,6 +151,58 @@ html body .hz-pin{width:30px;height:36px}
 html body .hz-pin .bub{width:30px;height:30px;border-width:2px;box-shadow:0 2px 6px #0009}
 html body .hz-pin i{width:30px;top:0;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
 html body .hz-pin .pi svg{width:15px;height:15px;stroke-width:2.4}
-html body .hz-pin.hz-clustered{visibility:hidden;pointer-events:none}
-html body .hz-pin[data-count]::after{content:attr(data-count);position:absolute;right:-8px;top:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#fff;color:#111;font:800 11px/18px var(--font);text-align:center;box-shadow:0 1px 4px #0008}
+body.pro-hz .hz-pin{visibility:hidden!important;pointer-events:none!important} /* drawn by the clustered hzPts layer instead */
 html body .hz-call{font-family:var(--font)}
+/* ===== Driving-state layouts (UX P3/P10/P11) ===== */
+#navStack{position:absolute;right:12px;bottom:calc(88px + var(--safe-b));z-index:6;display:none;flex-direction:column;align-items:flex-end;gap:12px}
+body.st-nav #navStack,body.st-arriving #navStack{display:flex}
+#navStack button{border-radius:50%;padding:0;background:var(--panel);box-shadow:var(--sh2);color:var(--fg)}
+#navStack .ns64{width:64px;height:64px}#navStack .ns76{width:76px;height:76px;background:var(--warn);border-color:var(--warn);color:#111}
+#navStack svg{width:28px;height:28px}#navStack .ns76 svg{width:34px;height:34px;stroke-width:2.4}
+#navStack .off{color:var(--bad)}
+body.following #nsRecenter{display:none}
+body.st-nav #sideBtns,body.st-arriving #sideBtns,body.st-nav #dock,body.st-arriving #dock,body.st-nav #railMenu,body.st-nav #truckChip,body.st-arriving #truckChip{display:none!important}
+body.st-nav:not(.mascot-opt) #mascot{display:none!important}
+/* ETA bar (UX P6): bottom, 72px */
+html body #tripBar{left:0;right:0;bottom:0;border-radius:20px 20px 0 0;min-height:calc(72px + var(--safe-b));padding:8px 8px calc(8px + var(--safe-b)) 8px;border:0;border-top:1px solid var(--line)}
+#tripBar b{font-size:20px}#tripBar>div:first-child b{font-size:28px}
+html body #endBtn{order:-1;width:64px;min-height:56px;padding:0;border-radius:var(--r2);font-size:15px}
+/* speed cluster (UX P5) bottom-left, 16px above ETA bar */
+body.st-nav #speedBox,body.st-arriving #speedBox{bottom:calc(88px + var(--safe-b))!important}
+body.st-nav #limitSign,body.st-arriving #limitSign{bottom:calc(88px + var(--safe-b))!important}
+html body #speedBox{width:64px;height:64px;border-radius:50%}
+html body #speedBox.over{background:var(--bad);color:#fff;border-color:#fff}
+html body #limitSign{left:84px;width:64px;height:80px;min-height:80px;border-radius:8px;border:3px solid #000;outline:2px solid #fff;outline-offset:-1px;background:#fff;color:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:4px 2px}
+html body #limitSign small{font-size:0;line-height:1}html body #limitSign small::before{content:'SPEED LIMIT';display:block;font:800 10px/1.05 var(--font);letter-spacing:.02em;text-align:center;width:44px;margin:0 auto}
+html body #limitSign b{font:800 32px/1 var(--font);margin-top:4px}html body #limitSign i{font:600 8px var(--font);color:#555;text-transform:uppercase}
+html body #limitSign.hidden{display:none!important}
+/* turn card (UX P4/P12): always dark */
+html body #banner{background:#111c;background:rgba(17,17,17,.96);min-height:112px}
+html body #bInstr{color:#d0d0d0;font-weight:500;-webkit-line-clamp:1}
+html body #lanes:not(.hidden){background:#1565c0;height:44px;padding:4px 8px;top:calc(120px + var(--safe-t))}
+html body .lane .pi svg{width:26px;height:26px}
+/* while moving: 76px primary controls, no small chrome (UX P10) */
+body.moving.st-nav #bArrow .pi svg{width:64px;height:64px}
+/* browse: bottom sheet instead of a 6-button dock (UX P2 / spec §2) */
+body.st-browse #dock{border-radius:20px 20px 0 0;padding-top:16px;flex-wrap:nowrap;overflow-x:auto}
+body.st-browse #dock::before{content:'';position:absolute;top:6px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}
+#dock button{min-width:56px}
+/* truck profile chip (UX P15) */
+#truckChip{position:absolute;left:12px;top:calc(72px + var(--safe-t));z-index:5;min-height:36px;padding:4px 12px;border-radius:18px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh1);font-size:13px;font-weight:600;color:var(--fg);gap:8px}
+#truckChip svg{width:16px;height:16px;color:var(--acc)}
+#rpTruck{width:100%;justify-content:flex-start;margin:4px 0 8px;font-weight:600}#rpTruck svg{width:16px;height:16px;color:var(--acc)}
+body.st-browse #sideBtns{top:calc(72px + var(--safe-t))}
+/* chip row under search (spec §2) */
+html body #acctChips{display:flex;gap:8px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+html body #acctChips .chip{flex:none;min-height:40px;padding:4px 12px;border-radius:20px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--sh1);font-size:13px;font-weight:600;gap:8px;color:var(--fg)}
+html body #acctChips .chip .pi svg{width:16px;height:16px;color:var(--acc)}
+html body #acctChips #truckChip{position:static}
+html body #thenBox{background:#1f2937}
+html body #hzLive{left:auto;right:84px;bottom:calc(156px + var(--safe-b));background:var(--panel);font:600 11px var(--font);border-radius:var(--r1);padding:4px 8px;box-shadow:var(--sh1)}
+body.st-nav #hzLive,body.st-arriving #hzLive,body.st-nav #tfLegend,body.st-arriving #tfLegend{display:none!important}
+body.st-browse #sideBtns{top:calc(120px + var(--safe-t))}
+html body #hzGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+html body #hzGrid button{min-width:0;min-height:88px;font-size:13px;padding:8px 4px;overflow-wrap:anywhere}
+html body #hzGrid button .pi svg{width:28px;height:28px}
+html body #hzSheet{left:0;right:0;box-sizing:border-box;max-width:100vw}
+.maplibregl-popup{z-index:32}

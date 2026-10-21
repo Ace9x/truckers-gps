@@ -2,8 +2,8 @@
 // Colors the map, adds traffic-aware ETA, jam alerts ahead, truck-safe faster-route suggestions, and Waze/Google/Apple second-opinion links.
 import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
 import { geohash, ghNeighbors } from './hazlogic.js';
-import { cumulative } from './logic.js';
-import { LEVELS, level, segKey, aggregate, routeTraffic, jamText, rerouteDecision, ageText, wazeLink, gmapsLink, appleLink, parseNycDot, freshLinks, linkObs, parseHere, parseTomTom, MPH, MI } from './trafficlogic.js';
+import { cumulative, decodePolyline } from './logic.js';
+import { LEVELS, level, segKey, aggregate, routeTraffic, jamText, rerouteDecision, ageText, wazeLink, gmapsLink, appleLink, parseNycDot, freshLinks, linkObs, traceRequest, parseTrace, parseHere, parseTomTom, MPH, MI } from './trafficlogic.js';
 import { RELAYS } from './hazards.js';
 
 export const TKIND = 7534, TTAG = 'rigroute-tf-v1';
@@ -33,10 +33,15 @@ export function init(S, { $, map, say, toast, esc, LS }) {
     if (!map.getSource('tf')) map.addSource('tf', { type: 'geojson', data: T.geo || empty });
     if (!map.getSource('tfRoute')) map.addSource('tfRoute', { type: 'geojson', data: T.routeGeo || empty });
     const before = map.getLayer('route-casing') ? 'route-casing' : undefined;
-    if (!map.getLayer('tf')) map.addLayer({ id: 'tf', type: 'line', source: 'tf', minzoom: 9, layout: { 'line-cap': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
-      paint: { 'line-color': ['match', ['get', 'level'], 'free', LEVELS[0].color, 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 15, 5], 'line-opacity': 0.85, 'line-offset': ['interpolate', ['linear'], ['zoom'], 10, 1, 16, 4] } }, before);
+    // UX P7 / code C2: casing + exponential width; motorway/trunk only below z12, primary+ from z12, everything matched from z14.
+    const clsFilter = ['any', ['in', ['get', 'cls'], ['literal', ['motorway', 'trunk']]], ['all', ['>=', ['zoom'], 12], ['==', ['get', 'cls'], 'primary']], ['>=', ['zoom'], 14]];
+    const W = k => ['interpolate', ['exponential', 1.5], ['zoom'], 9, 1.5 * k, 12, 3 * k, 15, 6 * k, 18, 14 * k];
+    if (!map.getLayer('tf-casing')) map.addLayer({ id: 'tf-casing', type: 'line', source: 'tf', minzoom: 9, filter: clsFilter, layout: { 'line-cap': 'round', 'line-join': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
+      paint: { 'line-color': '#000', 'line-opacity': 0.6, 'line-width': ['+', W(1), 3] } }, before);
+    if (!map.getLayer('tf')) map.addLayer({ id: 'tf', type: 'line', source: 'tf', minzoom: 9, filter: clsFilter, layout: { 'line-cap': 'round', 'line-join': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
+      paint: { 'line-color': ['match', ['get', 'level'], 'free', LEVELS[0].color, 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': W(1) } }, before);
     if (!map.getLayer('tfRoute')) map.addLayer({ id: 'tfRoute', type: 'line', source: 'tfRoute', layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': ['match', ['get', 'level'], 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': 8 } }, map.getLayer('done') ? 'done' : undefined);
+      paint: { 'line-color': ['match', ['get', 'level'], 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 8, 3, 12, 6, 16, 10] } }, map.getLayer('done') ? 'done' : undefined);
     if (T.keys.tomtom && !map.getSource('ttflow')) { map.addSource('ttflow', { type: 'raster', tileSize: 256, attribution: 'Traffic © TomTom', tiles: [`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${encodeURIComponent(T.keys.tomtom)}`] });
       map.addLayer({ id: 'ttflow', type: 'raster', source: 'ttflow', minzoom: 8, paint: { 'raster-opacity': 0.8 } }, before); }
   }
@@ -102,8 +107,20 @@ export function init(S, { $, map, say, toast, esc, LS }) {
     return o.concat(T.injected || []); }
   T.routeTraffic = (route, from = 0) => { if (!route.cum) route.cum = cumulative(route.line); return routeTraffic(route, obsFor(route), { from }); };
   let pend = null; const schedule = () => { clearTimeout(pend); pend = setTimeout(refresh, 400); };
+  // Map-match NYC DOT links once (geometry is static), cache by link_id; only links near the view, 2 at a time.
+  T.match = new Map(Object.entries((() => { try { return JSON.parse(localStorage.getItem('tn_tfmatch') || '{}'); } catch { return {}; } })()));
+  const mq = [], inq = new Set(), failed = new Set(); let busy = 0;
+  function queueMatch(l) { if (inq.has(l.id) || failed.has(l.id) || T.match.has(l.id)) return; const b = map.getBounds();
+    if (!l.coords.some(([x, y]) => b.contains([x, y]))) return; inq.add(l.id); mq.push(l); pump(); }
+  async function pump() { while (busy < 2 && mq.length) { const l = mq.shift(); busy++;
+      fetch('https://valhalla1.openstreetmap.de/trace_attributes', { method: 'POST', body: JSON.stringify(traceRequest(l.coords)), signal: AbortSignal.timeout(15000) })
+        .then(r => r.ok ? r.json() : null).then(j => { const m = parseTrace(j, decodePolyline); if (m) { m.coords = m.coords.map(([x, y]) => [+x.toFixed(5), +y.toFixed(5)]); T.match.set(l.id, m); saveMatch(); schedule(); } else failed.add(l.id); })
+        .catch(() => failed.add(l.id)).finally(() => { busy--; inq.delete(l.id); setTimeout(pump, 300); }); } }
+  let saveT; const saveMatch = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem('tn_tfmatch', JSON.stringify(Object.fromEntries(T.match))); } catch {} }, 2000); };
+  map.on('moveend', () => { if (T.links) for (const l of T.links) if (l.src === 'NYC DOT' && !T.match.has(l.id)) queueMatch(l); });
   function refresh() { const links = allLinks(); T.links = links;
-    T.geo = { type: 'FeatureCollection', features: links.filter(l => l.src !== 'NYC DOT').map(l => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: l.coords }, properties: { level: level(l.ratio).id, ratio: l.ratio, mph: l.mph, ff: l.ff, name: l.name, src: l.src, t: l.t } })) };
+    T.geo = { type: 'FeatureCollection', features: links.filter(l => !l.crowd).map(l => { const m = l.src === 'NYC DOT' ? T.match.get(l.id) : { coords: l.coords, cls: l.cls || 'primary' }; if (!m) { queueMatch(l); return null; }
+      return { type: 'Feature', geometry: { type: 'LineString', coordinates: m.coords }, properties: { cls: m.cls, level: level(l.ratio).id, ratio: l.ratio, mph: l.mph, ff: l.ff, name: l.name, src: l.src, t: l.t } }; }).filter(Boolean) };
     map.getSource('tf')?.setData(T.geo);
     const r = S.route; if (r) { const tr = T.routeTraffic(r, S.nav ? S.along || 0 : 0); T.cur = tr;
       T.routeGeo = { type: 'FeatureCollection', features: tr.slowdowns.map(s => ({ type: 'Feature', properties: { level: s.level }, geometry: { type: 'LineString', coordinates: slice(r, s.start, s.end) } })) };

@@ -1,6 +1,7 @@
 // RigRoute GPS — Pro UI layer: SVG icon set (replaces emoji glyphs visually, keeps text for screen readers/tests),
 // trucking map style, splash, help button, first-run tour with Ace. Styling/markup only — no feature logic.
 import { ICONS } from './iconset.js';
+import { HZ } from './hazlogic.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
@@ -34,14 +35,14 @@ const sp = $('#splash'); if (sp) sp.innerHTML = `<div class="splashLogo">${LOGO}
 // ---------- Map style tuned for trucking ----------
 const map = S?.map;
 const DARK = { background: '#0f141b', water: '#0a2033', waterway: '#0a2033', building: '#151b24', landuse_park: '#122019', landcover_wood: '#122019', landuse_residential: '#121820',
-  highway_minor: '#252d38', highway_major_inner: '#3a4452', highway_major_casing: '#0f141b', highway_major_subtle: '#3a4452', highway_motorway_inner: '#c27a1a', highway_motorway_casing: '#0f141b', highway_motorway_subtle: '#8a5a1a', highway_path: '#1c232c' };
+  highway_minor: '#252d38', highway_major_inner: '#3a4452', highway_major_casing: '#0f141b', highway_major_subtle: '#3a4452', highway_motorway_inner: '#6b5434', highway_motorway_casing: '#0f141b', highway_motorway_subtle: '#4a3b26', highway_path: '#1c232c' };
 function tuneStyle() {
   if (!map?.getStyle()) return; const dark = (S.truck?.theme || 'night') !== 'day';
   for (const l of map.getStyle().layers) { try {
     if (dark) { const c = DARK[l.id]; if (c) map.setPaintProperty(l.id, l.type === 'background' ? 'background-color' : l.type === 'fill' ? 'fill-color' : 'line-color', c);
-      if (l.id === 'highway_motorway_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.4], ['zoom'], 5, 1, 9, 2.5, 14, 7, 18, 22]);
+      if (l.id === 'highway_motorway_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.4], ['zoom'], 5, 1, 9, 1.6, 14, 5, 18, 16]);
       if (l.id === 'highway_major_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.3], ['zoom'], 8, 1, 14, 5, 18, 16]);
-      if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', /motorway/.test(l.id) ? '#e8a54b' : '#9aa6b5'); map.setPaintProperty(l.id, 'text-halo-color', '#0f141b'); map.setPaintProperty(l.id, 'text-halo-width', 1.5); } }
+      if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', /motorway/.test(l.id) ? '#c9a46e' : '#8f9aa8'); map.setPaintProperty(l.id, 'text-halo-color', '#0f141b'); map.setPaintProperty(l.id, 'text-halo-width', 1.5); } }
     else if (/^road_motorway$|^bridge_motorway$|^tunnel_motorway$/.test(l.id)) map.setPaintProperty(l.id, 'line-color', '#f4a53a');
     if (l.id === 'route-casing') map.setPaintProperty(l.id, 'line-color', dark ? '#0b3d91' : '#0d47a1');
   } catch {} }
@@ -83,10 +84,10 @@ S.startTour = startTour;
 $('#helpBtn')?.addEventListener('click', startTour);
 $('#replayTour')?.addEventListener('click', () => { document.querySelector('.panel:not(.hidden) .close')?.click(); startTour(); });
 // First run: Ace is on as the onboarding guide; afterwards the user's choice (default off) rules.
-if (!LS.get('tourDone', false) && (!navigator.webdriver || /[?&]tour=1/.test(location.search)) && !/[?&]notour/.test(location.search)) setTimeout(startTour, 1700);
+if (!LS.get('tourDone', false) && (!navigator.webdriver || /[?&]tour=1/.test(location.search)) && !/[?&]notour/.test(location.search)) setTimeout(function go() { if ((S.pos?.speed || 0) > 2 || S.nav) return setTimeout(go, 5000); startTour(); }, 1700); // UX P16: only while parked
 
 // ---------- Right rail: keep the essentials, collapse the rest into a "More" menu ----------
-const RAIL_KEEP = new Set(['followBtn', 'reportBtn', 'layersBtn', 'sosBtn', 'moreBtn']);
+const RAIL_KEEP = new Set(['followBtn', 'reportBtn', 'layersBtn', 'moreBtn']); // UX P2: few floating buttons; SOS, satellite, HUD, voice etc. live in More
 const MORE = '<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>';
 if (side && !$('#moreBtn')) {
   side.insertAdjacentHTML('beforeend', `<button id="moreBtn" class="round" title="More" aria-label="More map tools" aria-expanded="false">${svg(MORE)}</button>`);
@@ -105,22 +106,64 @@ const tfLegendInit = () => { const L = $('#tfLegend'); if (!L || L.dataset.pro) 
   L.addEventListener('click', () => L.classList.toggle('min')); return true; };
 if (!tfLegendInit()) { const t = setInterval(() => tfLegendInit() && clearInterval(t), 500); setTimeout(() => clearInterval(t), 20000); }
 
-// ---------- Map POI icons (fuel / work zones) instead of plain dots ----------
+// ---------- Map point layers: clustered GeoJSON + SVG icons (UX P8, code C3) ----------
 const PIN = (bg, path, ring = '#fff') => `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="${bg}" stroke="${ring}" stroke-width="2.5"/><g transform="translate(8 8) scale(.6667)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${path}</g></svg>`;
+const HZC = { red: '#d32f2f', blue: '#1565c0', green: '#2e7d32', '': '#d97706' };
+const HZ_ICON = Object.fromEntries(Object.entries(HZ).map(([k, v]) => [k, /weigh/.test(k) ? '⚖' : v.icon.replace('\uFE0F', '')]));
+const hzColor = t => ['accident', 'closed', 'clearance', 'weigh_closed'].includes(t) ? 'red' : t === 'police' || t === 'camera' ? 'blue' : t === 'weigh_open' ? 'green' : '';
 const MAPICONS = { 'rr-fuel': PIN('#1f6f8b', ICONS['⛽']), 'rr-fuel-truck': PIN('#c96f00', ICONS['🚛']), 'rr-wz': PIN('#d97706', ICONS['🚧']), 'rr-closed': PIN('#c62828', ICONS['⛔']) };
+for (const [t, g] of Object.entries(HZ_ICON)) if (ICONS[g]) MAPICONS['rr-hz-' + t] = PIN(HZC[hzColor(t)], ICONS[g]);
+MAPICONS['rr-hz-other'] = PIN('#d97706', ICONS['⚠']);
 const loadImg = (src) => new Promise(r => { const i = new Image(64, 64); i.onload = () => r(i); i.onerror = () => r(null); i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src); });
+const empty = { type: 'FeatureCollection', features: [] };
+function clusterLayers(src, color, minzoom = 0, colorExpr = null) {
+  if (!map.getLayer(src + '-cl')) map.addLayer({ id: src + '-cl', type: 'circle', source: src, minzoom, filter: ['has', 'point_count'], paint: { 'circle-color': colorExpr || color, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 17, 50, 21], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+  if (!map.getLayer(src + '-cn')) map.addLayer({ id: src + '-cn', type: 'symbol', source: src, minzoom, filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true }, paint: { 'text-color': '#fff' } });
+  if (!clusterLayers[src]) { clusterLayers[src] = 1; map.on('click', src + '-cl', async e => { const f = e.features[0]; const z = await map.getSource(src).getClusterExpansionZoom(f.properties.cluster_id); map.easeTo({ center: f.geometry.coordinates, zoom: z + 0.5 }); }); }
+}
 async function addPoiIcons() { if (!map?.getStyle()) return;
   for (const [k, v] of Object.entries(MAPICONS)) if (!map.hasImage(k)) { const img = await loadImg(v); if (img && !map.hasImage(k)) map.addImage(k, img, { pixelRatio: 2 }); }
-  const mk = (id, src, icon, base, minzoom) => { if (!map.getSource(src) || map.getLayer(id)) return; map.addLayer({ id, type: 'symbol', source: src, minzoom, layout: { 'icon-image': icon, 'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 14, 1], 'icon-allow-overlap': true } });
+  const unc = ['!', ['has', 'point_count']];
+  const mk = (id, src, icon, base, minzoom) => { if (!map.getSource(src) || map.getLayer(id)) return; map.addLayer({ id, type: 'symbol', source: src, minzoom, filter: unc, layout: { 'icon-image': icon, 'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 14, 1], 'icon-allow-overlap': true } });
     map.setPaintProperty(base, 'circle-opacity', 0); map.setPaintProperty(base, 'circle-stroke-opacity', 0); };
-  try { mk('fuelAllIcon', 'fuelAll', ['case', ['==', ['get', 'truck'], true], 'rr-fuel-truck', 'rr-fuel'], 'fuelAll', 10); mk('wzIcon', 'wz', ['case', ['get', 'closed'], 'rr-closed', 'rr-wz'], 'wz', 8); } catch {}
-  for (const [ic, base] of [['fuelAllIcon', 'fuelAll'], ['wzIcon', 'wz']]) if (map.getLayer(ic) && map.getLayer(base)) { const v = map.getLayoutProperty(base, 'visibility') || 'visible'; if (map.getLayoutProperty(ic, 'visibility') !== v) map.setLayoutProperty(ic, 'visibility', v); } }
-if (map) { map.on('styledata', () => { clearTimeout(addPoiIcons.t); addPoiIcons.t = setTimeout(addPoiIcons, 80); }); map.on('idle', addPoiIcons); }
+  try {
+    mk('fuelAllIcon', 'fuelAll', ['case', ['==', ['get', 'truck'], true], 'rr-fuel-truck', 'rr-fuel'], 'fuelAll', 10); if (map.getSource('fuelAll')) clusterLayers('fuelAll', '#1f6f8b', 10);
+    mk('wzIcon', 'wz', ['case', ['get', 'closed'], 'rr-closed', 'rr-wz'], 'wz', 11); if (map.getSource('wz')) clusterLayers('wz', '#d97706', 9, ['case', ['>', ['get', 'closed'], 0], '#c62828', '#d97706']);
+    if (!map.getSource('hzPts')) map.addSource('hzPts', { type: 'geojson', data: hzGeo || empty, cluster: true, clusterRadius: 40, clusterMaxZoom: 14, clusterProperties: { sev: ['max', ['get', 'sev']] } });
+    clusterLayers('hzPts', '#d97706', 0, ['case', ['>=', ['get', 'sev'], 2], '#d32f2f', '#d97706']);
+    if (!map.getLayer('hzPts-i')) { map.addLayer({ id: 'hzPts-i', type: 'symbol', source: 'hzPts', filter: unc, layout: { 'icon-image': ['coalesce', ['image', ['concat', 'rr-hz-', ['get', 'type']]], ['image', 'rr-hz-other']], 'icon-size': ['interpolate', ['linear'], ['zoom'], 9, 0.75, 15, 1], 'icon-allow-overlap': true }, paint: { 'icon-opacity': ['get', 'op'] } });
+      map.on('click', 'hzPts-i', e => document.querySelector(`.hz-pin[data-id="${CSS.escape(e.features[0].properties.id)}"]`)?.click()); }
+  } catch (e) { console.warn('pro layers', e); }
+  for (const [ic, base] of [['fuelAllIcon', 'fuelAll'], ['wzIcon', 'wz']]) if (map.getLayer(ic) && map.getLayer(base)) { const v = map.getLayoutProperty(base, 'visibility') || 'visible';
+    for (const id of [ic, base + '-cl', base + '-cn']) if (map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== v) map.setLayoutProperty(id, 'visibility', v); }
+  const hv = S.layers?.reports === false ? 'none' : 'visible'; for (const id of ['hzPts-i', 'hzPts-cl', 'hzPts-cn']) if (map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== hv) map.setLayoutProperty(id, 'visibility', hv);
+}
+// Hazard reports → clustered source (DOM pins stay for popups/votes but are not drawn).
+let hzGeo = empty;
+function syncHazards() { const hz = S.hz; if (!hz?.visible || !map) return; const now = Date.now();
+  hzGeo = { type: 'FeatureCollection', features: hz.visible(now).map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { id: r.id, type: r.type, sev: hzColor(r.type) === 'red' ? 2 : 1, op: +(document.querySelector(`.hz-pin[data-id="${CSS.escape(r.id)}"]`)?.dataset.op || 1) } })) };
+  map.getSource('hzPts')?.setData(hzGeo); }
+document.body.classList.add('pro-hz');
+if (map) { map.on('styledata', () => { clearTimeout(addPoiIcons.t); addPoiIcons.t = setTimeout(addPoiIcons, 80); }); map.on('idle', addPoiIcons); setInterval(syncHazards, 2000);
+  new MutationObserver(() => { clearTimeout(syncHazards.t); syncHazards.t = setTimeout(syncHazards, 150); }).observe(document.body, { childList: true }); }
 
-// ---------- Hazard pin clustering (screen-space, display only) ----------
-function clusterPins() { const pins = [...document.querySelectorAll('.hz-pin')].filter(e => e.style.display !== 'none'); const leaders = [];
-  for (const el of pins) { const r = el.getBoundingClientRect(), c = [r.left + r.width / 2, r.bottom]; el.classList.remove('hz-clustered'); el.removeAttribute('data-count');
-    const L = leaders.find(l => Math.hypot(l.c[0] - c[0], l.c[1] - c[1]) < 40);
-    if (L) { L.n++; el.classList.add('hz-clustered'); L.el.dataset.count = L.n; } else leaders.push({ el, c, n: 1 }); } }
-if (map) { let t; const q = () => { clearTimeout(t); t = setTimeout(clusterPins, 60); }; map.on('move', q); map.on('zoomend', q);
-  new MutationObserver(q).observe(document.querySelector('.maplibregl-canvas-container')?.parentElement || document.body, { childList: true, subtree: true }); }
+// ---------- Driving-state layouts (UX P3, P10, P11) ----------
+document.body.insertAdjacentHTML('beforeend', `<div id="navStack" aria-label="Driving controls">
+  <button id="nsRecenter" class="ns64" aria-label="Recenter">${svg(ICONS['◎'])}</button>
+  <button id="nsMute" class="ns64" aria-label="Mute voice">${svg(ICONS['🔊'])}</button>
+  <button id="nsReport" class="ns76" aria-label="Report hazard">${svg(ICONS['⚠'])}</button></div>
+  <button id="truckChip" aria-label="Truck profile, tap to edit"></button>`);
+$('#nsReport').onclick = () => $('#reportBtn')?.click(); $('#nsMute').onclick = () => { $('#muteBtn')?.click(); setTimeout(state, 50); }; $('#nsRecenter').onclick = () => $('#followBtn')?.click();
+$('#truckChip').onclick = () => document.querySelector('[data-panel=truckPanel]')?.click();
+const ftIn = t => `${t.heightFt ?? 13}'${t.heightIn ?? 0}"`;
+function state() { const b = document.body, mph = (S.pos?.speed || 0) * 2.23694, rem = S.route && S.nav ? (S.route.length - (S.along || 0)) : 1e9;
+  const st = !S.nav ? 'browse' : rem < 805 ? 'arriving' : 'nav';
+  for (const k of ['browse', 'nav', 'arriving']) b.classList.toggle('st-' + k, st === k); b.classList.toggle('moving', mph > 5); b.classList.toggle('mascot-opt', !!S.mascot?.enabled);
+  b.classList.toggle('following', S.follow !== false); $('#nsMute').innerHTML = svg(ICONS[S.voiceObj?.enabled === false ? '🔇' : '🔊']); $('#nsMute').classList.toggle('off', S.voiceObj?.enabled === false);
+  const t = S.truck || {}; const txt = `${ftIn(t)} · ${Number(t.weightLbs || 0).toLocaleString()} lb · ${t.hazmat ? 'Hazmat' : 'No hazmat'}`;
+  const chip = $('#truckChip'); if (chip.dataset.t !== txt) { chip.dataset.t = txt; chip.innerHTML = svg(ICONS['🚛']) + `<span>${txt}</span>`; }
+  try { if (S.truck) localStorage.setItem('tn_truckBak', JSON.stringify(S.truck)); } catch {}
+  const rs = $('#routeSummary'); if (rs && !$('#rpTruck')) rs.insertAdjacentHTML('beforebegin', '<button id="rpTruck" class="small-btn"></button>');
+  const rp = $('#rpTruck'); if (rp && rp.dataset.t !== txt) { rp.dataset.t = txt; rp.innerHTML = svg(ICONS['🚛']) + ` Routing for ${txt} <span class="muted">· edit</span>`; rp.onclick = () => document.querySelector('[data-panel=truckPanel]')?.click(); } }
+function placeChip() { const row = $('#acctChips'), c = $('#truckChip'); if (row && c && c.parentElement !== row) { c.classList.add('chip'); row.prepend(c); } }
+setInterval(() => { state(); placeChip(); }, 1000); state();

@@ -158,3 +158,18 @@ test('amenities: tags, chains, nearby nodes, confirmations', () => {
   attachAmenities(pois, [{ lon: -74.0005, lat: 40, tags: { amenity: 'fast_food', name: "McDonald's" } }, { lon: -74.1, lat: 40.0005, tags: { amenity: 'shower' } }], 250, { x: { showers: true } });
   assert.equal(pois[0].amen.food, 'nearby'); assert.equal(pois[0].amen.showers, 'driver-confirmed'); assert.equal(pois[1].amen.showers, 'nearby'); assert.match(amenityLine(pois[0].amen), /Showers · 🚻 Restrooms · 🍔 Food \(McDonald's\)/);
   assert.equal(nextWithAmenity(pois, 6000, 'showers').id, 'y'); assert.equal(nextWithAmenity(pois, 0, 'food').id, 'x'); });
+
+import { OffRouteDetector as ORD2, etaRemaining, EtaSmoother, PuckFilter } from '../js/logic.js';
+test('off-route: fast fixes count double, heading check catches parallel road', () => {
+  const d = new ORD2({ threshold: 50, needed: 3 }); d.update(80, 5, { speed: 25 }); assert.equal(d.update(80, 5, { speed: 25 }), true);
+  const s = new ORD2({ threshold: 50, needed: 3 }); s.update(80, 5, { speed: 3 }); assert.equal(s.update(80, 5, { speed: 3 }), false);
+  const h = new ORD2(); for (let i = 0; i < 3; i++) h.update(25, 5, { speed: 10, heading: 180, segBearing: 0 }); assert.equal(h.state, 'needsRebuild');
+  const ok = new ORD2(); for (let i = 0; i < 5; i++) ok.update(10, 5, { speed: 10, heading: 5, segBearing: 0 }); assert.equal(ok.state, 'on'); });
+test('ETA sums remaining maneuver times and is smoothed', () => {
+  const r = { maneuvers: [{ time: 0, length: 0 }, { time: 600, length: 10 }, { time: 60, length: 0.5 }, { time: 0, length: 0 }] };
+  assert.equal(Math.round(etaRemaining(r, 2, 5000)), 360); // half of 600 s highway leg + 60 s city leg
+  const e = new EtaSmoother(); const t0 = 1e12; const a = e.update(1000, t0).arrival; assert.equal(e.update(1030, t0 + 1000).arrival, a);
+  assert.equal(e.update(1000 + 600, t0 + 2000).arrival !== a, true); });
+test('puck filter: ignores bad accuracy, holds heading when slow', () => {
+  const f = new PuckFilter(); f.update({ lon: 0, lat: 0, acc: 5, speed: 10, heading: 90 }); const p = f.update({ lon: 1, lat: 1, acc: 200, speed: 10, heading: 0 }); assert.equal(p.lon, 0);
+  assert.equal(f.update({ lon: 0, lat: 0.00001, acc: 5, speed: 0.5, heading: 270 }).heading, 90); });
