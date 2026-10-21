@@ -52,9 +52,10 @@ export class SupabaseAuth {
     if (!validEmail(email)) throw new Error('Enter a valid email'); if (String(password).length < 8) throw new Error('Password must be at least 8 characters');
     const { data, error } = await this.sb.auth.signUp({ email: email.trim(), password, options: { data: { display_name: name || email.split('@')[0], role }, emailRedirectTo: location.href.split('?')[0] } });
     if (error) throw new Error(error.code === 'over_email_send_rate_limit' ? 'Too many sign-ups right now — please try again in a little while' : error.message);
-    if (!data.session) throw new Error('Check your email and tap the confirmation link, then come back and Sign in');
+    if (!data.session) return { pending: 'confirm', email: email.trim() }; // project requires email confirmation: caller shows the "check your email" state
     await this.sb.from('profiles').update({ display_name: name || null, username: username.trim().toLowerCase() || null, truck: truck || {} }).eq('id', data.user.id); await this._from(data.session); return this.user; }
-  async signIn({ email, password }) { const { data, error } = await this.sb.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message); await this._from(data.session); return this.user; }
+  async signIn({ email, password }) { const { data, error } = await this.sb.auth.signInWithPassword({ email: email.trim(), password }); if (error) { if (error.code === 'email_not_confirmed' || error.message === 'Email not confirmed') return { pending: 'confirm', email: email.trim() }; throw new Error(error.message); } await this._from(data.session); return this.user; }
+  async resendConfirmation(email) { const { error } = await this.sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.href.split('?')[0] } }); if (error) throw new Error(error.code === 'over_email_send_rate_limit' ? 'Please wait a minute before asking for another email' : error.message); }
   async magicLink(email) { const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('?')[0] } }); if (error) throw error; }
   async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.href.split('?')[0] }); if (error) throw error; }
   async signInRecovery() { throw new Error('Use "Forgot password" — we will email you a reset link'); }

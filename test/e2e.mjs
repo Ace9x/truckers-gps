@@ -133,9 +133,19 @@ const com = await T(async () => { const p0 = TruckNav.profile.p.points; const ot
   return { up: other.up, pts: TruckNav.profile.p.points - p0, badges: TruckNav.profile.p.badges, markers: document.querySelectorAll('.rpt-marker').length }; });
 ok(com.up === 1 && com.pts >= 7 && com.badges.includes('first_report') && com.markers >= 2, `community reports on map with voting; +${com.pts} pts; badges ${com.badges.join(',')}`);
 
-// Account (local adapter until Supabase connected)
-await page.click('#meBtn'); await page.fill('#acEmail', 'driver@example.com'); await page.click('#acGo'); await page.waitForSelector('#signOut');
-ok(await T(async () => (await TruckNav.backend.session()).email === 'driver@example.com'), `sign-in works via ${await T(() => TruckNav.backend.name)} adapter`);
+// Account: Me > Account opens the single account panel. With Supabase (email confirmation ON) sign-up must land in a clear
+// "check your email" state; the signup call is intercepted so tests never send real email. Device accounts sign in directly.
+await page.click('#meBtn'); await page.click('#meSignIn'); await page.waitForSelector('#acctPanel:not(.hidden)');
+const sbMode = await T(() => TruckNav.auth?.kind === 'supabase'); const ACC = `driver.${Date.now().toString(36)}@example.com`;
+if (sbMode) await page.route('**/auth/v1/signup**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000001', aud: 'authenticated', role: '', email: ACC, confirmation_sent_at: new Date().toISOString(), app_metadata: {}, user_metadata: {}, identities: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString() }) }));
+await page.click('#acctPanel [data-t="up"]'); await page.fill('#acName', 'Test Driver'); await page.fill('#acctPanel #acEmail', ACC); await page.fill('#acPass', 'Diesel-test-123'); await page.click('#acGo');
+if (sbMode) { await page.waitForSelector('#acctPanel [data-state="check-email"]', { timeout: 20000 }); const ce = await T(() => document.querySelector('#acCheck').textContent);
+  ok(ce.includes(ACC) && /Check your email/.test(ce), 'Supabase sign-up with email confirmation shows "check your email" (resend + sign-in buttons)');
+  await page.click('#acConfirmed'); ok(await T(a => document.querySelector('#acctPanel #acEmail').value === a && !!document.querySelector('#acPass'), ACC), '"I\'ve confirmed" goes to Sign in with the email filled in');
+  await shot('acct-check-email'); await page.unroute('**/auth/v1/signup**'); }
+else { await page.waitForFunction(() => !!TruckNav.auth.user, null, { timeout: 60000 }); await closeP(); await page.click('#meBtn'); await page.waitForSelector('#signOut');
+  ok(await T(a => TruckNav.auth.user.email === a, ACC), 'device account sign-up signs in; Me shows Sign out'); }
+await closeP();
 // Voice personalities
 await page.selectOption('#vPersona', 'oldschool'); await page.click('#vPreview'); await page.waitForTimeout(300);
 const vl = await T(() => TruckNav.spokenLog.at(-1)); ok(/Ten-four\?$/.test(vl) && /Interstate 95 South/.test(vl), 'voice personality + preview: ' + vl);

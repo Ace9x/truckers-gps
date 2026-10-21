@@ -568,13 +568,14 @@ function renderGarage() { const lv = profile.level.index;
 $('#mascotOn').onchange = e => { mascot.enabled = e.target.checked; LS.set('mascot', mascot.enabled); if (mascot.enabled) mascot.say("Hey! I'm Ace, your co-pilot. Tap me for tips.", 'happy'); else mascot.hide(); };
 S.renderGarage = renderGarage; S.drawRide = drawRide;
 $('#pNameIn').addEventListener('change', e => { profile.p.name = e.target.value.trim() || 'Driver'; profile.save(backend); renderMe(); });
-async function renderAcct() {
-  const u = await backend.session().catch(() => null), box = $('#acctBox');
-  if (u) { box.innerHTML = `<p>Signed in as <b>${esc(u.email || u.phone)}</b>${u.local ? ' (this phone only)' : ''}</p><button id="signOut" class="small-btn">Sign out</button>`; $('#signOut').onclick = async () => { await backend.signOut(); renderAcct(); }; return; }
-  box.innerHTML = `<label>Email (magic link)<input id="acEmail" type="email" autocomplete="email" placeholder="you@example.com"></label><label>Phone (optional, for text code)<input id="acPhone" type="tel" autocomplete="tel" placeholder="+1…"></label><button id="acGo" class="big primary">Send sign‑in link</button><p id="acMsg" class="small muted">No password. ${backend.name === 'local' ? 'Server not connected yet — your profile is saved on this phone.' : ''}</p>`;
-  $('#acGo').onclick = async () => { const e = $('#acEmail').value.trim(), ph = $('#acPhone').value.trim(); if (!e && !ph) return;
-    try { const r = await backend.signIn(e, ph); $('#acMsg').textContent = r.message; if (r.user) { profile.p.uid = r.user.id; profile.save(backend); renderAcct(); } } catch (er) { $('#acMsg').textContent = '⚠ ' + er.message; } };
-}
+// Me > Account: one account system (account.js: email + password, or device accounts). This box only summarises it; no second sign-in form.
+async function renderAcct() { const box = $('#acctBox'); if (!box) return; const a = S.auth, u = a?.user;
+  if (!a) { box.innerHTML = '<p class="small muted">Loading account…</p>'; return; }
+  if (u) { box.dataset.state = 'signed-in'; box.innerHTML = `<p>Signed in as <b>${esc(u.name || u.email)}</b> <span class="muted small">${esc(u.email || '')}</span></p><div class="row"><button id="meAcctOpen" class="small-btn">Account settings</button><button id="signOut" class="small-btn">Sign out</button></div>`;
+    $('#signOut').onclick = async () => { await a.signOut(); renderAcct(); }; $('#meAcctOpen').onclick = () => S.openAccount?.(); return; }
+  box.dataset.state = 'signed-out'; box.innerHTML = `<p class="small muted">Guest mode: everything works on this phone. An account restores your truck profile on any phone.</p><button id="meSignIn" class="big primary">Sign in or create account</button>`;
+  $('#meSignIn').onclick = () => S.openAccount?.(); }
+S.renderMeAcct = renderAcct;
 
 // ---------- Voice settings ----------
 function renderVoiceUI() {

@@ -16,19 +16,25 @@ export async function init(S, h) {
   const panel = (id, title) => { const s = document.createElement('section'); s.id = id; s.className = 'panel hidden acct'; s.innerHTML = `<button class="close" aria-label="Close">✕</button><h2>${title}</h2><div class="body"></div>`; document.body.appendChild(s); s.querySelector('.close').onclick = closePanels; return s.querySelector('.body'); };
   const A = panel('acctPanel', 'Account'), Lp = panel('loadsPanel', 'Loads'), F = panel('friendsPanel', 'Friends');
   acctBtn.onclick = () => { openPanel('acctPanel'); renderAcct(); }; loadsBtn.onclick = () => { openPanel('loadsPanel'); renderLoads(); }; friendsBtn.onclick = () => { openPanel('friendsPanel'); renderFriends(); };
-  const auth = await makeAuth(); S.auth = auth; let tab = 'up', busy = false; const SBA = auth.kind === 'supabase';
+  const auth = await makeAuth(); S.auth = auth; S.openAccount = () => { openPanel('acctPanel'); renderAcct(); }; let tab = 'up', busy = false, pendingEmail = null; const SBA = auth.kind === 'supabase';
   const me = () => ({ name: auth.user?.name || LS.get('profile', {}).name || 'Driver', username: auth.user?.username || '', truck: { ...S.truck, icon: LS.get('vehicle', '🚛') } });
   const key = () => auth.secret?.() || deviceKey();
   // ---------- account
   function applyProfile(p) { if (!p) return; if (p.truck) { S.truck = { ...S.truck, ...p.truck }; LS.set('truck', S.truck); } const pr = LS.get('profile', {}); if (p.name) { pr.name = p.name; LS.set('profile', pr); } }
-  function renderAcct() { const u = auth.user;
-    if (u) { A.innerHTML = `<p>Signed in as <b>${esc(u.name)}</b>${u.username ? ' (@' + esc(u.username) + ')' : ''}<br><span class="muted small">${esc(u.email || '')} · ${auth.kind === 'device' ? 'device + relay account (free)' : 'Supabase'} · id ${u.id.slice(0, 10)}…</span></p>
+  function renderAcct() { const u = auth.user; if (u) pendingEmail = null; S.renderMeAcct?.();
+    if (u) { A.dataset.state = 'signed-in'; A.innerHTML = `<p>Signed in as <b>${esc(u.name)}</b>${u.username ? ' (@' + esc(u.username) + ')' : ''}<br><span class="muted small">${esc(u.email || '')} · ${auth.kind === 'device' ? 'device + relay account (free)' : 'Supabase'} · id ${u.id.slice(0, 10)}…</span></p>
       <label>Display name<input id="acName" value="${esc(u.name)}"></label><label>Username (lets friends find you)<input id="acUser" value="${esc(u.username)}" placeholder="optional"></label>
       <p class="muted small">Truck profile: ${esc(S.truck.heightFt ? S.truck.heightFt + ' ft' : '')} ${S.truck.weightLb ? esc(S.truck.weightLb + ' lb') : ''} — saved with your account and restored on any phone.</p>
       <div class="row"><button id="acSave">Save profile</button> <button id="acRec">Show recovery code</button> <button id="acOut" class="danger">Sign out</button></div><pre id="acRecOut" class="small" style="white-space:pre-wrap"></pre>`;
       $('#acSave').onclick = async () => { try { await auth.saveProfile({ name: $('#acName').value.trim() || u.name, username: $('#acUser').value.trim().toLowerCase(), truck: S.truck }); fr?.publishUsername(auth.user.username).catch(() => {}); toast('Profile saved & synced'); renderAcct(); } catch (e) { toast(e.message); } };
       $('#acRec').onclick = () => { const c = auth.recoveryCode(); $('#acRecOut').textContent = c ? c + '\n\nKeep this somewhere safe. With it you can sign in on a new phone even if you forget your password. Anyone with it can use your account.' : 'Use email password reset.'; };
       $('#acOut').onclick = () => { auth.signOut(); toast('Signed out — guest mode'); renderAcct(); }; return; }
+    if (pendingEmail) { A.dataset.state = 'check-email'; A.innerHTML = `<div id="acCheck" class="check-email"><h3>Check your email</h3><p>We sent a confirmation link to <b>${esc(pendingEmail)}</b>. Tap it, then come back and sign in.</p>
+        <div class="row"><button id="acResend">Resend email</button><button id="acConfirmed" class="primary">I've confirmed, sign in</button></div><p id="acMsg" class="small"></p><button id="acBack" class="small-btn">Use a different email</button></div>`;
+      $('#acResend').onclick = async () => { try { await auth.resendConfirmation(pendingEmail); $('#acMsg').textContent = 'Sent again. Check spam too.'; } catch (e) { $('#acMsg').textContent = '⚠ ' + e.message; } };
+      $('#acConfirmed').onclick = () => { const em = pendingEmail; pendingEmail = null; tab = 'in'; renderAcct(); $('#acEmail').value = em; $('#acPass')?.focus(); };
+      $('#acBack').onclick = () => { pendingEmail = null; renderAcct(); }; return; }
+    A.dataset.state = 'signed-out';
     A.innerHTML = `<p class="muted small">Optional. Guest mode keeps everything working on this phone. An account saves your name + truck profile and lets you sign in on other phones, add friends and get loads from dispatch.</p>
       <div class="acct-tabs"><button data-t="up" class="${tab === 'up' ? 'on' : ''}">Sign up</button><button data-t="in" class="${tab === 'in' ? 'on' : ''}">Sign in</button><button data-t="rec" class="${tab === 'rec' ? 'on' : ''}">${SBA ? 'Forgot password' : 'Recovery code'}</button></div>
       ${tab === 'rec' ? (SBA ? '<input id="acEmail" type="email" placeholder="Your account email" autocomplete="username">' : '<input id="acCode" placeholder="RR1-XXXXXXXX-…" autocomplete="off">') : `${tab === 'up' ? '<input id="acName" placeholder="Display name">' : ''}<input id="acEmail" type="email" placeholder="Email" autocomplete="username"><input id="acPass" type="password" placeholder="Password (8+ characters)" autocomplete="${tab === 'up' ? 'new' : 'current'}-password">`}
@@ -36,10 +42,11 @@ export async function init(S, h) {
       <p class="muted small">${SBA ? 'Secure RigRoute account (email + password). New accounts get a confirmation email — tap the link, then sign in.' : 'No email is sent and no server stores your password: your email + password unlock an encrypted profile kept on free public relays.'}</p><button id="acGuest">Continue as guest</button>`;
     A.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; renderAcct(); }); $('#acGuest').onclick = closePanels;
     $('#acGo').onclick = async () => { if (busy) return; busy = true; $('#acMsg').textContent = 'Working… (secure key derivation takes a few seconds)';
-      try { if (tab === 'up') await auth.signUp({ email: $('#acEmail').value, password: $('#acPass').value, name: $('#acName').value.trim(), truck: S.truck });
-        else if (tab === 'in') applyProfile((await auth.signIn({ email: $('#acEmail').value, password: $('#acPass').value })).profile);
+      try { let res = null; if (tab === 'up') res = await auth.signUp({ email: $('#acEmail').value, password: $('#acPass').value, name: $('#acName').value.trim(), truck: S.truck });
+        else if (tab === 'in') { res = await auth.signIn({ email: $('#acEmail').value, password: $('#acPass').value }); if (!res?.pending) applyProfile(res.profile); }
         else if (SBA) { await auth.resetPassword($('#acEmail').value); $('#acMsg').textContent = '✅ Reset link sent — check your email.'; return; }
         else applyProfile((await auth.signInRecovery($('#acCode').value)).profile);
+        if (res?.pending) { pendingEmail = res.email; renderAcct(); return; }
         toast('Welcome, ' + auth.user.name); renderAcct(); } catch (e) { $('#acMsg').textContent = '⚠ ' + e.message; } finally { busy = false; } }; }
   // ---------- dispatch (driver side)
   let dd = null, fr = null;
