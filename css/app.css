@@ -111,3 +111,16 @@ body.day .alt.sel{background:#fff6d6}
 #hudBtn{font-size:14px;font-weight:800}
 #driverType .on,#hazBtn.on,#weighBtn.on{background:var(--acc);color:#111}
 #splash{position:fixed;inset:0;z-index:100;background:#0b0f14;color:#ffb300;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}#splash h1{margin:8px 0 0;font-size:40px}#splash p{color:#8ea0b4}.splashLogo{font-size:80px}#splash.gone{opacity:0;pointer-events:none}
+#limitSign{position:absolute;left:96px;bottom:calc(150px + var(--safe-b));z-index:5;background:#fff;color:#111;border:4px solid #111;border-radius:10px;width:62px;min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 14px #0007}
+#limitSign small{font-size:10px;font-weight:800}#limitSign b{font-size:28px;line-height:1}#limitSign i{font-size:9px;font-style:normal;color:#444}
+#speedBox.over{border-color:var(--bad);background:#5a0d0d;animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.06)}}
+#lanes{position:absolute;top:calc(112px + var(--safe-t));left:50%;transform:translateX(-50%);z-index:6;background:#0a3622;border-radius:12px;padding:4px 8px;display:flex;gap:4px}
+.lane{font-size:30px;color:#6b7f74;padding:0 6px;border-right:1px dashed #3d5a4a}.lane:last-child{border:0}.lane.ok{color:#fff;font-weight:900}
+.sos{background:#c62828!important;color:#fff!important;font-weight:900;font-size:16px!important}
+.big-where{font-size:20px;line-height:1.4}.bad{color:var(--bad)}
+#tripSheet{margin:8px 0;border:1px solid var(--line);border-radius:12px;padding:8px}#tripSheet>div{margin:6px 0}
+#stopsBox input{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);padding:0 10px;font:inherit}
+#stopRes li{padding:8px;cursor:pointer;border-bottom:1px solid var(--line)}
+#lockout{position:fixed;inset:0;z-index:50;background:#000c;display:flex;align-items:center;justify-content:center}#lockout>div{background:var(--panel);padding:20px;border-radius:18px;max-width:420px;display:flex;flex-direction:column;gap:10px;text-align:center}
+body.bigtext{font-size:20px}body.bigtext #bInstr{font-size:26px}body.bigtext #bDist{font-size:42px}body.bigtext .panel{font-size:19px}body.bigtext #tripBar b{font-size:28px}
+body.contrast{--bg:#000;--panel:#000;--fg:#fff;--mut:#e0e0e0;--line:#fff;--acc:#ffd600}body.contrast #banner{background:#000;border:3px solid #ffd600}

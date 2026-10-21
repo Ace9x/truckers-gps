@@ -69,3 +69,6 @@ python3 -m http.server 8765 & npm run e2e        # headless Chromium E2E w/ simu
 BASE=https://ace9x.github.io/truckers-gps/ npm run e2e   # against the live site
 ```
 The E2E test drives a simulated truck from Hunts Point (Bronx) toward Port Newark (NJ), checks the route draws, steps advance, voice prompts fire, auto‑reroute triggers off‑route, and that a 13'6" truck is routed around Durham NC's famous 11'8" Gregson St bridge while a car goes under it.
+
+## My voice (voice cloning)
+Settings → Me → **🎙 My voice**: paste your own ElevenLabs API key (stored only in this browser's localStorage, sent only to api.elevenlabs.io), tick consent, read the script for 30–60 s, tap **Create my voice**. RigRoute clones it (ElevenLabs Instant Voice Cloning, `eleven_flash_v2_5`), saves the `voice_id` on device, pre-generates common phrases into IndexedDB for offline use, and falls back to the phone's Web Speech voice on any error or no signal. Cloning requires an ElevenLabs Starter plan or higher. Tests: `npm test`, `BASE=<url> npm run e2e:voice` (API mocked).

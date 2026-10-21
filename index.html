@@ -188,6 +188,20 @@
   <label>Speed <input id="vRate" type="range" min="0.7" max="1.4" step="0.05"></label>
   <label>Pitch <input id="vPitch" type="range" min="0.6" max="1.5" step="0.05"></label>
   <button id="vPreview" class="big">▶ Preview voice</button>
+  <details id="myVoiceBox"><summary><b>🎙 My voice</b> — hear directions in your own voice</summary>
+    <p class="small">Uses ElevenLabs voice cloning. You need your own ElevenLabs account (Starter plan or higher allows cloning) and an API key from elevenlabs.io → Developers → API keys.</p>
+    <label>ElevenLabs API key<input id="mvKey" type="password" autocomplete="off" placeholder="paste key"></label>
+    <p class="muted small">🔒 Your key is saved only on this phone (never uploaded to RigRoute or GitHub) and sent only to ElevenLabs.</p>
+    <label class="chk"><input type="checkbox" id="mvConsent"> This is my own voice and I consent to cloning it.</label>
+    <p class="small"><b>Read this out loud (30–60 s):</b></p><blockquote id="mvScript" class="small"></blockquote>
+    <div class="row"><button id="mvRec" class="big">⏺ Record</button><span id="mvTimer" class="muted">0s</span></div>
+    <audio id="mvPlayback" controls class="hidden"></audio>
+    <button id="mvCreate" class="big" disabled>Create my voice</button>
+    <label class="chk"><input type="checkbox" id="mvOn"> Use my voice for navigation & Ace</label>
+    <div class="row"><button id="mvPreview">▶ Preview</button><button id="mvCache">⬇ Save common phrases offline</button><button id="mvDelete">🗑 Delete my voice</button></div>
+    <p id="mvStatus" class="small"></p>
+    <p class="muted small">No signal or an error? RigRoute falls back to the normal phone voice automatically.</p>
+  </details>
 </section>
 <section id="layersPanel" class="panel hidden">
   <div class="phead"><h2>Map layers</h2><button class="close">✕</button></div>

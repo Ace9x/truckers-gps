@@ -100,3 +100,45 @@ test('HOS 70-hour/8-day cycle and 34-hour restart', () => { const ev = []; let t
   let s = hosStatus(ev, t); assert.equal(s.cycleLeft, 0); assert.equal(s.driveLeft, 0); assert.ok(s.warnings.some(w => /70-hour cycle used up/.test(w)));
   assert.equal(hosStatus(ev, t, { cycle: 60 }).cycleLeft, 0);
   ev.push({ t: t + 34 * H, s: 'drive' }); s = hosStatus(ev, t + 35 * H); assert.equal(s.cycleLeft, 69 * H); });
+import { milesByState, tollMiles, tollSegments, limitAt, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, fatigueDue, remainingStops } from '../js/trip.js';
+test('IFTA miles by state + tolls', () => { const e = [{ length: 1609.344 * 3, end_node: { admin_index: 0 }, toll: false, along: 0 }, { length: 1609.344 * 2, end_node: { admin_index: 1 }, toll: true, names: ['NJ Turnpike'], along: 4828 }];
+  assert.deepEqual(milesByState(e, [{ state_code: 'NY' }, { state_code: 'NJ' }]), { NY: 3, NJ: 2 }); assert.equal(tollMiles(e), 2); assert.deepEqual(tollSegments(e)[0].names, ['NJ Turnpike']); });
+test('speed limit lookup + truck cap', () => { const e = [{ along: 0, length: 1000, speed_limit: 88 }, { along: 1000, length: 1000, speed_limit: 40 }];
+  assert.equal(limitAt(e, 500), 88); assert.equal(limitAt(e, 1500), 40); assert.equal(effectiveLimitMph(88, 65), 55); assert.equal(effectiveLimitMph(113, 65), 65); assert.equal(effectiveLimitMph(null, 62), 62);
+  assert.ok(isSpeeding(61, 55)); assert.ok(!isSpeeding(59, 55)); });
+test('lanes from OSRM steps', () => { const r = { legs: [{ steps: [{ intersections: [{ location: [1, 2], lanes: [{ indications: ['left'], valid: false }, { indications: ['straight', 'right'], valid: true, valid_indication: 'right' }] }] }] }] };
+  const L = laneIntersections(r); assert.equal(L.length, 1); const h = lanesHTML(L[0].lanes); assert.match(h, /lane ok">↱/); assert.match(h, /↰/); });
+test('fuel plan picks last station within range, flags gaps', () => { const MI = 1609.344, st = [100, 250, 400, 520].map(m => ({ along: m * MI, off: 200, name: 'S' + m }));
+  const p = fuelPlan(700 * MI, st, 400, { reserve: 0.25 }); assert.deepEqual(p.map(s => s.name), ['S250', 'S520']);
+  const g = fuelPlan(900 * MI, [{ along: 100 * MI, off: 0 }], 300, {}); assert.ok(g.some(s => s.gap)); });
+test('weather filter for trucks', () => { const w = weatherForTrucks([{ properties: { id: 1, event: 'High Wind Warning', severity: 'Severe' } }, { properties: { id: 2, event: 'Air Quality Alert' } }, { properties: { id: 3, event: 'Winter Storm Watch', severity: 'Moderate' } }]);
+  assert.equal(w.length, 2); assert.ok(w[0].highWind); assert.match(w[1].advice, /chain/); });
+test('fatigue reminders every 2h', () => { assert.equal(fatigueDue(119), 0); assert.equal(fatigueDue(121), 1); assert.equal(fatigueDue(130, 1), 0); assert.equal(fatigueDue(245, 1), 2); });
+test('remaining stops', () => { assert.equal(remainingStops([{ lon: 0, lat: 0 }, { lon: 1, lat: 1 }], { lon: 0, lat: 0.0005 }).length, 1); });
+
+// ---- My voice (ElevenLabs cloning), API mocked ----
+import { MyVoice, cacheKey, COMMON } from '../js/myvoice.js';
+const memLS = () => { const m = {}; return { getItem: k => m[k] ?? null, setItem: (k, v) => { m[k] = v; } }; };
+const memStore = () => { const m = new Map(); return { m, get: async k => m.get(k) || null, put: async (k, v) => m.set(k, v), clear: async () => m.clear() }; };
+test('myvoice: clone requires consent + key, posts sample, saves voice_id', async () => {
+  const calls = []; const f = async (u, o) => { calls.push([u, o]); return { ok: true, json: async () => ({ voice_id: 'v123' }) }; };
+  const mv = new MyVoice({ fetchFn: f, store: memStore(), storage: memLS() });
+  await assert.rejects(mv.clone(new Blob(['x'])), /Consent/); mv.consent = true;
+  await assert.rejects(mv.clone(new Blob(['x'])), /API key/); mv.key = 'k';
+  assert.equal(await mv.clone(new Blob(['x'], { type: 'audio/webm' })), 'v123');
+  assert.match(calls[0][0], /\/voices\/add$/); assert.equal(calls[0][1].headers['xi-api-key'], 'k'); assert.ok(calls[0][1].body.get('files'));
+  assert.ok(mv.ready); assert.equal(new MyVoice({ storage: mv.ls }).voiceId, 'v123', 'persisted on device');
+});
+test('myvoice: tts caches clips, second call is offline-safe', async () => {
+  let n = 0; const f = async (u, o) => { n++; assert.match(u, /text-to-speech\/v1/); assert.equal(JSON.parse(o.body).model_id, 'eleven_flash_v2_5'); return { ok: true, blob: async () => new Blob(['mp3']) }; };
+  const st = memStore(); const mv = new MyVoice({ fetchFn: f, store: st, storage: memLS() }); mv.key = 'k'; mv.voiceId = 'v1';
+  assert.equal((await mv.tts('Turn left.')).cached, false); assert.equal((await mv.tts('turn left.')).cached, true); assert.equal(n, 1);
+  assert.ok(st.m.has(cacheKey('v1', 'Turn left.')));
+  const mv2 = new MyVoice({ fetchFn: async () => { throw new Error('no net'); }, store: st, storage: memLS() }); mv2.voiceId = 'v1';
+  assert.equal((await mv2.tts('Turn left.')).cached, true, 'IndexedDB clip served without network');
+  assert.equal(await mv.pregenerate(COMMON), COMMON.length);
+});
+test('myvoice: API errors surface and voice falls back', async () => {
+  const mv = new MyVoice({ fetchFn: async () => ({ ok: false, status: 401, json: async () => ({ detail: { message: 'Invalid API key' } }) }), store: memStore(), storage: memLS() });
+  mv.key = 'bad'; mv.voiceId = 'v'; await assert.rejects(mv.tts('Hi'), /401: Invalid API key/);
+});

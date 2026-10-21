@@ -7,8 +7,10 @@ export const REPORT_TYPES = {
   weight: { icon: '⚖️', label: 'Weight limit', avoid: true, pts: 20 }, closed: { icon: '🚧', label: 'Road closed', avoid: true, pts: 20 },
   hazard: { icon: '⚠️', label: 'Hazard', avoid: false, pts: 10 }, police: { icon: '👮', label: 'Police', avoid: false, pts: 5 },
   weigh_open: { icon: '🟢', label: 'Scale open', avoid: false, pts: 10 }, weigh_closed: { icon: '🔴', label: 'Scale closed', avoid: false, pts: 10 },
+  parking_open: { icon: '🅿️', label: 'Parking: spots open', avoid: false, pts: 10 }, parking_some: { icon: '🟡', label: 'Parking: few left', avoid: false, pts: 10 }, parking_full: { icon: '🈵', label: 'Parking: FULL', avoid: false, pts: 10 },
+  ice: { icon: '🧊', label: 'Ice / snow on road', avoid: false, pts: 10 }, wind: { icon: '🌬️', label: 'High wind', avoid: false, pts: 10 }, chains: { icon: '⛓️', label: 'Chain law in effect', avoid: false, pts: 15 },
 };
-export const TTL_H = { hazard: 4, police: 1, weigh_open: 3, weigh_closed: 3 }; // restrictions persist
+export const TTL_H = { parking_open: 2, parking_some: 2, parking_full: 3, ice: 6, wind: 6, chains: 12, hazard: 4, police: 1, weigh_open: 3, weigh_closed: 3 }; // restrictions persist
 
 // ---------- Gamification rules (pure) ----------
 export const LEVELS = [[0, 'Rookie'], [200, 'Road Dog'], [600, 'Gear Jammer'], [1500, 'Highway Hero'], [4000, 'Road Captain'], [10000, 'Legend of the Road']];

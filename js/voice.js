@@ -21,9 +21,14 @@ export class Voice {
   say(text, kind, force) {
     const t = this.phrase(text, kind); this.log.push(t); this.last = t;
     if (!(this.enabled || force) || !('speechSynthesis' in globalThis)) return t;
+    if (this.custom?.ready && !this.noCustom) { this.custom.play(t).then(c => { this.lastSource = c ? 'myvoice-cache' : 'myvoice'; }).catch(() => { this.lastSource = 'webspeech-fallback'; this.speakWeb(t); }); return t; }
+    this.speakWeb(t); return t;
+  }
+  speakWeb(t) {
+    if (!('speechSynthesis' in globalThis)) return;
     const p = PERSONALITIES[this.s.personality] || PERSONALITIES.standard;
     const u = new SpeechSynthesisUtterance(t); const v = this.pick(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
     u.rate = this.s.rate * p.rate; u.pitch = this.s.pitch * p.pitch;
-    speechSynthesis.cancel(); speechSynthesis.speak(u); return t;
+    speechSynthesis.cancel(); speechSynthesis.speak(u); if (!this.lastSource?.startsWith('webspeech-fallback')) this.lastSource = 'webspeech';
   }
 }

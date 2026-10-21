@@ -1,12 +1,13 @@
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
   hosStatus, H, encodePolyline, overpassQuery, classifyPoi, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
+import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
 import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
 import { makeBackend, Profile, REPORT_TYPES, POINTS, BADGES, LEVELS, DrivingMonitor, reportVisible, weekKey } from './community.js';
 
-const VERSION = '2.2.1';
+const VERSION = '2.3.0';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const PHOTON = 'https://photon.komoot.io/api/';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
@@ -142,13 +143,14 @@ function onFix(f) {
   const mph = (f.speed || 0) * 2.23694; $('#speed').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
   if (S.nav) monitor.update(f, null);
   if (S.nav && S.route) navTick();
+  try { S.onFixHook?.(f, mph); } catch (e) { console.warn(e); }
   hosAuto(mph); powerManage(f); camera(false); updateHud?.();
 }
 S.onFix = onFix;
 
 // ---------- Search ----------
 let qTimer;
-$('#searchBtn').onclick = () => { openPanel('searchPanel'); setTimeout(() => $('#q').focus(), 50); };
+$('#searchBtn').onclick = () => { if (S.lockedOut?.()) return; openPanel('searchPanel'); setTimeout(() => $('#q').focus(), 50); };
 $('#q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(search, 450); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(qTimer); search(); } });
 async function geocode(q) {
@@ -183,12 +185,12 @@ function mergeLegs(trip, costing) {
     ln.push(...pts); man.push(...ms); }
   return { line: ln, cum: cumulative(ln), maneuvers: man, length: trip.summary.length * 1000, time: trip.summary.time, summary: trip.summary, costing };
 }
-async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0 } = {}) {
+async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [] } = {}) {
   const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
-  const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: 'en-US', directions_options: { units: 'kilometers' } };
+  const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: 'en-US', directions_options: { units: 'kilometers' } };
   if (costing === 'truck') body.costing_options = { truck: truckCosting(S.truck) };
   if (avoid) { const ex = excludePolys(from, to); if (ex.length) body.exclude_polygons = ex; }
-  if (alternates) body.alternates = alternates;
+  if (alternates && !stops.length) body.alternates = alternates;
   const r = await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
   const j = await r.json(); if (!r.ok || !j.trip) throw new Error(j.error || 'No route found');
   const main = mergeLegs(j.trip, costing);
@@ -251,10 +253,10 @@ async function analyzeRoute(r) {
   let edges = [];
   try { const shape = sampleLine(r.line, Math.min(r.line.length, 4000));
     const res = await fetch(VALHALLA.replace('/route', '/trace_attributes'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30000),
-      body: JSON.stringify({ encoded_polyline: encodePolyline(shape), costing: 'truck', costing_options: { truck: truckCosting(S.truck) }, shape_match: 'map_snap', filters: { attributes: ['edge.way_id', 'edge.max_upward_grade', 'edge.max_downward_grade', 'edge.tunnel', 'edge.length', 'edge.names', 'edge.begin_shape_index', 'edge.road_class', 'edge.speed_limit'], action: 'include' } }) });
+      body: JSON.stringify({ encoded_polyline: encodePolyline(shape), costing: 'truck', costing_options: { truck: truckCosting(S.truck) }, shape_match: 'map_snap', filters: { attributes: ['edge.way_id', 'edge.max_upward_grade', 'edge.max_downward_grade', 'edge.tunnel', 'edge.length', 'edge.names', 'edge.begin_shape_index', 'edge.road_class', 'edge.speed_limit', 'edge.toll', 'node.admin_index', 'admin.state_code', 'admin.country_code'], action: 'include' } }) });
     const j = await res.json(); const sc = cumulative(shape);
     edges = (j.edges || []).map(e => { const p = shape[Math.min(e.begin_shape_index ?? 0, shape.length - 1)]; return { ...e, length: (e.length || 0) * 1000, along: snapToRoute(p, r.line, r.cum, 0).along }; });
-    S.routeEdges = edges.length;
+    S.routeEdges = edges.length; S.admins = j.admins || [];
   } catch (e) { S.routeEdges = 0; }
   const tags = { ...(await getRestrictions()) };
   const inNE = r.line.every(([x, y]) => y >= 38.4 && y <= 45.1 && x >= -80.6 && x <= -66.9);
@@ -265,6 +267,7 @@ async function analyzeRoute(r) {
       if (!res.ok) continue; const j = await res.json(); for (const w of j.elements || []) tags[w.id] = w.tags; S.liveRestrictions = (j.elements || []).length; break; } catch {} }
   }
   if (S.route !== r) return;
+  S.edges = edges; try { S.onRouteAnalyzed?.(r); } catch (e) { console.warn(e); }
   S.dangers = [...dangersAhead(edges, tags, truckMetric()), ...curves].sort((a, b) => a.along - b.along);
   renderDangers();
 }
@@ -550,6 +553,37 @@ function renderVoiceUI() {
 voice.onchange = () => { if (!$('#mePanel').classList.contains('hidden')) renderVoiceUI(); };
 const saveVoice = () => { voice.s = { ...voice.s, personality: $('#vPersona').value, voiceURI: $('#vVoice').value, rate: +$('#vRate').value, pitch: +$('#vPitch').value }; LS.set('voiceCfg', voice.s); };
 ['#vPersona', '#vVoice', '#vRate', '#vPitch'].forEach(s => $(s).addEventListener('change', saveVoice));
+// ---------- My voice (cloning) ----------
+const myVoice = new MyVoice(); voice.custom = myVoice; S.myVoice = myVoice;
+let mvBlob = null, mvRec = null, mvT0 = 0, mvTick = 0;
+const mvStatus = t => { $('#mvStatus').textContent = t; };
+const mvRefresh = () => { $('#mvKey').value = myVoice.key; $('#mvConsent').checked = myVoice.consent; $('#mvOn').checked = myVoice.on; $('#mvOn').disabled = !myVoice.voiceId;
+  ['#mvPreview', '#mvCache', '#mvDelete'].forEach(x => $(x).disabled = !myVoice.voiceId);
+  $('#mvCreate').disabled = !(mvBlob && myVoice.consent && myVoice.key);
+  if (!$('#mvStatus').textContent) mvStatus(myVoice.voiceId ? '✅ Your voice profile is saved on this phone.' : 'No voice profile yet.'); };
+$('#mvScript').textContent = SCRIPT;
+$('#mvKey').addEventListener('change', () => { myVoice.key = $('#mvKey').value.trim(); myVoice.save(); mvRefresh(); });
+$('#mvConsent').addEventListener('change', () => { myVoice.consent = $('#mvConsent').checked; myVoice.save(); mvRefresh(); });
+$('#mvOn').addEventListener('change', () => { myVoice.on = $('#mvOn').checked; myVoice.save(); mvStatus(myVoice.on ? 'Navigation will use your voice.' : 'Using the phone voice.'); });
+$('#mvRec').onclick = async () => {
+  if (mvRec?.state === 'recording') { mvRec.stop(); return; }
+  try { const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    const chunks = []; mvRec = new MediaRecorder(st, recMime() ? { mimeType: recMime() } : undefined);
+    mvRec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    mvRec.onstop = () => { st.getTracks().forEach(t => t.stop()); clearInterval(mvTick); const secs = Math.round((Date.now() - mvT0) / 1000);
+      mvBlob = new Blob(chunks, { type: mvRec.mimeType || 'audio/webm' }); $('#mvPlayback').src = URL.createObjectURL(mvBlob); $('#mvPlayback').classList.remove('hidden');
+      $('#mvRec').textContent = '⏺ Re-record'; mvStatus(secs < 30 ? `Recorded ${secs}s. 30–60s gives a much better clone; consider re-recording.` : `Recorded ${secs}s. Listen back, then tap Create my voice.`); mvRefresh(); };
+    mvRec.start(1000); mvT0 = Date.now(); $('#mvRec').textContent = '⏹ Stop';
+    mvTick = setInterval(() => { const s2 = Math.round((Date.now() - mvT0) / 1000); $('#mvTimer').textContent = s2 + 's'; if (s2 >= 90) mvRec.stop(); }, 500);
+  } catch (e) { mvStatus('Microphone not available: ' + e.message); } };
+$('#mvCreate').onclick = async () => { $('#mvCreate').disabled = true; mvStatus('Uploading sample and creating your voice…');
+  try { await myVoice.clone(mvBlob, (profile?.name || 'Driver') + ' (RigRoute)'); mvStatus('✅ Voice created. Saving common phrases for offline use…');
+    await myVoice.pregenerate(COMMON, (n, t) => mvStatus(`✅ Voice created. Saving phrases offline ${n}/${t}…`)); mvStatus('✅ Your voice is ready and common phrases work offline.');
+  } catch (e) { mvStatus('⚠️ ' + e.message); } mvRefresh(); };
+$('#mvPreview').onclick = async () => { try { const c = await myVoice.play('In one mile, take the exit on the right. Weigh station ahead.'); mvStatus(c ? 'Played from offline cache.' : 'Played your voice.'); } catch (e) { mvStatus('⚠️ ' + e.message + ' — using phone voice.'); voice.speakWeb('In one mile, take the exit on the right.'); } };
+$('#mvCache').onclick = async () => { try { const n = await myVoice.pregenerate(COMMON, (i, t) => mvStatus(`Saving ${i}/${t}…`)); mvStatus(`✅ ${n} phrases saved for offline.`); } catch (e) { mvStatus('⚠️ ' + e.message); } };
+$('#mvDelete').onclick = async () => { await myVoice.remove(); mvStatus('Voice profile deleted from this phone and ElevenLabs.'); mvRefresh(); };
+mvRefresh();
 $('#vPreview').onclick = () => { saveVoice(); say('In one mile, take exit 13A toward I 95 S / NJ Tpke.', 'turn', true); setTimeout(() => say('Weigh station in two miles.', 'weigh', true), 4500); };
 
 // ---------- HOS helper ----------
@@ -640,4 +674,5 @@ document.addEventListener('visibilitychange', async () => { if (document.visibil
 if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Ace 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
 setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
+import('./extras.js').then(m => m.init(S, { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report })).catch(e => console.error('extras', e));
 S.ready = true;
