@@ -409,7 +409,7 @@ const POI_NAME = { stop: 'Truck stop', fuel: 'Fuel', rest: 'Rest area', parking:
 function clearPois() { poiMarkers.forEach(m => m.remove()); poiMarkers = []; $('#poiList').textContent = 'Tap ⛽ to load truck stops, rest areas and weigh stations ahead on this route.'; }
 let staticPois = null;
 async function getStaticPois() { if (staticPois) return staticPois;
-  try { const [j, dz] = await Promise.all([fetch('data/truck-pois-northeast.geojson').then(r => r.json()), fetch('data/diesel-northeast.geojson').then(r => r.json()).catch(() => ({ features: [] }))]); j.features = j.features.concat(dz.features); staticPois = j.features.map(f => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], tags: f.properties, id: f.properties.osm })); } catch { staticPois = []; }
+  try { const [j, dz, am] = await Promise.all([fetch('data/truck-pois-northeast.geojson').then(r => r.json()), fetch('data/diesel-northeast.geojson').then(r => r.json()).catch(() => ({ features: [] })), fetch('data/amenities-northeast.geojson').then(r => r.json()).catch(() => ({ features: [] }))]); j.features = j.features.concat(dz.features, am.features); staticPois = j.features.map(f => ({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], tags: f.properties, id: f.properties.osm })); } catch { staticPois = []; }
   return staticPois; }
 function bboxOf(ln, pad) { let a = [180, 90, -180, -90]; for (const [x, y] of ln) a = [Math.min(a[0], x), Math.min(a[1], y), Math.max(a[2], x), Math.max(a[3], y)]; return [a[0] - pad, a[1] - pad, a[2] + pad, a[3] + pad]; }
 async function overpassChunk(pts) {
