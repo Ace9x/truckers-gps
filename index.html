@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops, HOS clock.">
-<title>Mitchell's TruckNav – Truck GPS</title>
+<meta name="description" content="RigRoute — free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops, HOS clock.">
+<title>RigRoute – Truck GPS for drivers</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -24,6 +24,9 @@
 </div>
 <div id="thenBox" class="hidden"></div>
 <div id="alerts" aria-live="assertive"></div>
+<div id="wrongRoad" class="hidden" role="alert"></div>
+<div id="lastMile" class="hidden"><b>🏭 Last mile</b> <span id="lmNote"></span> <button id="lmOpen" class="small-btn">Facility</button></div>
+<div id="crosshair" class="hidden">+</div>
 
 <div id="topbar">
   <button id="searchBtn" class="search-pill" aria-label="Search destination">🔍 <span id="destLabel">Where to?</span></button>
@@ -33,6 +36,10 @@
   <button id="followBtn" class="round" title="Follow my position" aria-label="Follow my position">◎</button>
   <button id="muteBtn" class="round" title="Voice on/off" aria-label="Voice on or off">🔊</button>
   <button id="poiBtn" class="round" title="Truck stops along route" aria-label="Truck stops along route">⛽</button>
+  <button id="reportBtn" class="round warnbtn" title="Report a road problem" aria-label="Report a road problem">⚠</button>
+  <button id="satBtn" class="round" title="Satellite view" aria-label="Satellite view">🛰</button>
+  <button id="layersBtn" class="round" title="Map layers" aria-label="Map layers">🗂</button>
+  <button id="hudBtn" class="round" title="HUD windshield mode" aria-label="HUD mode">HUD</button>
 </div>
 
 <div id="speedBox"><div id="speed">--</div><div class="unit">MPH</div></div>
@@ -49,6 +56,7 @@
   <button data-panel="hosPanel">⏱<span id="dockHos">HOS</span></button>
   <button data-panel="loadPanel">📦<span>Load</span></button>
   <button data-panel="truckPanel">🚛<span>Truck</span></button>
+  <button data-panel="mePanel" id="meBtn">😎<span id="dockPts">0 pts</span></button>
 </nav>
 
 <!-- Panels -->
@@ -65,10 +73,16 @@
     <button id="goBtn" class="primary big" disabled>▶ Start navigation</button>
     <button id="demoBtn" class="big" disabled>Demo drive</button>
   </div>
+  <div id="alts"></div>
+  <button id="facBtn" class="small-btn" disabled>🏭 Destination facility: entrance pin & notes</button>
+  <button id="offlineBtn" class="small-btn" disabled>⬇ Save route map for offline</button>
+  <div class="row"><button id="hazBtn" class="small-btn">☣ Hazmat: off</button><button id="weighBtn" class="small-btn">⚖️ Avoid scales: off</button></div>
   <label class="chk"><input type="checkbox" id="cmpCar"> Show car route for comparison (dashed)</label>
   <div id="restrictNote" class="muted small"></div>
   <ol id="steps"></ol>
+  <h3>Dangers ahead on this route</h3><ul id="dangerList" class="small muted"><li>Checked when a route is planned.</li></ul>
   <h3>Along this route</h3>
+  <div class="row" id="poiFilter"><button class="small-btn on" data-pf="all">All</button><button class="small-btn" data-pf="diesel">⛽ Diesel</button><button class="small-btn" data-pf="truck">🚛 Truck lanes</button><button class="small-btn" data-pf="weigh">⚖️ Scales</button><button class="small-btn" data-pf="rest">🅿️ Rest/parking</button></div>
   <div id="poiList" class="muted small">Plan a route, then tap ⛽ to find truck stops, rest areas and weigh stations.</div>
 </section>
 
@@ -80,6 +94,7 @@
     <div><b id="hWin">14:00</b><span>Window left (14h)</span></div>
     <div><b id="hBreak">8:00</b><span>Until 30‑min break</span></div>
   </div>
+  <div class="hosGrid" style="grid-template-columns:1fr;margin-top:8px"><div><b id="hCycle">70:00</b><span id="hCycleLbl">Left on 70‑hour / 8‑day cycle (34‑h restart resets)</span></div></div>
   <div class="row duty">
     <button data-duty="off">Off duty</button><button data-duty="sb">Sleeper</button>
     <button data-duty="on">On duty</button><button data-duty="drive">Driving</button>
@@ -108,6 +123,8 @@
 
 <section id="truckPanel" class="panel hidden">
   <div class="phead"><h2>My Truck</h2><button class="close">✕</button></div>
+  <label>Driver type</label><div class="row" id="driverType"><button class="small-btn" data-dt="otr">🛣 OTR</button><button class="small-btn" data-dt="local">🏙 Local</button><button class="small-btn" data-dt="owner">💼 Owner‑Op</button><button class="small-btn" data-dt="fleet">🏢 Fleet</button></div>
+  <p id="dtNote" class="muted small"></p>
   <form id="truckForm" class="grid2">
     <label>Height ft<input name="heightFt" type="number" inputmode="decimal" step="1" min="6" max="15"></label>
     <label>Height in<input name="heightIn" type="number" inputmode="decimal" step="1" min="0" max="11"></label>
@@ -117,14 +134,69 @@
     <label>Axles<input name="axles" type="number" inputmode="numeric" min="2" max="9"></label>
     <label class="chk"><input type="checkbox" name="hazmat"> Hazmat load</label>
     <label class="chk"><input type="checkbox" name="avoidTolls"> Avoid tolls</label>
+    <label class="chk"><input type="checkbox" name="avoidWeigh"> Avoid weigh stations</label>
+    <label>HOS cycle<select name="cycle"><option value="70">70 h / 8 days</option><option value="60">60 h / 7 days</option></select></label>
     <label>Units<select name="units"><option value="mi">Miles</option><option value="km">Kilometers</option></select></label>
-    <label>Map<select name="theme"><option value="night">Night</option><option value="day">Day</option></select></label>
+    <label>Map<select name="theme"><option value="night">Night</option><option value="dim">Night – dim (low glare)</option><option value="day">Day</option></select></label>
   </form>
   <div class="row"><button class="small-btn" data-preset="53">53' dry van 80k</button><button class="small-btn" data-preset="box">26' box truck</button><button class="small-btn" data-preset="bob">Bobtail</button></div>
+  <p class="muted small">⚖️ PrePass / Drivewyze: bypass status comes from your transponder or their app — RigRoute can't see it. Scales show open/closed only when drivers report it here (👍/👎 to confirm).</p>
+  <p class="muted small">⚖️ “Avoid weigh stations” only changes the route. If you pass an open scale or a sign says trucks must enter, you must stop by law.</p>
   <p class="muted small">Routes avoid roads marked in OpenStreetMap as too low, too heavy, too long, or closed to trucks/hazmat for this profile. Always obey posted signs.</p>
-  <p class="muted small">Map © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> · tiles <a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> · routing <a href="https://valhalla.github.io/valhalla/" target="_blank">Valhalla</a> (FOSSGIS server) · search <a href="https://photon.komoot.io" target="_blank">Photon</a> · POIs <a href="https://overpass-api.de" target="_blank">Overpass</a>. <span id="ver"></span></p>
+  <p class="muted small">Map © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> · tiles <a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> · routing <a href="https://valhalla.github.io/valhalla/" target="_blank">Valhalla</a> (FOSSGIS server) · search <a href="https://photon.komoot.io" target="_blank">Photon</a> · POIs <a href="https://overpass-api.de" target="_blank">Overpass</a> · satellite <a href="https://www.esri.com" target="_blank">Esri World Imagery</a>. <span id="ver"></span></p>
 </section>
 
+
+<section id="reportPanel" class="panel hidden">
+  <div class="phead"><h2>Report</h2><button class="close">✕</button></div>
+  <p class="muted small" id="reportWhere">Reports the road just ahead of you. Restrictions are avoided right away on this phone.</p>
+  <div id="reportGrid" class="reportGrid"></div>
+  <h3>My avoided roads</h3><ul id="avoidList" class="small"></ul>
+</section>
+
+<section id="facPanel" class="panel hidden">
+  <div class="phead"><h2>Facility</h2><button class="close">✕</button></div>
+  <div id="facName" class="muted"></div>
+  <p class="small muted">Move the map so the <b>+</b> is on the truck gate / receiving entrance, then tap "Set truck entrance". Routes to this place will go to that gate.</p>
+  <div class="row"><button id="facPin" class="big">📍 Set truck entrance here</button><button id="facClear" class="small-btn">Clear pin</button></div>
+  <div id="facPinInfo" class="small muted"></div>
+  <label>Driver notes for this facility (gate code, dock, check-in, parking, hours)<textarea id="facNotes" rows="4"></textarea></label>
+  <label class="chk"><input type="checkbox" id="facSat"> Satellite view to scout the yard</label>
+</section>
+
+<section id="mePanel" class="panel hidden">
+  <div class="phead"><h2>Me</h2><button class="close">✕</button></div>
+  <div class="profileHead"><div id="avatarBig">🚛</div><div><b id="pName">Driver</b><div id="pLevel" class="muted"></div><div class="bar"><i id="pBar"></i></div></div></div>
+  <div class="hosGrid"><div><b id="pPts">0</b><span>points</span></div><div><b id="pStreak">0</b><span>day streak</span></div><div><b id="pMiles">0</b><span>miles</span></div></div>
+  <h3>Badges</h3><div id="badges" class="badges"></div>
+  <h3>This week's leaderboard</h3><ol id="leader"></ol><p id="leaderNote" class="muted small"></p>
+  <details><summary>How to earn points</summary><ul class="small"><li>1 pt / mile driven while navigating</li><li>Report a road problem: 5–25 pts, +15 each time another driver confirms it</li><li>Confirm/deny someone's report: 2 pts</li><li>Arrive before your delivery appointment: 50 pts</li><li>Take your 30‑min break before it's due: 15 pts</li><li>Trip with no hard braking or speeding: 30 pts</li></ul></details>
+  <h3>Profile</h3>
+  <label>Name / handle<input id="pNameIn" maxlength="24"></label>
+  <label>Truck avatar</label><div class="row" id="avatarPick"></div>
+  <label>Mood</label><div class="row" id="moodPick"></div>
+  <h3>Garage: your map icon</h3><div id="garage" class="garage"></div><div id="swatches" class="swatches"></div><p class="muted small">More rigs and colors unlock as you level up.</p>
+  <label class="chk"><input type="checkbox" id="mascotOn" checked> Show Coney, your co‑pilot (tips & cheers)</label>
+  <h3>Account</h3>
+  <div id="acctBox"></div>
+  <h3>Navigation voice</h3>
+  <label>Personality<select id="vPersona"></select></label>
+  <label>Voice<select id="vVoice"></select></label>
+  <label>Speed <input id="vRate" type="range" min="0.7" max="1.4" step="0.05"></label>
+  <label>Pitch <input id="vPitch" type="range" min="0.6" max="1.5" step="0.05"></label>
+  <button id="vPreview" class="big">▶ Preview voice</button>
+</section>
+<section id="layersPanel" class="panel hidden">
+  <div class="phead"><h2>Map layers</h2><button class="close">✕</button></div>
+  <label class="chk"><input type="checkbox" data-layer="fuelAll" checked> ⛽ Diesel & truck-stop fuel</label>
+  <label class="chk"><input type="checkbox" data-layer="pois" checked> 🚛 Stops / rest / scales on route</label>
+  <label class="chk"><input type="checkbox" data-layer="wz" checked> 🚧 Work zones & closures (official NJ feed)</label>
+  <label class="chk"><input type="checkbox" data-layer="reports" checked> 📣 Driver reports</label>
+  <label class="chk"><input type="checkbox" data-layer="avoids" checked> ⛔ My avoided roads</label>
+  <label class="chk"><input type="checkbox" data-layer="car"> 🚗 Car route comparison</label>
+  <label class="chk"><input type="checkbox" data-layer="sat"> 🛰 Satellite</label>
+</section>
+<div id="hud" class="hidden" aria-hidden="true"><div id="hudArrow">↑</div><div id="hudDist">--</div><div id="hudSpeed">--</div><button id="hudExit">Exit HUD</button></div>
 <div id="toast" class="hidden"></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module" src="js/app.js"></script>

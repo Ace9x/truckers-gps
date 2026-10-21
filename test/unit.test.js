@@ -37,3 +37,66 @@ test('10h split of off+sleeper counts as reset', () => { const ev = [{ t: T0, s:
   assert.equal(hosStatus(ev, T0 + 16 * H).driveLeft, 10 * H); });
 test('POI classify + query', () => { assert.equal(classifyPoi({ amenity: 'fuel', name: "Love's Travel Stop" }), 'stop'); assert.equal(classifyPoi({ amenity: 'weighbridge' }), 'weigh'); assert.equal(classifyPoi({ highway: 'rest_area' }), 'rest');
   assert.match(overpassQuery([[-74, 40], [-74.1, 40.1]]), /around:1500,40\.00000,-74\.00000,40\.10000,-74\.10000/); });
+import { speakable } from '../js/logic.js';
+test('voice normalization', () => {
+  const c = [['Take the Interstate 2 78 West ramp.', 'Take the Interstate 278 West ramp.'], ['Turn left onto I 278 W.', 'Turn left onto Interstate 278 West.'], ['Merge onto I-95 S/NJ Tpke', 'Merge onto Interstate 95 South/New Jersey Turnpike'],
+    ['Keep right toward US 1/US 9 Truck', 'Keep right toward U.S. Route 1/U.S. Route 9 Truck'], ['Continue on NJ 24.', 'Continue on New Jersey Route 24.'], ['Turn right onto NY-9A', 'Turn right onto New York Route 9A'],
+    ['Take exit 13A onto Garden State Pkwy', 'Take exit 13A onto Garden State Parkway'], ['Bruckner Expy', 'Bruckner Expressway'], ['Turn left onto Doremus Ave.', 'Turn left onto Doremus Avenue.'],
+    ['Turn right onto 2nd Street.', 'Turn right onto 2nd Street.'], ['Bear right onto CR 508', 'Bear right onto County Route 508'], ['Interstate 87 North', 'Interstate 87 North']];
+  for (const [a, b] of c) assert.equal(speakable(a), b);
+});
+import { promptFor, rejoinVias, squarePolygon, detourMinutes, labelAlternatives, tilesForLine, pointAlong } from '../js/logic.js';
+import { levelFor, earnedBadges, updateStreak, DrivingMonitor, reportVisible, weekKey } from '../js/community.js';
+import { Voice, PERSONALITIES } from '../js/voice.js';
+test('accuracy-gated off-route (Ferrostar style)', () => { const d = new OffRouteDetector({ threshold: 50, needed: 3, minAccuracy: 30 });
+  for (let i = 0; i < 5; i++) assert.equal(d.update(400, 80), false, 'fuzzy fixes never trigger'); assert.equal(d.ignored, 5);
+  d.update(400, 10); d.update(400, 10); assert.equal(d.update(400, 10), true); });
+test('highway prompts at 2 mi, 1 mi, 1/4 mi then at turn; never repeats or goes backwards', () => { const sp = {}; const got = [];
+  for (let m = 3.5 * 1609; m > 0; m -= 100) { const k = promptFor(m, 29, sp, 20); if (k) got.push(k); } assert.deepEqual(got, ['2mi', '1mi', 'qmi', 'near']);
+  const sp2 = {}; assert.equal(promptFor(1200, 29, sp2, 20), '1mi'); assert.equal(promptFor(3000, 29, sp2, 20), null);
+  const city = {}; const g2 = []; for (let m = 1500; m > 0; m -= 20) { const k = promptFor(m, 10, city, 10); if (k) g2.push(k); } assert.deepEqual(g2, ['far', 'near']); });
+test('rejoin vias are on chosen route ahead of truck', () => { const line = []; for (let i = 0; i <= 100; i++) line.push([-74 + i * 0.001, 40]); const cum = cumulative(line);
+  const v = rejoinVias(line, cum, 1000, { ahead: 1500, max: 2 }); assert.equal(v.length, 2); assert.ok(v.every(p => p[1] === 40 && p[0] > -74 + 0.02));
+  assert.deepEqual(rejoinVias(line, cum, cum.at(-1) - 1000), []); });
+test('avoid polygon ~50 m square, closed ring', () => { const p = squarePolygon(-74, 40, 25); assert.equal(p.length, 5); assert.deepEqual(p[0], p[4]); const w = haversine(p[0], p[1]); assert.ok(w > 45 && w < 55, w); });
+test('pointAlong + detour minutes', () => { const line = [[-74, 40], [-74, 40.01]], cum = cumulative(line); const m = pointAlong(line, cum, cum[1] / 2); assert.ok(Math.abs(m[1] - 40.005) < 1e-6);
+  assert.equal(detourMinutes(50), 1); assert.equal(detourMinutes(1600), 7); });
+test('route alternatives labels', () => { const mk = (len, time, toll, n) => ({ length: len, time, summary: { has_toll: toll }, maneuvers: Array(n).fill({}) });
+  const L = labelAlternatives([mk(40000, 3000, true, 20), mk(38000, 3300, false, 12)], mk(39000, 2800, false, 10));
+  assert.ok(L[0].includes('Fastest') && L[0].includes('Has tolls')); assert.ok(L[1].includes('Shortest') && L[1].includes('No tolls') && L[1].includes('Fewest turns') && L[1].includes('+5 min')); });
+test('offline tiles cover corridor', () => { const t = tilesForLine([[-73.88, 40.81], [-74.16, 40.69]], [14], 1); assert.ok(t.length > 30 && t.length < 400, t.length); assert.ok(t.every(x => x.startsWith('14/'))); });
+test('truck costing tuned', () => { const c = truckCosting({ heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 }); assert.equal(c.use_truck_route, 0.8); assert.equal(c.low_class_penalty, 60); assert.equal(c.axle_load, 9.07); });
+test('levels, badges, streak, week', () => { assert.equal(levelFor(0).name, 'Rookie'); assert.equal(levelFor(650).name, 'Gear Jammer'); assert.ok(Math.abs(levelFor(400).progress - 0.5) < 1e-9);
+  assert.deepEqual(earnedBadges({ reports: 1, miles: 150, confirmed: 0, onTime: 0, breaks: 0, safeTrips: 0, streak: 0 }), ['first_report', 'miles100']);
+  const s = {}; const d0 = Date.UTC(2026, 9, 19, 12); updateStreak(s, d0); updateStreak(s, d0 + 864e5); updateStreak(s, d0 + 864e5 + 3600e3); assert.equal(s.streak, 2); updateStreak(s, d0 + 4 * 864e5); assert.equal(s.streak, 1);
+  assert.equal(weekKey(Date.UTC(2026, 9, 21, 12)), '2026-10-19'); });
+test('hard braking from GPS speed', () => { const m = new DrivingMonitor(); m.update({ speed: 25, t: 0 }); m.update({ speed: 24, t: 1000 }); assert.ok(m.safe()); m.update({ speed: 19, t: 2000 }); assert.equal(m.hardBrakes, 1); assert.ok(!m.safe()); });
+test('report visibility: votes + expiry', () => { const now = Date.now(); assert.ok(reportVisible({ type: 'police', t: now - 30 * 60e3 }, now)); assert.ok(!reportVisible({ type: 'police', t: now - 2 * 3600e3 }, now));
+  assert.ok(reportVisible({ type: 'police', t: now - 2 * 3600e3, up: 2 }, now)); assert.ok(!reportVisible({ type: 'clearance', t: now, down: 3, up: 0 }, now)); assert.ok(reportVisible({ type: 'clearance', t: now - 99 * 864e5 }, now)); });
+test('voice personalities rephrase + normalize', () => { const v = new Voice({ personality: 'oldschool' }); assert.match(v.phrase('Weigh station in two miles.', 'weigh'), /chicken coop/);
+  const n = new Voice({ personality: 'nyc' }); assert.equal(n.phrase('Turn left onto I 278 W.', 'turn'), 'Ay, turn left onto Interstate 278 West.');
+  assert.ok(Object.keys(PERSONALITIES).length >= 4); assert.match(new Voice({ personality: 'copilot' }).phrase('x', 'arrive'), /arrived/); });
+import { parseLengthM, parseWeightT, dangersAhead, detectCurves, wrongRoad, wzdxToZones, ftIn } from '../js/safety.js';
+test('parse OSM maxheight / maxweight', () => { assert.ok(Math.abs(parseLengthM(`12'6"`) - 3.81) < 0.01); assert.ok(Math.abs(parseLengthM('11 ft 8 in') - 3.556) < 0.01); assert.equal(parseLengthM('4.1'), 4.1); assert.equal(parseLengthM('3.5 m'), 3.5); assert.equal(parseLengthM('none'), null);
+  assert.ok(Math.abs(parseWeightT('50000 lbs') - 22.68) < 0.01); assert.ok(Math.abs(parseWeightT('80 st') - 72.57) < 0.01); assert.equal(parseWeightT('10'), 10); assert.equal(ftIn(3.81), '12 foot 6'); });
+test('look-ahead dangers compare to truck profile', () => { const truck = { heightM: 4.115, weightT: 36.3, lengthM: 21.3, hazmat: true };
+  const edges = [{ along: 100, way_id: 1 }, { along: 500, way_id: 2 }, { along: 900, way_id: 3, tunnel: true }, { along: 1500, way_id: 4, max_downward_grade: -7, length: 900 }, { along: 2000, way_id: 5 }, { along: 2100, way_id: 6 }];
+  const d = dangersAhead(edges, { 1: { maxheight: `12'6"` }, 2: { maxheight: `13'9"` }, 3: { maxheight: '4.5', 'hazmat:adr_tunnel_cat': 'D' }, 5: { maxweight: '50000 lbs' }, 6: { maxheight: '4.6' } }, truck);
+  const k = d.map(x => x.kind + ':' + x.sev);
+  assert.deepEqual(k, ['height:stop', 'height:warn', 'hazmat:stop', 'tunnel:warn', 'grade:warn', 'weight:stop']);
+  assert.match(d[0].text, /Low clearance 12 foot 6 ahead\. Your truck is 13 foot 6/); });
+test('sharp curve detection ignores maneuvers', () => { const line = []; for (let i = 0; i <= 20; i++) line.push([-74 + i * 0.0005, 40]); for (let i = 1; i <= 20; i++) line.push([-74 + 20 * 0.0005, 40 + i * 0.0005]);
+  const cum = line.reduce((a, p, i) => (a.push(i ? a[i - 1] + haversine(line[i - 1], p) : 0), a), []);
+  assert.equal(detectCurves(line, cum, []).length, 1); assert.equal(detectCurves(line, cum, [20]).length, 0); });
+test('wrong-road check', () => { assert.match(wrongRoad({ edge: { access: { truck: false } } }).text, /closed to trucks/); assert.equal(wrongRoad({ edge: { access: { truck: true }, classification: { classification: 'residential', use: 'road' } } }), null);
+  assert.match(wrongRoad({ edge: { access: { truck: true }, classification: { classification: 'residential', use: 'road' } } }, { offRoute: true }).short, /Residential/); });
+test('WZDx closures parsing', () => { const now = Date.parse('2026-10-21T20:00:00Z'); const f = (desc, s, e, vi = 'all-lanes-open') => ({ type: 'Feature', geometry: { type: 'MultiPoint', coordinates: [[-74, 40]] }, properties: { start_date: s, end_date: e, vehicle_impact: vi, core_details: { description: desc } } });
+  const z = wzdxToZones({ features: [f('Roadwork, right lane closed', '2026-10-21T00:00:00Z', '2026-10-22T00:00:00Z'), f('Ramp closed to all traffic', '2026-10-21T00:00:00Z', '2026-10-22T00:00:00Z'), f('Bridge work', '2026-10-25T00:00:00Z', '2026-10-26T00:00:00Z'), f('x', '2026-10-20T00:00:00Z', '2026-10-20T05:00:00Z', 'all-lanes-closed')] }, now);
+  assert.equal(z.length, 2); assert.equal(z[0].closed, false); assert.equal(z[1].closed, true); });
+import { encodePolyline } from '../js/logic.js';
+test('polyline encode/decode roundtrip', () => { const c = [[-73.88031, 40.81281], [-74.158, 40.6879], [-74.2, 40.7]]; assert.deepEqual(decodePolyline(encodePolyline(c)).map(p => p.map(v => +v.toFixed(5))), c); });
+test('HOS 70-hour/8-day cycle and 34-hour restart', () => { const ev = []; let t = T0;
+  for (let d = 0; d < 6; d++) { ev.push({ t, s: 'drive' }, { t: t + 11 * H, s: 'on' }, { t: t + 12 * H, s: 'off' }); t += 24 * H; } // 6 days × 12h on duty = 72h
+  let s = hosStatus(ev, t); assert.equal(s.cycleLeft, 0); assert.equal(s.driveLeft, 0); assert.ok(s.warnings.some(w => /70-hour cycle used up/.test(w)));
+  assert.equal(hosStatus(ev, t, { cycle: 60 }).cycleLeft, 0);
+  ev.push({ t: t + 34 * H, s: 'drive' }); s = hosStatus(ev, t + 35 * H); assert.equal(s.cycleLeft, 69 * H); });

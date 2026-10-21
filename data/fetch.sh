@@ -1,0 +1,4 @@
+Q='[out:json][timeout:300][bbox:38.4,-80.6,45.1,-66.9];(nwr["highway"="rest_area"];nwr["highway"="services"];nwr["amenity"="weighbridge"];nwr["highway"="weigh_station"];nwr["hgv"="weigh_station"];nwr["amenity"="parking"]["hgv"~"yes|designated"];nwr["amenity"="fuel"]["hgv"~"yes|designated"];nwr["amenity"="fuel"]["brand"~"Pilot|Flying J|Love|TravelCenters|Petro|TA |Sapp|Kwik Trip|Road Ranger",i];);out center tags;'
+for i in $(seq 1 30); do for u in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter; do
+ c=$(curl -s -m 320 -A "TruckNav/1.0 (github.com/Ace9x/truckers-gps)" -o raw.json -w "%{http_code}" --data-urlencode "data=$Q" $u); echo "$i $u $c $(stat -c%s raw.json)"
+ [ "$c" = 200 ] && grep -q '"elements"' raw.json && ! grep -q '"remark"' raw.json && exit 0; sleep 20; done; done

@@ -1,0 +1,21 @@
+// Original top-down cartoon vehicle art (all drawn here, no third-party assets). Nose points up (north) so it rotates with heading.
+export const COLORS = { red: '#e53935', orange: '#fb8c00', yellow: '#fdd835', green: '#43a047', blue: '#1e88e5', purple: '#8e24aa', black: '#37474f', white: '#eceff1', chrome: '#b0bec5' };
+const cab = (c, y = 4) => `<rect x="14" y="${y}" width="20" height="14" rx="5" fill="${c}" stroke="#111" stroke-width="2"/><rect x="17" y="${y + 2}" width="14" height="5" rx="2" fill="#bfe9ff" stroke="#111" stroke-width="1.2"/><circle cx="16" cy="${y + 1}" r="1.6" fill="#fff59d"/><circle cx="32" cy="${y + 1}" r="1.6" fill="#fff59d"/>`;
+const wheels = ys => ys.map(y => `<rect x="10" y="${y}" width="4" height="7" rx="1.5" fill="#111"/><rect x="34" y="${y}" width="4" height="7" rx="1.5" fill="#111"/>`).join('');
+const eyes = (y) => `<circle cx="20" cy="${y}" r="2.2" fill="#fff"/><circle cx="28" cy="${y}" r="2.2" fill="#fff"/><circle cx="20.6" cy="${y - .4}" r="1.1" fill="#111"/><circle cx="28.6" cy="${y - .4}" r="1.1" fill="#111"/>`;
+export const VEHICLES = {
+  semi: { name: 'Big Rig', level: 1, svg: c => `${wheels([20, 40, 52])}<rect x="13" y="19" width="22" height="42" rx="3" fill="#eceff1" stroke="#111" stroke-width="2"/><rect x="13" y="22" width="22" height="4" fill="${c}"/>${cab(c)}${eyes(13)}` },
+  box: { name: 'Box Truck', level: 1, svg: c => `${wheels([18, 44])}<rect x="13" y="18" width="22" height="34" rx="3" fill="${c}" stroke="#111" stroke-width="2"/><path d="M17 28h14M17 34h14M17 40h14" stroke="#0004" stroke-width="2"/>${cab('#eceff1', 6)}${eyes(15)}` },
+  flatbed: { name: 'Flatbed', level: 2, svg: c => `${wheels([22, 44, 54])}<rect x="13" y="19" width="22" height="42" rx="2" fill="#8d6e63" stroke="#111" stroke-width="2"/><rect x="16" y="26" width="16" height="10" fill="#a1887f" stroke="#111"/><rect x="16" y="42" width="16" height="10" fill="#a1887f" stroke="#111"/><path d="M13 31h22M13 47h22" stroke="${c}" stroke-width="2"/>${cab(c)}${eyes(13)}` },
+  tanker: { name: 'Tanker', level: 3, svg: c => `${wheels([24, 46, 54])}<rect x="13" y="19" width="22" height="42" rx="11" fill="#cfd8dc" stroke="#111" stroke-width="2"/><rect x="21" y="24" width="6" height="32" rx="3" fill="${c}"/><circle cx="24" cy="30" r="2" fill="#78909c"/><circle cx="24" cy="50" r="2" fill="#78909c"/>${cab(c)}${eyes(13)}` },
+  reefer: { name: 'Reefer', level: 4, svg: c => `${wheels([22, 46, 54])}<rect x="13" y="19" width="22" height="42" rx="3" fill="#e3f2fd" stroke="#111" stroke-width="2"/><rect x="15" y="20" width="18" height="6" rx="1" fill="#90a4ae" stroke="#111"/><text x="24" y="46" font-size="11" text-anchor="middle" fill="${c}">❄</text>${cab(c)}${eyes(13)}` },
+  pickup: { name: 'Pickup', level: 2, svg: c => `${wheels([14, 40])}<rect x="13" y="8" width="22" height="42" rx="6" fill="${c}" stroke="#111" stroke-width="2"/><rect x="16" y="12" width="16" height="7" rx="2" fill="#bfe9ff" stroke="#111"/><rect x="16" y="30" width="16" height="16" rx="1" fill="#0003"/>${eyes(24)}` },
+  sedan: { name: 'Sedan', level: 1, svg: c => `${wheels([14, 36])}<rect x="13" y="8" width="22" height="38" rx="9" fill="${c}" stroke="#111" stroke-width="2"/><rect x="16" y="13" width="16" height="7" rx="3" fill="#bfe9ff" stroke="#111"/><rect x="16" y="33" width="16" height="6" rx="3" fill="#bfe9ff" stroke="#111"/>${eyes(26)}` },
+  taxi: { name: 'Taxi', level: 5, svg: c => `${wheels([14, 36])}<rect x="13" y="8" width="22" height="38" rx="9" fill="#fdd835" stroke="#111" stroke-width="2"/><rect x="18" y="22" width="12" height="5" rx="1" fill="${c}" stroke="#111"/><rect x="16" y="13" width="16" height="7" rx="3" fill="#bfe9ff" stroke="#111"/>${eyes(32)}` },
+};
+export function vehicleSVG(type = 'semi', color = 'orange', size = 44) {
+  const v = VEHICLES[type] || VEHICLES.semi, c = COLORS[color] || color;
+  return `<svg viewBox="0 0 48 64" width="${size * 0.75}" height="${size}" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 3px #0009)">${v.svg(c)}</svg>`;
+}
+export const unlocked = (type, levelIndex) => (VEHICLES[type]?.level || 1) <= levelIndex;
+export const colorUnlocked = (color, levelIndex) => !['purple', 'chrome'].includes(color) || levelIndex >= 3;
