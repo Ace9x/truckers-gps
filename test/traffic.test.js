@@ -1,5 +1,5 @@
 import { test } from 'node:test'; import assert from 'node:assert/strict';
-import { aggregate, level, segKey, routeTraffic, jamText, rerouteDecision, parseNycDot, linkObs, parseHere, parseTomTom, refMph } from '../js/trafficlogic.js';
+import { aggregate, level, segKey, routeTraffic, jamText, rerouteDecision, parseNycDot, freshLinks, linkObs, parseHere, parseTomTom, refMph } from '../js/trafficlogic.js';
 import { cumulative } from '../js/logic.js';
 const now = 1e12;
 test('congestion levels', () => { assert.equal(level(0.95).id, 'free'); assert.equal(level(0.6).id, 'slow'); assert.equal(level(0.4).id, 'heavy'); assert.equal(level(0.1).id, 'jam'); });
@@ -27,11 +27,18 @@ test('reroute trigger', () => { const cur = { time: 1800, delay: 900 };
   assert.equal(rerouteDecision({ time: 1800, delay: 120 }, [{ time: 1000, delay: 0 }]), null, 'small delay → no suggestion');
   assert.equal(rerouteDecision(cur, [{ time: 2600, delay: 0 }]), null, 'alternative not faster enough');
   const b = rerouteDecision(cur, [{ time: 2400, delay: 0, id: 1 }, { time: 1900, delay: 100, id: 2 }]); assert.equal(b.id, 2); assert.equal(b.save, 700); });
-test('feed parsers', () => { const f = parseNycDot([{ link_id: '1', speed: '12.4', status: '0', data_as_of: '2026-10-21T15:47:06.000', link_name: 'BQE N Atlantic Ave', link_points: '40.69,-73.99 40.70,-73.99 40.7' }, { link_id: '2', speed: '0', status: '-101', link_points: '1,2 3,4' }]);
-  assert.equal(f.length, 1); assert.equal(f[0].ff, 50); assert.equal(f[0].coords.length, 2); assert.equal(new Date(f[0].t).toISOString(), '2026-10-21T19:47:06.000Z'); assert.ok(linkObs(f[0]).length >= 9);
+test('feed parsers', () => { const f = parseNycDot([{ link_id: '1', speed: '12.4', status: '0', data_as_of: '2026-10-21T15:47:06.000', link_name: 'BQE N Atlantic Ave', link_points: '40.69,-73.99 40.692,-73.99 40.7' }, { link_id: '2', speed: '0', status: '-101', link_points: '1,2 3,4' }]);
+  assert.equal(f.length, 1); assert.equal(f[0].ff, 50); assert.equal(f[0].coords.length, 2); assert.equal(new Date(f[0].t).toISOString(), '2026-10-21T19:47:06.000Z'); assert.ok(linkObs(f[0], 20).length >= 9);
   assert.equal(refMph('W 57th St'), 30);
   const h = parseHere({ sourceUpdated: '2026-10-21T21:00:00Z', results: [{ location: { description: 'I-95', shape: { links: [{ points: [{ lat: 40, lng: -74 }, { lat: 40.01, lng: -74 }] }] } }, currentFlow: { speed: 10, freeFlow: 25 } }] });
   assert.equal(h[0].ratio, 0.4); assert.equal(h[0].src, 'HERE');
   const t = parseTomTom({ flowSegmentData: { currentSpeed: 40, freeFlowSpeed: 100, coordinates: { coordinate: [{ latitude: 40, longitude: -74 }, { latitude: 40.01, longitude: -74 }] } } }); assert.equal(t.ratio, 0.4); });
-test('NYC DOT direction comes from link name, not point order', () => { const [w] = parseNycDot([{ link_id: '9', speed: '8', status: '0', data_as_of: '2026-10-21T15:00:00.000', link_name: 'CBE W MORRIS AVE - GWB', link_points: '40.6,-74.0 40.6,-73.99' }]);
+test('NYC DOT direction comes from link name, not point order', () => { const [w] = parseNycDot([{ link_id: '9', speed: '8', status: '0', data_as_of: '2026-10-21T15:00:00.000', link_name: 'CBE W MORRIS AVE - GWB', link_points: '40.6,-74.0 40.6,-73.998' }]);
   assert.equal(w.dir, 270); assert.equal(linkObs(w)[0].h, 270); });
+
+test('NYC DOT: no straight lines across the map, stale data dropped', () => {
+  const f = parseNycDot([{ link_id: '9', speed: '30', status: '0', data_as_of: '2026-10-21T15:47:06.000', link_name: 'LIE', link_points: '40.7400,-73.9000 40.7410,-73.8990 40.7420,-73.8980 40.6,-73.5 40.7430,-73.8970 40.75,-73.70 40.7505,-73.6995 4074,-73 40.7,' }]);
+  for (const s of f) for (let i = 1; i < s.coords.length; i++) { const [a, b] = [s.coords[i - 1], s.coords[i]]; assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.004, 'no jump > ~300 m'); }
+  assert.ok(f.length >= 1 && f.every(s => s.coords.length >= 2));
+  const now = Date.parse('2026-10-21T19:50:00Z'); assert.equal(freshLinks(f, now).length, f.length); assert.equal(freshLinks(f, now + 2.3 * 3600e3).length, 0);
+});

@@ -3,7 +3,7 @@
 import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
 import { geohash, ghNeighbors } from './hazlogic.js';
 import { cumulative } from './logic.js';
-import { LEVELS, level, segKey, aggregate, routeTraffic, jamText, rerouteDecision, ageText, wazeLink, gmapsLink, appleLink, parseNycDot, linkObs, parseHere, parseTomTom, MPH, MI } from './trafficlogic.js';
+import { LEVELS, level, segKey, aggregate, routeTraffic, jamText, rerouteDecision, ageText, wazeLink, gmapsLink, appleLink, parseNycDot, freshLinks, linkObs, parseHere, parseTomTom, MPH, MI } from './trafficlogic.js';
 import { RELAYS } from './hazards.js';
 
 export const TKIND = 7534, TTAG = 'rigroute-tf-v1';
@@ -47,7 +47,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   async function fetchNyc() { if (T.feeds.nyc && Date.now() - T.feeds.nyc.fetched < 120e3) return;
     try { const r = await fetch(`${NYC}?$limit=3000&$where=data_as_of>'${new Date(Date.now() - 6 * 3600e3 - 4 * 3600e3).toISOString().slice(0, 19)}'&$order=data_as_of DESC`, { signal: AbortSignal.timeout(25000) });
       const rows = await r.json(); const seen = new Set(), latest = rows.filter(x => !seen.has(x.link_id) && seen.add(x.link_id));
-      const links = parseNycDot(latest); T.feeds.nyc = { links, fetched: Date.now(), t: Math.max(0, ...links.map(l => l.t)) }; T.status.nyc = `${links.length} links`; }
+      const all = parseNycDot(latest), links = freshLinks(all); T.feeds.nyc = { links, fetched: Date.now(), t: Math.max(0, ...links.map(l => l.t)) }; T.status.nyc = links.length ? `${links.length} links` : all.length ? 'stale (hidden)' : 'no data'; }
     catch (e) { T.status.nyc = 'unavailable'; } }
   async function fetchHere(b) { if (!T.keys.here) return; try {
       const j = await (await fetch(`https://data.traffic.hereapi.com/v7/flow?in=bbox:${b.map(x => x.toFixed(4)).join(',')}&locationReferencing=shape&apiKey=${encodeURIComponent(T.keys.here)}`, { signal: AbortSignal.timeout(20000) })).json();
@@ -103,7 +103,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   T.routeTraffic = (route, from = 0) => { if (!route.cum) route.cum = cumulative(route.line); return routeTraffic(route, obsFor(route), { from }); };
   let pend = null; const schedule = () => { clearTimeout(pend); pend = setTimeout(refresh, 400); };
   function refresh() { const links = allLinks(); T.links = links;
-    T.geo = { type: 'FeatureCollection', features: links.map(l => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: l.coords }, properties: { level: level(l.ratio).id, ratio: l.ratio, mph: l.mph, ff: l.ff, name: l.name, src: l.src, t: l.t } })) };
+    T.geo = { type: 'FeatureCollection', features: links.filter(l => l.src !== 'NYC DOT').map(l => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: l.coords }, properties: { level: level(l.ratio).id, ratio: l.ratio, mph: l.mph, ff: l.ff, name: l.name, src: l.src, t: l.t } })) };
     map.getSource('tf')?.setData(T.geo);
     const r = S.route; if (r) { const tr = T.routeTraffic(r, S.nav ? S.along || 0 : 0); T.cur = tr;
       T.routeGeo = { type: 'FeatureCollection', features: tr.slowdowns.map(s => ({ type: 'Feature', properties: { level: s.level }, geometry: { type: 'LineString', coordinates: slice(r, s.start, s.end) } })) };

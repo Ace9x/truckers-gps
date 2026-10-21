@@ -9,6 +9,8 @@ export const KIND = 7533, TAG = 'rigroute-hz-v1';
 const MQTT_URL = 'wss://broker.emqx.io:8084/mqtt', MQTT_LIB = 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
 const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 
+// Reports filed by automated browsers (e2e tests) are tagged test:1 and only visible to other test browsers.
+export const IS_TEST = typeof navigator !== 'undefined' && (navigator.webdriver === true || (typeof location !== 'undefined' && /[?&]rrtest=1/.test(location.search)));
 export class LiveHazards {
   constructor({ onChange = () => {}, onStatus = () => {}, relays = RELAYS } = {}) {
     let sk; try { sk = new Uint8Array(JSON.parse(localStorage.getItem('tn_hzsk'))); if (sk.length !== 32) throw 0; } catch { sk = generateSecretKey(); localStorage.setItem('tn_hzsk', JSON.stringify([...sk])); }
@@ -37,11 +39,12 @@ export class LiveHazards {
   _send(ev) { const m = JSON.stringify(['EVENT', ev]); this.outbox = [...(this.outbox || []).slice(-20), m]; let n = 0;
     this.relays.forEach(r => { if (r.open) try { r.ws.send(m); n++; } catch {} });
     if (this.mq?.connected) { this.mq.publish(`${TAG}/${ev.tags.find(t => t[0] === 'g')[1]}`, JSON.stringify(ev)); n++; } return n; }
-  _sign(content, lat, lon, expSec) { const ev = finalizeEvent({ kind: KIND, created_at: Math.floor(Date.now() / 1000), content: JSON.stringify(content),
+  _sign(content, lat, lon, expSec) { const ev = finalizeEvent({ kind: KIND, created_at: Math.floor(Date.now() / 1000), content: JSON.stringify({ ...content, v: 2, ...(IS_TEST ? { test: 1 } : {}) }),
       tags: [['g', geohash(lat, lon, AREA_P)], ['g', geohash(lat, lon, 6)], ['t', TAG], ['expiration', String(expSec)]] }, this.sk); this.me = ev.pubkey; this.seen.add(ev.id); return ev; }
   // ---------- inbound ----------
   _event(ev) { if (!ev || this.seen.has(ev.id) || ev.kind !== KIND) return; this.seen.add(ev.id);
     let c; try { c = JSON.parse(ev.content); } catch { return; }
+    if (!c.v || !!c.test !== IS_TEST) return; // automated-test reports never show to real drivers (and untagged legacy test reports are ignored)
     const t = Math.min(ev.created_at * 1000, Date.now() + 60e3);
     if (c.a === 'r') { if (ev.pubkey !== this.me && !this.theirs.allow(ev.pubkey, c.type, t)) return;
       const rep = { id: ev.id, type: c.type, lat: +c.lat, lon: +c.lon, hd: c.hd ?? null, t, by: ev.pubkey, mine: ev.pubkey === this.me };

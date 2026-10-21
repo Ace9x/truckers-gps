@@ -61,12 +61,20 @@ export const wazeLink = (d) => `https://waze.com/ul?ll=${d.lat.toFixed(6)},${d.l
 export const gmapsLink = (o, d) => `https://www.google.com/maps/dir/?api=1${o ? `&origin=${o.lat.toFixed(6)},${o.lon.toFixed(6)}` : ''}&destination=${d.lat.toFixed(6)},${d.lon.toFixed(6)}&travelmode=driving`;
 export const appleLink = (d) => `https://maps.apple.com/?daddr=${d.lat.toFixed(6)},${d.lon.toFixed(6)}&dirflg=d`;
 // Parse NYC DOT real-time speeds rows → link features (keyless, data.cityofnewyork.us i4gi-tjb9).
-export function parseNycDot(rows) { return rows.filter(r => r.status !== '-101' && +r.speed > 0 && r.link_points).map(r => {
-  const pts = r.link_points.trim().split(/\s+/).map(p => p.split(',').map(Number)).filter(p => p.length === 2 && p[0] > 40 && p[0] < 41.5 && p[1] < -73 && p[1] > -75).map(([la, lo]) => [lo, la]).filter((c, i, a) => !i || haversine(a[i - 1], c) < 3000);
-  const mph = +r.speed, ff = refMph(r.link_name), dm = /^\S+\s+(N|S|E|W)B?\b/i.exec(r.link_name || '');
-  // NYC DOT point order does not follow travel direction; the direction is in the name ("CBE W …").
-  return { dir: dm ? { N: 0, E: 90, S: 180, W: 270 }[dm[1].toUpperCase()] : null, dirTol: 100, id: r.link_id, name: r.link_name, mph, ff, ratio: Math.min(1, mph / ff), coords: pts, t: Date.parse(r.data_as_of + (/[Z+]/.test(r.data_as_of.slice(19)) ? '' : nyOffset(r.data_as_of))), src: 'NYC DOT' };
-}).filter(f => f.coords.length > 1); }
+// NYC DOT link_points are often truncated/garbled ("40.7," fragments, swapped or missing pairs). Keep only points inside the
+// NYC region, split the polyline wherever consecutive points jump > maxJump metres, and keep pieces with >= 2 points.
+export const NYC_BOX = { s: 40.4, n: 41.2, w: -74.4, e: -73.6 };
+export function cleanPolyline(pts, maxJump = 300) { const segs = []; let cur = [];
+  for (const p of pts) { const prev = cur.at(-1); if (prev && haversine(prev, p) > maxJump) { if (cur.length > 1) segs.push(cur); cur = []; } cur.push(p); }
+  if (cur.length > 1) segs.push(cur); return segs; }
+export function parseNycDot(rows, { maxJump = 300 } = {}) { return rows.filter(r => r.status !== '-101' && +r.speed > 0 && r.link_points).flatMap(r => {
+  const raw = r.link_points.trim().split(/\s+/).map(p => p.split(',')).filter(p => p.length === 2 && p[0] && p[1]).map(p => p.map(Number))
+    .filter(([la, lo]) => Number.isFinite(la) && Number.isFinite(lo) && la > NYC_BOX.s && la < NYC_BOX.n && lo > NYC_BOX.w && lo < NYC_BOX.e).map(([la, lo]) => [lo, la]);
+  const mph = +r.speed, ff = refMph(r.link_name), dm = /^\S+\s+(N|S|E|W)B?\b/i.exec(r.link_name || ''), dir = dm ? { N: 0, E: 90, S: 180, W: 270 }[dm[1].toUpperCase()] : null, t = Date.parse(r.data_as_of + (/[Z+]/.test(r.data_as_of.slice(19)) ? '' : nyOffset(r.data_as_of)));
+  return cleanPolyline(raw, maxJump).map((coords, i) => ({ dir, dirTol: 100, id: r.link_id + (i ? '.' + i : ''), name: r.link_name, mph, ff, ratio: Math.min(1, mph / ff), coords, t, src: 'NYC DOT' }));
+}); }
+// Drop feed data older than maxAgeMs (stale congestion is worse than none).
+export const freshLinks = (links, now = Date.now(), maxAgeMs = 30 * 60e3) => links.filter(l => now - l.t <= maxAgeMs);
 const nyOffset = s => { const m = +s.slice(5, 7); return m >= 4 && m <= 10 ? '-04:00' : m === 3 || m === 11 ? '-04:00' : '-05:00'; };
 // Densify a link polyline into observation points with headings (for snapping to the route).
 export function linkObs(f, step = 120) { const out = [];

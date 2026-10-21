@@ -7,7 +7,7 @@ import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
 import { makeBackend, Profile, REPORT_TYPES, POINTS, BADGES, LEVELS, DrivingMonitor, reportVisible, weekKey } from './community.js';
 
-const VERSION = '2.3.0';
+const VERSION = '3.0.0';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const PHOTON = 'https://photon.komoot.io/api/';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
@@ -33,7 +33,7 @@ const voice = new Voice(LS.get('voiceCfg', {})); voice.enabled = LS.get('voice',
 Object.defineProperty(S, 'spokenLog', { get: () => voice.log });
 const say = (t, kind, force) => voice.say(t, kind, force);
 const profile = new Profile(); S.profile = profile;
-const mascot = new Mascot({ enabled: LS.get('mascot', true), isBusy: () => S.nav && (S.toNext ?? 1e9) < 600 }); S.mascot = mascot; let backend = null; S.reports = [];
+const mascot = new Mascot({ enabled: LS.get('mascot', false), isBusy: () => S.nav && (S.toNext ?? 1e9) < 600 }); S.mascot = mascot; let backend = null; S.reports = [];
 
 const applyTheme = () => { document.body.classList.toggle('day', S.truck.theme === 'day'); document.body.classList.toggle('dim', S.truck.theme === 'dim'); };
 applyTheme(); $('#ver').textContent = 'v' + VERSION;
@@ -43,7 +43,7 @@ const map = new maplibregl.Map({ container: 'map', style: STYLES[S.truck.theme] 
 S.map = map;
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
-S.ride = { type: 'semi', color: 'orange', ...LS.get('ride', {}) };
+S.ride = { type: 'pro', color: 'orange', ...LS.get('ride', {}) };
 const drawRide = () => { truckEl.innerHTML = vehicleSVG(S.ride.type, S.ride.color, 52); };
 drawRide();
 const truckMarker = new maplibregl.Marker({ element: truckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
@@ -549,7 +549,7 @@ async function renderMe() {
   renderGarage(); $('#mascotOn').checked = mascot.enabled; renderAcct(); renderVoiceUI();
 }
 function renderGarage() { const lv = profile.level.index;
-  $('#garage').innerHTML = Object.entries(VEHICLES).map(([k, v]) => `<button data-veh="${k}" class="${S.ride.type === k ? 'on' : ''} ${unlocked(k, lv) ? '' : 'lock'}">${vehicleSVG(k, S.ride.color, 44)}${v.name}${unlocked(k, lv) ? '' : ' 🔒L' + v.level}</button>`).join('');
+  $('#garage').innerHTML = Object.entries(VEHICLES).filter(([, v]) => !v.real).map(([k, v]) => `<button data-veh="${k}" class="${S.ride.type === k ? 'on' : ''} ${unlocked(k, lv) ? '' : 'lock'}">${vehicleSVG(k, S.ride.color, 44)}${v.name}${unlocked(k, lv) ? '' : ' 🔒L' + v.level}</button>`).join('');
   $('#swatches').innerHTML = Object.entries(COLORS).map(([k, c]) => `<button data-col="${k}" title="${k}${colorUnlocked(k, lv) ? '' : ' (level 3)'}" class="${S.ride.color === k ? 'on' : ''}" style="background:${c};${colorUnlocked(k, lv) ? '' : 'opacity:.3'}"></button>`).join('');
   $$('[data-veh]').forEach(b => b.onclick = () => { if (!unlocked(b.dataset.veh, lv)) return toast(`Reach level ${VEHICLES[b.dataset.veh].level} to unlock`); S.ride.type = b.dataset.veh; LS.set('ride', S.ride); drawRide(); renderGarage(); });
   $$('[data-col]').forEach(b => b.onclick = () => { if (!colorUnlocked(b.dataset.col, lv)) return toast('Reach level 3 to unlock'); S.ride.color = b.dataset.col; LS.set('ride', S.ride); drawRide(); renderGarage(); }); }
@@ -663,7 +663,7 @@ tf.addEventListener('change', renderDT); renderDT(); S.DRIVER_TYPES = DRIVER_TYP
 const LAYERS = { fuelAll: v => map.getLayer('fuelAll') && map.setLayoutProperty('fuelAll', 'visibility', v ? 'visible' : 'none'), wz: v => map.getLayer('wz') && map.setLayoutProperty('wz', 'visibility', v ? 'visible' : 'none'),
   pois: v => $$('.poi-marker').forEach(e => e.style.display = v ? '' : 'none'), reports: v => rptMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'), avoids: v => avoidMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'),
   car: v => { $('#cmpCar').checked = v; drawRoute(); }, sat: v => setSat(v) };
-S.layers = { fuelAll: true, pois: true, wz: true, reports: true, avoids: true, car: false, sat: false, ...LS.get('layers', {}) };
+S.layers = { fuelAll: true, pois: true, wz: false, reports: true, avoids: true, car: false, sat: false, ...LS.get('layers', {}) };
 function applyLayers() { for (const [k, f] of Object.entries(LAYERS)) { try { f(S.layers[k]); } catch {} } $$('[data-layer]').forEach(c => c.checked = !!S.layers[c.dataset.layer]); }
 $$('[data-layer]').forEach(c => c.onchange = () => { S.layers[c.dataset.layer] = c.checked; LS.set('layers', S.layers); applyLayers(); });
 $('#layersBtn').onclick = () => openPanel('layersPanel'); map.on('idle', () => { if (!S._layersApplied) { S._layersApplied = true; applyLayers(); } }); S.applyLayers = applyLayers;

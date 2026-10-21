@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#0b0f14">
+<meta name="theme-color" content="#0d1117">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="RigRoute GPS">
 <meta name="application-name" content="RigRoute GPS">
@@ -15,7 +15,9 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/pro.css">
 </head>
 <body>
 <div id="splash"><div class="splashLogo">🚛</div><h1>RigRoute GPS</h1><p>Truck‑safe navigation for drivers</p></div>
@@ -178,8 +180,12 @@
   <label>Name / handle<input id="pNameIn" maxlength="24"></label>
   <label>Truck avatar</label><div class="row" id="avatarPick"></div>
   <label>Mood</label><div class="row" id="moodPick"></div>
-  <h3>Garage: your map icon</h3><div id="garage" class="garage"></div><div id="swatches" class="swatches"></div><p class="muted small">More rigs and colors unlock as you level up.</p>
-  <label class="chk"><input type="checkbox" id="mascotOn" checked> Show Ace, your co‑pilot (tips & cheers)</label>
+  <h3>Map icon</h3><div class="row" id="proIcons"><button class="small-btn" data-veh="pro">Semi (top-down)</button><button class="small-btn" data-veh="arrow">Navigation arrow</button></div>
+  <details id="funBox"><summary>Fun &amp; co‑pilot</summary>
+  <label class="chk"><input type="checkbox" id="mascotOn"> Show Ace, your co‑pilot (tips & cheers)</label>
+  <button id="replayTour" class="small-btn">Replay tour</button>
+  <h3>Garage: cartoon map icons</h3><div id="garage" class="garage"></div><div id="swatches" class="swatches"></div><p class="muted small">More rigs and colors unlock as you level up.</p>
+  </details>
   <h3>Account</h3>
   <div id="acctBox"></div>
   <h3>Navigation voice</h3>
@@ -207,7 +213,7 @@
   <div class="phead"><h2>Map layers</h2><button class="close">✕</button></div>
   <label class="chk"><input type="checkbox" data-layer="fuelAll" checked> ⛽ Diesel & truck-stop fuel</label>
   <label class="chk"><input type="checkbox" data-layer="pois" checked> 🚛 Stops / rest / scales on route</label>
-  <label class="chk"><input type="checkbox" data-layer="wz" checked> 🚧 Work zones & closures (official NJ feed)</label>
+  <label class="chk"><input type="checkbox" data-layer="wz"> 🚧 Work zones & closures (official NJ feed)</label>
   <label class="chk"><input type="checkbox" data-layer="reports" checked> 📣 Driver reports</label>
   <label class="chk"><input type="checkbox" data-layer="avoids" checked> ⛔ My avoided roads</label>
   <label class="chk"><input type="checkbox" data-layer="car"> 🚗 Car route comparison</label>
@@ -217,5 +223,6 @@
 <div id="toast" class="hidden"></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module" src="js/app.js"></script>
+<script type="module" src="js/pro.js"></script>
 </body>
 </html>
