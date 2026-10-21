@@ -124,3 +124,5 @@ body.day .alt.sel{background:#fff6d6}
 #lockout{position:fixed;inset:0;z-index:50;background:#000c;display:flex;align-items:center;justify-content:center}#lockout>div{background:var(--panel);padding:20px;border-radius:18px;max-width:420px;display:flex;flex-direction:column;gap:10px;text-align:center}
 body.bigtext{font-size:20px}body.bigtext #bInstr{font-size:26px}body.bigtext #bDist{font-size:42px}body.bigtext .panel{font-size:19px}body.bigtext #tripBar b{font-size:28px}
 body.contrast{--bg:#000;--panel:#000;--fg:#fff;--mut:#e0e0e0;--line:#fff;--acc:#ffd600}body.contrast #banner{background:#000;border:3px solid #ffd600}
+.amen{color:var(--acc);margin-top:2px}
+.price{color:#7ee787;margin-top:2px}

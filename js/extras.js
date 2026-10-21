@@ -1,13 +1,14 @@
 // RigRoute v2.3 — features competitors paywall, free here: speed limits + truck-speed alerts, lane guidance, IFTA miles by state,
 // toll roads on route, fuel-stop planner, multi-stop trips, NWS severe weather, runaway ramps, SOS, driving lockout, fatigue reminders, accessibility.
 import { snapToRoute, sampleLine, haversine } from './logic.js';
+import { eiaFor, latestPrices, bestFuel, ageText } from './trip.js';
 import { milesByState, tollMiles, tollSegments, limitAt, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, fatigueDue, remainingStops } from './trip.js';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 
 export function init(S, h) {
   const { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, U, MI } = h;
-  S.opts = { maxMph: 65, rangeMi: 1200, bigText: false, contrast: false, fatigue: true, lockout: true, ...LS.get('opts', {}) };
+  S.opts = { gallons: 150, mpg: 6.5, bestPrice: false, maxMph: 65, rangeMi: 1200, bigText: false, contrast: false, fatigue: true, lockout: true, ...LS.get('opts', {}) };
   S.stops = LS.get('stops', []);
   const saveOpts = () => { LS.set('opts', S.opts); applyA11y(); };
   const ins = (sel, pos, html) => document.querySelector(sel).insertAdjacentHTML(pos, html);
@@ -20,9 +21,11 @@ export function init(S, h) {
     <div class="row"><input id="stopQ" placeholder="Add a stop (address, city)…" autocomplete="off"><button id="stopAdd" class="small-btn">＋ Add stop</button></div><ul id="stopRes" class="small"></ul></div>`);
   ins('#steps', 'beforebegin', `<details id="tripSheet" open><summary><b>📋 Trip sheet</b> — IFTA miles, tolls, fuel plan, weather</summary>
     <div id="iftaBox" class="small muted">Plan a route to see miles by state.</div><div id="tollBox" class="small muted"></div><div id="fuelBox" class="small muted"></div><div id="wxBox" class="small muted"></div>
+    <div id="priceBox" class="small muted"></div><label class="chk"><input type="checkbox" id="optBest"> 💲 Best fuel price mode (rank stations ahead by net savings)</label>
     <button id="iftaCsv" class="small-btn" disabled>⬇ IFTA miles (CSV)</button></details>`);
   ins('#truckForm', 'beforeend', `<label>Truck max speed mph<input id="optMax" type="number" min="45" max="85" step="1"></label>
     <label>Fuel range miles (full tank)<input id="optRange" type="number" min="200" max="2500" step="50"></label>
+    <label>Gallons per fill-up<input id="optGal" type="number" min="20" max="300" step="10"></label><label>Truck MPG<input id="optMpg" type="number" min="3" max="15" step="0.1"></label>
     <label class="chk"><input type="checkbox" id="optBig"> Large text</label><label class="chk"><input type="checkbox" id="optContrast"> High contrast</label>
     <label class="chk"><input type="checkbox" id="optFatigue"> Drowsy-driving break reminders</label><label class="chk"><input type="checkbox" id="optLock"> Lock typing while moving (voice only)</label>`);
   document.body.insertAdjacentHTML('beforeend', `<section id="sosPanel" class="panel hidden"><div class="phead"><h2>🆘 Emergency</h2><button class="close">✕</button></div>
@@ -32,10 +35,10 @@ export function init(S, h) {
     <p class="muted small">Tell the dispatcher your highway, direction, nearest exit/mile marker and that you are in a commercial truck${''} (hazmat placard number if any).</p></section>
     <div id="lockout" class="hidden" role="dialog"><div><h2>🚛 Eyes on the road</h2><p>Typing is locked while the truck is moving.</p>
     <button id="voiceDest" class="primary big">🎤 Say a destination</button><button id="iAmPassenger" class="big">I'm the passenger</button><button id="lockClose" class="small-btn">Close</button></div></div>`);
-  const fo = () => { $('#optMax').value = S.opts.maxMph; $('#optRange').value = S.opts.rangeMi; $('#optBig').checked = S.opts.bigText; $('#optContrast').checked = S.opts.contrast; $('#optFatigue').checked = S.opts.fatigue; $('#optLock').checked = S.opts.lockout; };
+  const fo = () => { $('#optMax').value = S.opts.maxMph; $('#optRange').value = S.opts.rangeMi; $('#optBig').checked = S.opts.bigText; $('#optContrast').checked = S.opts.contrast; $('#optFatigue').checked = S.opts.fatigue; $('#optLock').checked = S.opts.lockout; $('#optGal').value = S.opts.gallons; $('#optMpg').value = S.opts.mpg; $('#optBest').checked = S.opts.bestPrice; };
   fo();
-  for (const [id, k, num] of [['optMax', 'maxMph', 1], ['optRange', 'rangeMi', 1], ['optBig', 'bigText'], ['optContrast', 'contrast'], ['optFatigue', 'fatigue'], ['optLock', 'lockout']])
-    $('#' + id).addEventListener('change', e => { e.stopPropagation(); S.opts[k] = num ? +e.target.value : e.target.checked; saveOpts(); if (k === 'rangeMi' && S.route) renderFuel(); });
+  for (const [id, k, num] of [['optMax', 'maxMph', 1], ['optRange', 'rangeMi', 1], ['optBig', 'bigText'], ['optContrast', 'contrast'], ['optFatigue', 'fatigue'], ['optLock', 'lockout'], ['optGal', 'gallons', 1], ['optMpg', 'mpg', 1], ['optBest', 'bestPrice']])
+    $('#' + id).addEventListener('change', e => { e.stopPropagation(); S.opts[k] = num ? +e.target.value : e.target.checked; saveOpts(); if (k === 'rangeMi' && S.route) renderFuel(); if (['bestPrice', 'gallons', 'mpg'].includes(k)) bestPrice(true); });
   function applyA11y() { document.body.classList.toggle('bigtext', !!S.opts.bigText); document.body.classList.toggle('contrast', !!S.opts.contrast); }
   applyA11y();
   $$('#sosPanel .close').forEach(b => b.onclick = closePanels);
@@ -59,7 +62,7 @@ export function init(S, h) {
     $('#iftaBox').innerHTML = ent.length ? `<b>Miles by state (IFTA):</b> ${ent.map(([k, v]) => `${esc(k)} ${v.toFixed(1)}`).join(' · ')}` : 'State miles unavailable (road data server busy).';
     $('#iftaCsv').disabled = !ent.length;
     $('#tollBox').innerHTML = S.tolls.miles ? `<b>💲 Toll roads on route:</b> ${S.tolls.miles} mi — ${S.tolls.segs.map(t => esc(t.names.join(' / ') || 'toll road') + ` (${t.miles} mi)`).join(', ')}. ${S.truck.avoidTolls ? '' : 'Turn on “Avoid tolls” in 🚛 to skip them.'} <i>Dollar amounts vary by axle/E-ZPass and aren't in free data — check the toll authority.</i>` : '<b>💲 No toll roads</b> on this route.';
-    renderFuel(); loadWeather(r); loadLanes(r); runawayRamps(r); };
+    renderFuel(); bestPrice(false); loadWeather(r); loadLanes(r); runawayRamps(r); };
   $('#iftaCsv').onclick = () => { const rows = [['state', 'miles'], ...Object.entries(S.ifta || {})]; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' })); a.download = `rigroute-ifta-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
 
   function renderFuel() { const r = S.route; if (!r) return; const feats = S.fuelGeo?.features || [];
@@ -130,4 +133,23 @@ export function init(S, h) {
     $('#sosWhere').innerHTML = `<b>Your location:</b> ${esc(c)}${road ? '<br><b>Road:</b> ' + esc(road) : ''}${p?.heading != null ? `<br><b>Heading:</b> ${['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(p.heading / 45) % 8]}` : ''}`;
     $('#sosSms').href = `sms:?&body=${encodeURIComponent(msg)}`; openPanel('sosPanel'); };
   $('#sosShare').onclick = async () => { try { if (navigator.share) await navigator.share({ title: 'My location', text: S.sosMsg }); else { await navigator.clipboard.writeText(S.sosMsg); toast('Location copied'); } } catch {} };
+
+  // ---------- Fuel prices: EIA weekly regional average (baseline) + driver-reported station prices ----------
+  fetch('data/eia-diesel.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { S.eia = j; if (S.route) bestPrice(false); }).catch(() => {});
+  const routeState = () => { const e = Object.entries(S.ifta || {}).sort((a, b) => b[1] - a[1])[0]; return e?.[0] || 'US'; };
+  S.prices = () => latestPrices(S.reports || []);
+  S.priceFor = p => { const lp = S.prices()[p.id]; if (lp) return `<div class="price small">💲 $${lp.price.toFixed(3)} diesel · <i>driver-reported ${ageText(lp.t)}</i></div>`;
+    const b = S.eia && eiaFor(routeState(), S.eia); return b ? `<div class="price small muted">💲 no driver price yet · area avg $${b.price.toFixed(3)} (EIA ${esc(b.area)}, week of ${esc(b.week)})</div>` : ''; };
+  S.reportPrice = async id => { if (S.lockedOut?.()) return; const v = parseFloat(prompt('Diesel price per gallon at this station (e.g. 5.79)') || ''); if (!(v > 1 && v < 15)) { toast('Price not saved'); return; }
+    const p = S.pois.find(x => String(x.id) === String(id)); const r = { id: crypto.randomUUID?.() || String(Math.random()).slice(2), type: 'fuel_price', poi: id, price: Math.round(v * 1000) / 1000, lat: p?.lat, lon: p?.lon, t: Date.now(), up: 0, down: 0, mine: true };
+    try { await S.backend?.addReport(r); } catch {} S.reports.push(r); toast(`Thanks! $${v.toFixed(3)} shared with drivers for 24 h`); S.refreshPois?.(); bestPrice(false); return r; };
+  function bestPrice(speak) { const box = $('#priceBox'); if (!box || !S.route) return; const b = S.eia && eiaFor(routeState(), S.eia), lp = S.prices(), base = S.nav ? S.along : 0;
+    const head = b ? `<b>💲 Diesel baseline:</b> $${b.price.toFixed(3)}/gal — EIA weekly average, ${esc(b.area)}, week of ${esc(b.week)}.` : '<b>💲</b> EIA average unavailable.';
+    if (!S.opts.bestPrice) { box.innerHTML = head + ' Turn on Best fuel price mode to rank driver-reported prices ahead.'; return; }
+    const st = (S.pois || []).filter(p => (p.kind === 'fuel' || p.kind === 'stop') && p.along > base && lp[p.id]).map(p => ({ ...p, price: lp[p.id].price, t: lp[p.id].t }));
+    const ranked = bestFuel(st, { gallons: S.opts.gallons, mpg: S.opts.mpg, baseline: b?.price }); S.bestRanked = ranked;
+    box.innerHTML = head + (ranked.length ? '<ol>' + ranked.slice(0, 5).map(s => `<li><b>$${s.price.toFixed(3)}</b> ${esc(s.name)} · ${fmtDist(s.along - base, U())} ahead · detour ${s.detourMi} mi · ${s.save >= 0 ? 'saves ≈$' + s.save : 'costs ≈$' + -s.save} on ${S.opts.gallons} gal <i>(driver-reported ${ageText(s.t)})</i></li>`).join('') + '</ol>'
+      : ' <br>No driver-reported prices ahead in the last 24 h — tap 💲 on a station to add one. (No free station-level live price feed exists; we won\'t guess.)');
+    if (speak && ranked[0]) { const s = ranked[0], mi = Math.round((s.along - base) / MI); const msg = `Cheapest diesel ahead: $${s.price.toFixed(2)} at ${s.name}, ${mi} miles${s.save > 0 ? `, saves about $${s.save}` : ''}.`; S.lastPriceMsg = msg; say(msg, 'info'); } }
+  S.bestPrice = bestPrice;
 }

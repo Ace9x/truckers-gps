@@ -10,7 +10,7 @@ export const REPORT_TYPES = {
   parking_open: { icon: '🅿️', label: 'Parking: spots open', avoid: false, pts: 10 }, parking_some: { icon: '🟡', label: 'Parking: few left', avoid: false, pts: 10 }, parking_full: { icon: '🈵', label: 'Parking: FULL', avoid: false, pts: 10 },
   ice: { icon: '🧊', label: 'Ice / snow on road', avoid: false, pts: 10 }, wind: { icon: '🌬️', label: 'High wind', avoid: false, pts: 10 }, chains: { icon: '⛓️', label: 'Chain law in effect', avoid: false, pts: 15 },
 };
-export const TTL_H = { parking_open: 2, parking_some: 2, parking_full: 3, ice: 6, wind: 6, chains: 12, hazard: 4, police: 1, weigh_open: 3, weigh_closed: 3 }; // restrictions persist
+export const TTL_H = { fuel_price: 24, parking_open: 2, parking_some: 2, parking_full: 3, ice: 6, wind: 6, chains: 12, hazard: 4, police: 1, weigh_open: 3, weigh_closed: 3 }; // restrictions persist
 
 // ---------- Gamification rules (pure) ----------
 export const LEVELS = [[0, 'Rookie'], [200, 'Road Dog'], [600, 'Gear Jammer'], [1500, 'Highway Hero'], [4000, 'Road Captain'], [10000, 'Legend of the Road']];
@@ -72,8 +72,8 @@ class SupabaseBackend {
   }
   async verifyPhone(phone, token) { const { data, error } = await this.sb.auth.verifyOtp({ phone, token, type: 'sms' }); if (error) throw error; return data.user; }
   async signOut() { await this.sb.auth.signOut(); }
-  async listReports(b) { const { data } = await this.sb.from('reports').select('*').gte('lon', b[0]).lte('lon', b[2]).gte('lat', b[1]).lte('lat', b[3]).limit(500); return data || []; }
-  async addReport(r) { const { data, error } = await this.sb.from('reports').insert({ id: r.id, type: r.type, lat: r.lat, lon: r.lon, note: r.note, t: new Date(r.t).toISOString() }).select().single(); if (error) throw error; return { ...data, t: Date.parse(data.t) }; }
+  async listReports(b) { const { data } = await this.sb.from('reports').select('*').gte('lon', b[0]).lte('lon', b[2]).gte('lat', b[1]).lte('lat', b[3]).limit(500); return (data || []).map(r => ({ ...r, t: Date.parse(r.t) })); }
+  async addReport(r) { const { data, error } = await this.sb.from('reports').insert({ id: r.id, type: r.type, lat: r.lat, lon: r.lon, note: r.note, poi: r.poi ?? null, price: r.price ?? null, key: r.key ?? null, val: r.val ?? null, t: new Date(r.t).toISOString() }).select().single(); if (error) throw error; return { ...data, t: Date.parse(data.t) }; }
   async vote(id, dir) { await this.sb.rpc('vote_report', { report_id: id, dir }); }
   async saveProfile(p) { await this.sb.from('profiles').upsert({ id: (await this.session()).id, name: p.name, avatar: p.avatar, mood: p.mood, points: p.points, stats: p.stats }); }
   async addPoints(pts, why) { await this.sb.from('point_events').insert({ pts, why }); }

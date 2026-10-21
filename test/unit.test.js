@@ -142,3 +142,19 @@ test('myvoice: API errors surface and voice falls back', async () => {
   const mv = new MyVoice({ fetchFn: async () => ({ ok: false, status: 401, json: async () => ({ detail: { message: 'Invalid API key' } }) }), store: memStore(), storage: memLS() });
   mv.key = 'bad'; mv.voiceId = 'v'; await assert.rejects(mv.tts('Hi'), /401: Invalid API key/);
 });
+import { paddOf, eiaFor, latestPrices, bestFuel, ageText } from '../js/trip.js';
+import { amenitiesOf, attachAmenities, amenityLine, nextWithAmenity, isHelperAmenity } from '../js/logic.js';
+test('EIA regional baseline', () => { const e = { week: '10/19/26', prices: { US: 6.2, PADD1B: 6.5, CA: 8.2, PADD5X: 6.6 } };
+  assert.equal(paddOf('NJ'), '1B'); assert.equal(eiaFor('NJ', e).price, 6.5); assert.equal(eiaFor('CA', e).price, 8.2); assert.equal(eiaFor('OR', e).price, 6.6); assert.equal(eiaFor('TX', e).price, 6.2); });
+test('driver prices expire + best price ranking with detour cost', () => { const now = Date.now();
+  const lp = latestPrices([{ type: 'fuel_price', poi: 'a', price: 5.9, t: now - 3600e3 }, { type: 'fuel_price', poi: 'a', price: 5.8, t: now - 60e3 }, { type: 'fuel_price', poi: 'b', price: 5.5, t: now - 30 * 3600e3 }], now);
+  assert.equal(lp.a.price, 5.8); assert.ok(!lp.b);
+  const r = bestFuel([{ id: 'near', price: 6.0, off: 100 }, { id: 'far', price: 5.95, off: 16093 }], { gallons: 100, mpg: 6.5, baseline: 6.5 });
+  assert.equal(r[0].id, 'near'); assert.equal(r[0].save, 50 - 0); assert.ok(r[1].save < r[0].save); assert.equal(ageText(now - 5 * 60e3, now), '5 min ago'); });
+test('amenities: tags, chains, nearby nodes, confirmations', () => {
+  assert.equal(amenitiesOf({ amenity: 'fuel', brand: "Love's" }, 'stop').showers, 'chain'); assert.equal(amenitiesOf({ amenity: 'fuel', shower: 'yes' }, 'fuel').showers, 'tagged'); assert.equal(amenitiesOf({ amenity: 'fuel', name: 'Shell' }, 'fuel').showers, null);
+  assert.ok(isHelperAmenity({ amenity: 'fast_food' })); assert.ok(!isHelperAmenity({ amenity: 'fuel' }));
+  const pois = [{ id: 'x', kind: 'rest', lon: -74, lat: 40, tags: { highway: 'rest_area' }, along: 5000, off: 10 }, { id: 'y', kind: 'fuel', lon: -74.1, lat: 40, tags: { amenity: 'fuel' }, along: 9000, off: 10 }];
+  attachAmenities(pois, [{ lon: -74.0005, lat: 40, tags: { amenity: 'fast_food', name: "McDonald's" } }, { lon: -74.1, lat: 40.0005, tags: { amenity: 'shower' } }], 250, { x: { showers: true } });
+  assert.equal(pois[0].amen.food, 'nearby'); assert.equal(pois[0].amen.showers, 'driver-confirmed'); assert.equal(pois[1].amen.showers, 'nearby'); assert.match(amenityLine(pois[0].amen), /Showers · 🚻 Restrooms · 🍔 Food \(McDonald's\)/);
+  assert.equal(nextWithAmenity(pois, 6000, 'showers').id, 'y'); assert.equal(nextWithAmenity(pois, 0, 'food').id, 'x'); });

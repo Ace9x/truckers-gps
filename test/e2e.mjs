@@ -124,7 +124,7 @@ await page.click('#meBtn'); await page.waitForSelector('#garage button');
 const gar = await T(() => { const locked = document.querySelectorAll('#garage button.lock').length; document.querySelector('[data-veh=box]').click(); document.querySelector('[data-col=green]').click(); return { locked, total: document.querySelectorAll('#garage button').length, ride: TruckNav.ride, svg: document.querySelector('.truck-marker svg') ? true : false }; });
 ok(gar.total >= 8 && gar.locked > 0 && gar.ride.type === 'box' && gar.ride.color === 'green' && gar.svg, `garage: ${gar.total} vehicles (${gar.locked} locked by level), picked green box truck as map icon`);
 await shot('17-garage'); await closeP();
-await T(() => { TruckNav.setTruck({ heightFt: 13, heightIn: 6 }); TruckNav.map.jumpTo({ center: [-78.9085, 35.9995], zoom: 16 }); }); await page.click('#reportBtn'); await page.waitForTimeout(1500); await shot('11-report');
+await T(() => { TruckNav.setTruck({ heightFt: 13, heightIn: 6 }); TruckNav.map.jumpTo({ center: [-78.9085, 35.9995], zoom: 16 }); }); await T(() => TruckNav.openPanel('reportPanel')); await page.waitForTimeout(1500); await shot('11-report');
 await T(() => { TruckNav.avoids.length = 0; localStorage.setItem('tn_avoids', '[]'); }); await closeP();
 
 // Community report + voting + points
@@ -171,6 +171,70 @@ await page.click('#dock button[data-panel=hosPanel]'); await page.click('[data-d
 await page.click('#dock button[data-panel=truckPanel]'); await page.selectOption('[name=theme]', 'dim'); await page.waitForTimeout(1500); ok(await T(() => document.body.classList.contains('dim')), 'dim night mode'); await shot('09-truck-profile-dim'); await closeP(); await shot('15-dim-map');
 await page.click('#dock button[data-panel=loadPanel]'); await page.fill('[name=bol]', 'BOL-TEST'); await page.reload(); await page.waitForFunction(() => window.TruckNav?.ready);
 ok(await page.inputValue('[name=bol]') === 'BOL-TEST', 'load details persist');
+
+// ===== v2.3: features competitors paywall, free in RigRoute =====
+await page.setViewportSize({ width: 390, height: 844 });
+await T(([hp, nj]) => { TruckNav.pos = { lon: hp.longitude, lat: hp.latitude, t: Date.now(), acc: 5 }; TruckNav.stops = []; localStorage.removeItem('tn_facilities'); TruckNav.facilities = {}; TruckNav.setDest(nj); }, [HUNTS_POINT, NJ]);
+await page.waitForFunction(() => TruckNav.ifta && Object.keys(TruckNav.ifta).length && TruckNav.weather && TruckNav.lanes, null, { timeout: 90000 }).catch(() => {});
+const v2 = await T(() => ({ ifta: TruckNav.ifta, toll: TruckNav.tolls, wx: TruckNav.weather?.length, wxc: TruckNav.wxChecked, lanes: TruckNav.lanes?.length, fuel: TruckNav.fuelNear?.length, box: document.querySelector('#iftaBox').textContent, fb: document.querySelector('#fuelBox').textContent }));
+ok(v2.ifta.NY > 0 && v2.ifta.NJ > 0, `IFTA miles by state from real road data: ${v2.box}`);
+ok(v2.toll && typeof v2.toll.miles === 'number', `toll roads on route: ${v2.toll?.miles} mi (${(v2.toll?.segs || []).map(t => t.names.join('/')).join('; ')})`);
+ok(v2.wxc > 0 && v2.wx >= 0, `NWS weather alerts checked at ${v2.wxc} points along route: ${v2.wx} truck-relevant alerts`);
+ok(v2.lanes > 0, `lane guidance: ${v2.lanes} lane-choice intersections on route`);
+ok(/Fuel plan/.test(v2.fb) && v2.fuel > 0, `fuel planner: ${v2.fuel} diesel stations near route — "${v2.fb.slice(0, 90)}"`);
+await page.click('#dock button[data-panel=routePanel]').catch(() => {});
+await T(() => document.querySelector('#tripSheet').scrollIntoView()); await page.waitForTimeout(800); await shot('v2-01-trip-sheet');
+
+// Amenities: showers / restrooms / food
+await T(() => { TruckNav.pois = []; TruckNav.loadPois(true); }); await page.waitForFunction(() => TruckNav.pois.length > 0, null, { timeout: 30000 }).catch(() => {});
+await page.waitForFunction(() => TruckNav.poiDone, null, { timeout: 150000 }).catch(() => {});
+const am = await T(() => { const P = TruckNav.pois; const c = k => P.filter(p => p.amen?.[k]).length; document.querySelector('[data-pf=showers]').click(); const shown = document.querySelectorAll('.poi').length; const msg = TruckNav.lastAmenMsg;
+  const card = document.querySelector('.poi .amen')?.textContent; return { n: P.length, sh: c('showers'), rr: c('restrooms'), fd: c('food'), shown, msg, card, helpers: TruckNav.amenHelpers, live: TruckNav.poiLive }; });
+ok(am.sh + am.rr + am.fd > 0 && /^(Next .* with showers is .* ahead|No showers found ahead)/.test(am.msg), `amenities on ${am.n} stops: showers ${am.sh}, restrooms ${am.rr}, food ${am.fd} (${am.helpers} nearby amenity nodes, live sections ${am.live}); showers filter shows ${am.shown}; voice "${am.msg}"; card "${am.card}"`);
+await page.click('#dock button[data-panel=routePanel]').catch(() => {}); await T(() => document.querySelector('#poiList').scrollIntoView()); await page.waitForTimeout(500); await shot('v2-08-showers-filter');
+const cf = await T(async () => { const p = TruckNav.pois.find(x => ['stop', 'rest', 'parking', 'fuel'].includes(x.kind)); await TruckNav.confirmAmenity(p.id, 'showers', true); return TruckNav.pois.find(x => x.id === p.id).amen.showers; });
+ok(cf === 'driver-confirmed', 'driver can confirm amenities (showers → driver-confirmed)');
+await T(() => document.querySelector('[data-pf=all]').click());
+// Fuel prices: EIA baseline + driver price + best price mode
+page.once('dialog', d => d.accept('5.799'));
+const fp = await T(async () => { const st = TruckNav.pois.filter(p => p.kind === 'fuel' || p.kind === 'stop'); await TruckNav.reportPrice(st[0].id); document.querySelector('#optBest').click();
+  TruckNav.bestPrice(true); return { eia: TruckNav.eia?.prices?.US, week: TruckNav.eia?.week, box: document.querySelector('#priceBox').textContent, msg: TruckNav.lastPriceMsg, card: TruckNav.priceFor(st[0]), card2: st[1] ? TruckNav.priceFor(st[1]) : '' }; });
+ok(fp.eia > 1 && /EIA weekly average/.test(fp.box), `EIA weekly diesel baseline loaded: US $${fp.eia} (week ${fp.week}) — "${fp.box.slice(0, 110)}"`);
+ok(/^Cheapest diesel ahead: \$5\.80 at .+, \d+ miles/.test(fp.msg || '') && /driver-reported/.test(fp.card), `best-price mode voice: "${fp.msg}"; card labels source+age`);
+await T(() => document.querySelector('#priceBox').scrollIntoView()); await shot('v2-09-best-fuel-price');
+// Nav: speed limit sign + speeding alert + lanes
+const sp = await T(async () => { TruckNav.startNav(); TruckNav.opts.maxMph = 30; const r = TruckNav.route, ln = TruckNav.lanes[0];
+  const i = Math.max(1, r.cum.findIndex(c => c >= ln.along - 300)); TruckNav.onFix({ lon: r.line[i][0], lat: r.line[i][1], speed: 22, acc: 5, t: Date.now() + 1000 });
+  await new Promise(res => setTimeout(res, 300));
+  return { lim: TruckNav.limitMph, posted: TruckNav.postedKph, sign: !document.querySelector('#limitSign').classList.contains('hidden'), over: document.querySelector('#speedBox').classList.contains('over'), said: TruckNav.spokenLog.filter(t => /Slow down/.test(t)), lanes: !document.querySelector('#lanes').classList.contains('hidden'), lhtml: document.querySelector('#lanes').innerHTML }; });
+ok(sp.sign && sp.lim === 30 && sp.over && sp.said.length, `speed-limit sign shows ${sp.lim} mph (truck max; posted ${sp.posted ?? 'n/a'} km/h) + speeding alert "${sp.said[0]}"`);
+ok(sp.lanes && /lane ok/.test(sp.lhtml), 'lane guidance arrows shown before a lane-choice junction');
+await page.waitForTimeout(1200); await shot('v2-02-speed-lanes');
+// Posted limit from OSM on a real edge
+const pl = await T(() => { const e = TruckNav.edges.filter(x => x.speed_limit); return { n: e.length, tot: TruckNav.edges.length, sample: e.slice(0, 3).map(x => x.speed_limit) }; });
+ok(pl.n > 0, `posted speed limits on ${pl.n}/${pl.tot} route segments (km/h e.g. ${pl.sample.join(',')})`);
+// Driving lockout
+await T(() => { TruckNav.opts.maxMph = 65; TruckNav.pos.speed = 20; }); await page.click('#searchBtn');
+ok(await T(() => !document.querySelector('#lockout').classList.contains('hidden') && document.querySelector('#searchPanel').classList.contains('hidden')), 'typing locked while moving; voice/passenger options offered');
+await shot('v2-03-lockout'); await page.click('#lockClose');
+// Fatigue
+const fa = await T(() => { const p = TruckNav.pos, t0 = Date.now() + 3600e3; TruckNav.onFixHook({ ...p, t: t0 }, 55); TruckNav.onFixHook({ ...p, t: t0 + 121 * 60e3 }, 55); return TruckNav.spokenLog.filter(t => /driving 2 hours/.test(t)); });
+ok(fa.length === 1, 'drowsy-driving reminder after 2 h continuous driving: ' + fa[0]);
+await T(() => TruckNav.endNav());
+// SOS
+await page.click('#sosBtn'); const so = await T(() => ({ tel: document.querySelector('#sos911').getAttribute('href'), where: document.querySelector('#sosWhere').textContent, sms: document.querySelector('#sosSms').getAttribute('href') }));
+ok(so.tel === 'tel:911' && /40\.\d+/.test(so.where) && /sms:/.test(so.sms), `SOS: call 911 + share/text exact location (${so.where})`);
+await shot('v2-04-sos'); await closeP();
+// Multi-stop
+const ms = await T(async () => { const before = TruckNav.route.length; TruckNav.addStop({ lon: -74.0431, lat: 40.7282, name: 'Jersey City stop' }); await new Promise(r => setTimeout(r, 200)); await TruckNav.plan(); return { before, after: TruckNav.route.length, n: TruckNav.stops.length }; });
+ok(ms.n === 1 && ms.after > ms.before, `multi-stop routing: added stop, route ${(ms.before / 1609).toFixed(1)} → ${(ms.after / 1609).toFixed(1)} mi`);
+await T(() => document.querySelector('#stopsBox').scrollIntoView()); await shot('v2-05-multistop'); await T(() => { TruckNav.stops.length = 0; localStorage.setItem('tn_stops', '[]'); }); await closeP();
+// Parking + weather reports, accessibility
+await T(() => TruckNav.openPanel('reportPanel')); ok(await T(() => ['parking_full', 'parking_open', 'ice', 'wind', 'chains'].every(k => document.querySelector(`[data-rt=${k}]`))), 'driver reports for parking availability (open/few/full), ice, high wind, chain law');
+await shot('v2-06-reports'); await closeP();
+await page.click('#dock button[data-panel=truckPanel]'); await page.check('#optBig'); await page.check('#optContrast');
+ok(await T(() => document.body.classList.contains('bigtext') && document.body.classList.contains('contrast')), 'accessibility: large text + high contrast');
+await T(() => document.querySelector('#optMax').scrollIntoView()); await shot('v2-07-accessibility'); await page.uncheck('#optBig'); await page.uncheck('#optContrast'); await closeP();
 if (BASE.startsWith('https')) ok(await T(async () => !!(await navigator.serviceWorker.ready).active), 'service worker active (offline app shell + tiles)');
 const man = await T(async () => (await fetch('manifest.webmanifest')).json()); ok(man.display === 'standalone' && man.icons.length >= 2, 'installable manifest');
 await page.setViewportSize({ width: 844, height: 390 }); await page.waitForTimeout(1500); await shot('10-landscape');

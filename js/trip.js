@@ -52,3 +52,19 @@ export function fatigueDue(continuousMin, remindedAt = 0, every = 120) { const t
 
 // Remaining stops (multi-stop): drop stops already reached
 export function remainingStops(stops, pos, reachedM = 150) { return stops.filter(s => haversine([s.lon, s.lat], [pos.lon, pos.lat]) > reachedM); }
+
+// ===== Fuel prices: EIA weekly regional baseline + driver-reported station prices =====
+const PADD = { '1A': 'CT ME MA NH RI VT', '1B': 'DE DC MD NJ NY PA', '1C': 'FL GA NC SC VA WV', '2': 'IL IN IA KS KY MI MN MO NE ND SD OH OK TN WI', '3': 'AL AR LA MS NM TX', '4': 'CO ID MT UT WY', '5': 'AK AZ CA HI NV OR WA' };
+export function paddOf(st) { for (const [k, v] of Object.entries(PADD)) if (v.split(' ').includes(st)) return k; return null; }
+export function eiaFor(state, eia) { if (!eia?.prices) return null; const p = eia.prices; let v = null, area = 'U.S.';
+  if (state === 'CA' && p.CA) { v = p.CA; area = 'California'; } else { const k = paddOf(state); const key = k === '5' ? 'PADD5X' : k ? 'PADD' + k : null; if (key && p[key]) { v = p[key]; area = 'PADD ' + k; } }
+  return { price: v ?? p.US, area, week: eia.week }; }
+// latest non-expired driver price per station (24 h)
+export function latestPrices(reports, now = Date.now(), ttlH = 24) { const out = {}; for (const r of reports) { if (r.type !== 'fuel_price' || !(r.price > 0) || now - r.t > ttlH * 3600e3) continue; if (!out[r.poi] || out[r.poi].t < r.t) out[r.poi] = r; } return out; }
+// Rank stations ahead by net savings vs baseline, after the fuel burned on the detour (2× off-route distance) — gallons = how much you'll buy
+export function bestFuel(stations, { gallons = 150, mpg = 6.5, baseline }) {
+  return stations.filter(s => s.price > 0).map(s => { const detourMi = 2 * (s.off || 0) / 1609.344; const detourCost = detourMi / mpg * s.price;
+    const save = baseline ? (baseline - s.price) * gallons - detourCost : -detourCost; return { ...s, detourMi: Math.round(detourMi * 10) / 10, save: Math.round(save) }; })
+    .sort((a, b) => b.save - a.save || a.price - b.price);
+}
+export const ageText = (t, now = Date.now()) => { const m = Math.round((now - t) / 60e3); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };

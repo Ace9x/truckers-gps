@@ -15,3 +15,6 @@ begin
   update reports set up = (select count(*) from report_votes v where v.report_id = reports.id and v.dir = 'up'), down = (select count(*) from report_votes v where v.report_id = reports.id and v.dir = 'down') where id = report_id;
   if dir = 'up' then insert into point_events (user_id, pts, why) select user_id, 15, 'report confirmed' from reports where id = report_id; end if;
 end $$;
+
+-- v2.3: driver fuel prices + amenity confirmations ride on reports
+alter table reports add column if not exists poi text, add column if not exists price numeric(6,3), add column if not exists key text, add column if not exists val boolean;

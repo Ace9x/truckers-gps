@@ -347,7 +347,7 @@ function navTick() {
   $('#bArrow').textContent = arrow(m.type); $('#bDist').textContent = fmtDist(toM, U()); $('#bInstr').textContent = m.street_names?.join(' / ') || m.instruction;
   const nx = r.maneuvers[idx + 1], tb = $('#thenBox');
   if (nx && m.length * 1000 < 400 && idx > 0) { tb.textContent = `Then ${arrow(nx.type)} ${nx.instruction}`; tb.classList.remove('hidden'); } else tb.classList.add('hidden');
-  const remT = r.time * (remaining / r.length); S.remT = remT;
+  const remT = r.time * (remaining / r.length) + (S.trafficDelay || 0); S.remT = remT; // traffic-aware ETA
   $('#tEta').textContent = new Date(Date.now() + remT * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   $('#tLeft').textContent = fmtDur(remT); $('#tDist').textContent = U() === 'km' ? (remaining / 1000).toFixed(1) : (remaining / MI).toFixed(1);
   $('#tDist').nextElementSibling.textContent = U() === 'km' ? 'km' : 'miles';
@@ -691,7 +691,9 @@ if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => masco
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
 setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
 import('./hazards.js').then(m => m.init(S, { $, map, say, toast, report, openPanel, closePanels, esc })).catch(e => console.error('hazards', e));
+import('./traffic.js').then(m => { m.init(S, { $, map, say, toast, esc, LS }); S.trafficReady = true; }).catch(e => console.error('traffic', e));
 const H_ = { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report, types: () => REPORT_TYPES };
 import('./extras.js').then(m => m.init(S, H_)).catch(e => console.error('extras', e))
   .finally(() => import('./offline.js').then(m => { m.init(S, H_); S.offlineReady = true; }).catch(e => console.error('offline', e)));
+S.openPanel = openPanel;
 S.ready = true;

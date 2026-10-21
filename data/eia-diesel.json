@@ -1,0 +1,18 @@
+{
+ "source": "U.S. Energy Information Administration, weekly retail on-highway diesel (all types), $/gal",
+ "url": "https://www.eia.gov/dnav/pet/pet_pri_gnd_a_epd2d_pte_dpgal_w.htm",
+ "week": "10/19/26",
+ "fetched": "2026-10-21T21:46:47.623Z",
+ "prices": {
+  "US": 6.276,
+  "PADD1A": 6.47,
+  "PADD1B": 6.508,
+  "PADD1C": 5.74,
+  "PADD2": 6.352,
+  "PADD3": 5.903,
+  "PADD4": 6.422,
+  "PADD5": 7.394,
+  "PADD5X": 6.659,
+  "CA": 8.242
+ }
+}
