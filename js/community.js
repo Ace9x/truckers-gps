@@ -60,24 +60,22 @@ class LocalBackend {
   async saveProfile(p) { set('profile', p); }
   async leaderboard(week, me) { return me ? [{ name: me.name, points: me.weekPoints?.[week] || 0, you: true }] : []; }
 }
-class SupabaseBackend {
+class SupabaseBackend { // shared community hazards on ace-platform (table "hazards"); guests can read, signed-in drivers post/confirm
   name = 'supabase';
   constructor(cfg) { this.cfg = cfg; }
-  async init() { const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2'); this.sb = createClient(this.cfg.url, this.cfg.anonKey); }
+  async init() { this.c = await import('./cloud.js'); this.sb = await this.c.sb(); if (!this.sb) throw new Error('no supabase'); }
   async session() { const { data } = await this.sb.auth.getSession(); const u = data.session?.user; return u ? { id: u.id, email: u.email, phone: u.phone } : null; }
-  async signIn(email, phone) {
-    if (phone && !email) { const { error } = await this.sb.auth.signInWithOtp({ phone }); if (error) throw error; return { message: 'Text code sent to ' + phone, needCode: 'phone' }; }
-    const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('#')[0] } }); if (error) throw error;
-    return { message: 'Check your email for the sign-in link.' };
-  }
-  async verifyPhone(phone, token) { const { data, error } = await this.sb.auth.verifyOtp({ phone, token, type: 'sms' }); if (error) throw error; return data.user; }
+  async signIn(email) { const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('#')[0] } }); if (error) throw error; return { message: 'Check your email for the sign-in link.' }; }
   async signOut() { await this.sb.auth.signOut(); }
-  async listReports(b) { const { data } = await this.sb.from('reports').select('*').gte('lon', b[0]).lte('lon', b[2]).gte('lat', b[1]).lte('lat', b[3]).limit(500); return (data || []).map(r => ({ ...r, t: Date.parse(r.t) })); }
-  async addReport(r) { const { data, error } = await this.sb.from('reports').insert({ id: r.id, type: r.type, lat: r.lat, lon: r.lon, note: r.note, poi: r.poi ?? null, price: r.price ?? null, key: r.key ?? null, val: r.val ?? null, t: new Date(r.t).toISOString() }).select().single(); if (error) throw error; return { ...data, t: Date.parse(data.t) }; }
-  async vote(id, dir) { await this.sb.rpc('vote_report', { report_id: id, dir }); }
-  async saveProfile(p) { await this.sb.from('profiles').upsert({ id: (await this.session()).id, name: p.name, avatar: p.avatar, mood: p.mood, points: p.points, stats: p.stats }); }
-  async addPoints(pts, why) { await this.sb.from('point_events').insert({ pts, why }); }
+  async listReports(b) { let q = this.sb.from('hazards').select('*').order('created_at', { ascending: false }).limit(500); if (b) q = q.gte('lng', b[0]).lte('lng', b[2]).gte('lat', b[1]).lte('lat', b[3]);
+    const { data, error } = await q; if (error) throw error; return (data || []).map(this.c.toReport); }
+  async addReport(r) { if (!(await this.session())) throw new Error('guest'); const { data, error } = await this.sb.from('hazards').insert(this.c.toRow(r)).select().single(); if (error) throw error; return this.c.toReport(data); }
+  async vote(id, dir) { const { data, error } = await this.sb.rpc('vote_hazard', { p_hazard_id: id, p_dir: dir }); if (error) throw error; return data ? { up: data.confirmations, down: data.dismissals } : null; }
+  async reportAbuse(id, reason) { const { error } = await this.sb.rpc('report_hazard_abuse', { p_hazard_id: id, p_reason: reason || null }); if (error) throw error; }
+  async saveProfile(p) { const s = await this.session(); if (!s) return; await this.sb.from('profiles').update({ avatar: p.avatar, mood: p.mood, points: p.points, stats: p.stats }).eq('id', s.id); }
+  async addPoints(pts, why) { if (await this.session()) await this.sb.from('point_events').insert({ pts: Math.max(0, Math.min(50, pts)), why }); }
   async leaderboard(week) { const { data } = await this.sb.from('weekly_points').select('name,points').eq('week', week).order('points', { ascending: false }).limit(25); return data || []; }
+  subscribe(cb) { const ch = this.sb.channel('hazards-live').on('postgres_changes', { event: '*', schema: 'public', table: 'hazards' }, p => cb(p.eventType, p.new && this.c.toReport(p.new))).subscribe(); return () => this.sb.removeChannel(ch); }
 }
 
 export async function makeBackend() {

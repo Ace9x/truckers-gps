@@ -511,11 +511,12 @@ function drawReports() {
   rptMarkers.forEach(m => m.remove());
   rptMarkers = S.reports.filter(r => reportVisible(r) && !(r.mine && REPORT_TYPES[r.type]?.avoid)).map(r => { const t = REPORT_TYPES[r.type]; if (!t) return null;
     const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = t.icon;
-    const html = document.createElement('div'); html.innerHTML = `<b style="color:#111">${t.label}</b><br><span style="color:#333">${new Date(r.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · 👍 ${r.up || 0} · 👎 ${r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>'}`;
+    const html = document.createElement('div'); html.innerHTML = `<b style="color:#111">${t.label}</b><br><span style="color:#333">${new Date(r.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · 👍 ${r.up || 0} · 👎 ${r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
+    html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Sign in (👤) to flag reports'); } });
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
     return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
 }
-async function vote(r, dir) { const uid = profile.p.uid || 'me'; const res = await backend.vote(r.id, dir, uid); if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
+async function vote(r, dir) { const uid = profile.p.uid || 'me'; let res = null; try { res = await backend.vote(r.id, dir, uid); } catch (e) { if (backend.name === 'supabase') return toast('Sign in (👤) to confirm reports'); } if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
 S.vote = vote; S.drawReports = drawReports; S.drawRoute = drawRoute;
 $('#reportBtn').onclick = () => openPanel('reportPanel');
 
@@ -686,7 +687,8 @@ if (na && S.route && Date.now() - na.t < 12 * H) { S.resumed = true; setTimeout(
 loadOverlays();
 startGPS();
 makeBackend().then(async b => { backend = b; S.backend = b; const u = await b.session().catch(() => null); if (u) profile.p.uid = u.id;
-  const bb = S.pos ? [S.pos.lon - 3, S.pos.lat - 3, S.pos.lon + 3, S.pos.lat + 3] : null; S.reports = await b.listReports(bb).catch(() => []); drawReports(); S.backendReady = true; });
+  const bb = S.pos ? [S.pos.lon - 3, S.pos.lat - 3, S.pos.lon + 3, S.pos.lat + 3] : null; S.reports = await b.listReports(bb).catch(() => []); S.reports.forEach(r => { if (u && r.user_id === u.id) r.mine = true; }); drawReports(); S.backendReady = true;
+  b.subscribe?.((ev, r) => { if (!r) return; const i = S.reports.findIndex(x => x.id === r.id); if (r.mine = !!(S.auth?.user && r.user_id === S.auth.user.id), i >= 0) S.reports[i] = { ...S.reports[i], ...r, mine: S.reports[i].mine || r.mine }; else S.reports.push(r); drawReports(); }); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 window.addEventListener('offline', () => toast('Offline — current route keeps working; rerouting & search need signal', 5000));
 document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && S.nav && !wakeLock) try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} });

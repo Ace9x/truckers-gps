@@ -39,21 +39,30 @@ export class DeviceAuth {
   secret() { return this.sk; }
 }
 
-// Drop-in for later: Supabase email+password and magic link. Activated automatically when config.js is filled in.
+// Supabase email+password (project ace-platform). Activated automatically when config.js is filled in. Uses the shared client from cloud.js.
 export class SupabaseAuth {
   constructor(cfg) { this.kind = 'supabase'; this.cfg = cfg; this.cbs = []; this.user = null; this.local = new DeviceAuth(); }
-  async init() { const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2'); this.sb = createClient(this.cfg.url, this.cfg.anonKey);
-    const { data } = await this.sb.auth.getSession(); await this._from(data.session); this.sb.auth.onAuthStateChange((_e, s) => this._from(s)); return this; }
-  async _from(s) { if (!s) { this.user = null; } else { const { data } = await this.sb.from('drivers').select('*').eq('id', s.user.id).maybeSingle();
-      this.user = { id: s.user.id, email: s.user.email, name: data?.name || s.user.email, username: data?.username || '', method: 'supabase', profile: data || {} }; } this.cbs.forEach(c => c(this.user)); }
+  async init() { const { sb } = await import('./cloud.js'); this.sb = await sb(); if (!this.sb) throw new Error('no supabase');
+    const { data } = await this.sb.auth.getSession(); await this._from(data.session); this.sb.auth.onAuthStateChange((e, s) => { if (e !== 'TOKEN_REFRESHED') setTimeout(() => this._from(s), 0); }); return this; }
+  async _from(s) { const prev = this.user?.id; if (!s) { this.user = null; } else { const { data } = await this.sb.from('profiles').select('*').eq('id', s.user.id).maybeSingle();
+      this.user = { id: s.user.id, email: s.user.email, name: data?.display_name || s.user.email, username: data?.username || '', role: data?.role || 'driver', method: 'supabase', profile: { ...(data || {}), name: data?.display_name, truck: data?.truck && Object.keys(data.truck).length ? data.truck : null } }; }
+    if (prev !== this.user?.id || this._force) this.cbs.forEach(c => { try { c(this.user); } catch {} }); this._force = false; }
   onChange(cb) { this.cbs.push(cb); }
-  async signUp({ email, password, name, username, truck }) { const { data, error } = await this.sb.auth.signUp({ email, password }); if (error) throw error; await this.sb.from('drivers').upsert({ id: data.user.id, name, username, truck }); return this.user; }
-  async signIn({ email, password }) { const { error } = await this.sb.auth.signInWithPassword({ email, password }); if (error) throw error; return this.user; }
-  async magicLink(email) { const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } }); if (error) throw error; }
-  async signInRecovery() { throw new Error('Use "Forgot password" email reset'); }
-  async saveProfile(patch) { await this.sb.from('drivers').upsert({ id: this.user.id, ...patch }); await this._from((await this.sb.auth.getSession()).data.session); }
+  async signUp({ email, password, name, username = '', truck = null, role = 'driver' }) {
+    if (!validEmail(email)) throw new Error('Enter a valid email'); if (String(password).length < 8) throw new Error('Password must be at least 8 characters');
+    const { data, error } = await this.sb.auth.signUp({ email: email.trim(), password, options: { data: { display_name: name || email.split('@')[0], role }, emailRedirectTo: location.href.split('?')[0] } });
+    if (error) throw new Error(error.code === 'over_email_send_rate_limit' ? 'Too many sign-ups right now — please try again in a little while' : error.message);
+    if (!data.session) throw new Error('Check your email and tap the confirmation link, then come back and Sign in');
+    await this.sb.from('profiles').update({ display_name: name || null, username: username.trim().toLowerCase() || null, truck: truck || {} }).eq('id', data.user.id); await this._from(data.session); return this.user; }
+  async signIn({ email, password }) { const { data, error } = await this.sb.auth.signInWithPassword({ email: email.trim(), password }); if (error) throw new Error(error.message === 'Email not confirmed' ? 'Confirm your email first (check your inbox)' : error.message); await this._from(data.session); return this.user; }
+  async magicLink(email) { const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('?')[0] } }); if (error) throw error; }
+  async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.href.split('?')[0] }); if (error) throw error; }
+  async signInRecovery() { throw new Error('Use "Forgot password" — we will email you a reset link'); }
+  async saveProfile(patch) { const row = {}; if ('name' in patch) row.display_name = patch.name; if ('username' in patch) row.username = patch.username || null; if ('truck' in patch) row.truck = patch.truck || {};
+    const { error } = await this.sb.from('profiles').update(row).eq('id', this.user.id); if (error) throw new Error(error.code === '23505' ? 'That username is taken' : error.message); this._force = true; await this._from((await this.sb.auth.getSession()).data.session); return this.user.profile; }
+  async refresh() { await this._from((await this.sb.auth.getSession()).data.session); return this.user?.profile; }
   recoveryCode() { return null; } async signOut() { await this.sb.auth.signOut(); }
-  secret() { return this.local.sk; } // relay features (friends/dispatch) still use a device key
+  secret() { return this.local.sk; } // relay features (friends/dispatch fallback) still use a device key
 }
 export async function makeAuth() { let cfg = null; try { cfg = (await import('./config.js')).SUPABASE; } catch {}
   if (cfg?.url && cfg?.anonKey) { try { return await new SupabaseAuth(cfg).init(); } catch (e) { console.warn('Supabase auth unavailable, using device accounts', e); } } return new DeviceAuth(); }

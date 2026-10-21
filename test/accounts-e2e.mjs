@@ -5,6 +5,8 @@ const BASE = process.env.BASE || 'http://localhost:8765/', SH = '/workspace/truc
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 const browser = await chromium.launch(); const BRONX = { latitude: 40.8160, longitude: -73.8800 };
 async function app(name, geo = BRONX) { const ctx = await browser.newContext({ ...devices['iPhone 13'], geolocation: geo, permissions: ['geolocation'] }); const p = await ctx.newPage();
+  // this suite covers the relay (no-server) fallback: blank out the Supabase config
+  await p.route('**/js/config.js', r => r.fulfill({ contentType: 'text/javascript', body: "export const SUPABASE = { url: '', anonKey: '' };" }));
   p.on('pageerror', e => console.log(name, 'PAGE ERROR', e.message)); p.on('dialog', d => d.accept(d.type() === 'prompt' ? '950' : undefined));
   await p.goto(BASE); await p.waitForFunction(() => TruckNav?.accountReady && TruckNav.pos, null, { timeout: 40000 }); await p.evaluate(() => document.querySelector('#splash')?.remove()); await p.waitForTimeout(1500); return p; }
 const shot = (p, n) => p.screenshot({ path: `${SH}/${n}.png` });

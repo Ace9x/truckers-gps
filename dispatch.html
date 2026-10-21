@@ -2,15 +2,24 @@
 <style>body{font:15px system-ui;background:#111;color:#eee;margin:0;padding:16px;max-width:980px}h1{font-size:20px}section{background:#1c1c1c;border-radius:12px;padding:12px;margin:10px 0}input,textarea,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#eee}button{background:#ff6d00;color:#111;font-weight:700;border:0;cursor:pointer}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid label{display:flex;flex-direction:column;font-size:12px;color:#aaa}.code{font:700 34px ui-monospace,monospace;letter-spacing:3px;color:#ff9e40}.log{font:12px ui-monospace,monospace;white-space:pre-wrap;max-height:260px;overflow:auto}.drv{border:1px solid #333;border-radius:10px;padding:8px;margin:6px 0}.pod{max-width:200px;border-radius:8px}</style></head><body>
 <h1>📋 RigRoute Dispatch — test console <small style="color:#888">(Dispatch API v1, free encrypted relay transport)</small></h1>
+<section id="sbSec"><h3>☁️ RigRoute server dispatch <small style="color:#888">(dispatcher account; driver signs in to RigRoute with their email)</small></h3>
+<div id="sbAuth"><input id="sbEmail" type="email" placeholder="Dispatcher email"> <input id="sbPass" type="password" placeholder="Password"> <button id="sbIn">Sign in</button> <button id="sbUp">Create dispatcher account</button> <span id="sbMsg"></span></div>
+<div id="sbMain" hidden><p>Signed in as <b id="sbWho"></b> <button id="sbOut">Sign out</button></p>
+<div class="grid"><label>Driver email or @username<input id="sbDriver"></label><label>Ref<input id="sbRef" value="PO-55821"></label>
+<label>Pickup address<input id="sbPA" value="355 Food Center Dr, Bronx, NY 10474"></label><label>Pickup lat,lon<input id="sbPLL" value="40.8085,-73.8740"></label>
+<label>Drop address<input id="sbDA" value="1 Export St, Newark, NJ 07114"></label><label>Drop lat,lon<input id="sbDLL" value="40.6930,-74.1520"></label>
+<label>Rate $<input id="sbRate" type="number" value="850"></label><label>Commodity<input id="sbComm" value="Fresh produce (reefer)"></label>
+<label>Weight lb<input id="sbWt" type="number" value="38000"></label><label>Notes<input id="sbNotes" value="Check in at gate 3."></label></div>
+<button id="sbSend" style="margin-top:8px">Send load to driver</button> <span id="sbSendMsg"></span><div id="sbLoads"></div></div></section>
 <section><label>Dispatcher name <input id="dName" value="Rocapulco Freight"></label> <button id="newCode">Show pairing code</button> <span id="relays" style="color:#888"></span>
 <div id="codeBox" hidden><p>Driver: open RigRoute → 📋 Loads → enter code, or scan:</p><div class="code" id="code"></div><img id="qr" width="150" height="150" style="background:#fff"><p id="codeExp" style="color:#888"></p></div></section>
 <section><h3>Drivers</h3><div id="drivers">None paired yet.</div></section>
 <section><h3>Send a load</h3><label>To driver <select id="to"></select></label>
 <div class="grid"><label>Load ID<input id="lid"></label><label>Ref / PO<input id="ref" value="PO-55821"></label>
 <label>Pickup name<input id="pName" value="Hunts Point Produce Market"></label><label>Pickup address<input id="pAddr" value="355 Food Center Dr, Bronx, NY 10474"></label>
-<label>Pickup lat,lon<input id="pLL" value="40.8085,-73.8740"></label><label>Pickup window (start,end)<input id="pWin" type="text"></label>
+<label>Pickup lat,lon<input id="pLL" value="40.8085,-73.8740"></label><label>Pickup window (start,end · New York time)<input id="pWin" type="text"></label>
 <label>Drop name<input id="dNameS" value="Port Newark Terminal"></label><label>Drop address<input id="dAddr" value="1 Export St, Newark, NJ 07114"></label>
-<label>Drop lat,lon<input id="dLL" value="40.6930,-74.1520"></label><label>Drop window (start,end)<input id="dWin"></label>
+<label>Drop lat,lon<input id="dLL" value="40.6930,-74.1520"></label><label>Drop window (start,end · New York time)<input id="dWin"></label>
 <label>Rate $<input id="rate" type="number" value="850"></label><label>Commodity<input id="comm" value="Fresh produce (reefer)"></label>
 <label>Weight lb<input id="wt" type="number" value="38000"></label><label>Equipment<input id="eq" value="53' reefer"></label>
 <label>Hazmat class (blank = none)<input id="hz"></label><label>UN number<input id="un"></label>
@@ -22,13 +31,18 @@ import { DispatcherConsole, STATUS_LABEL } from './js/dispatch.js'; import { bus
 const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let k = localStorage.getItem('rr_disp_key'); if (!k) { k = hex(newSecret()); localStorage.setItem('rr_disp_key', k); }
 const D = new DispatcherConsole(unhex(k), $('#dName').value); window.RRD = D;
-const iso = h => { const d = new Date(Date.now() + h * 3600e3); d.setMinutes(0, 0, 0); return d.toISOString().slice(0, 16); };
+// Time windows are entered/shown in America/New_York (not UTC)
+const TZ = 'America/New_York', nyParts = d => Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(d).map(x => [x.type, x.value]));
+const nyOffset = d => { const q = nyParts(d); return Date.UTC(+q.year, q.month - 1, +q.day, +q.hour, +q.minute, +q.second) - (d.getTime() - d.getMilliseconds()); };
+const nyLocal = d => { const q = nyParts(d); return `${q.year}-${q.month}-${q.day}T${q.hour}:${q.minute}`; };
+const fromNY = s => { const g = Date.parse(s + ':00Z'); let t = g - nyOffset(new Date(g)); return new Date(g - nyOffset(new Date(t))); };
+const iso = h => { const d = new Date(Date.now() + h * 3600e3); d.setMinutes(0, 0, 0); return nyLocal(d); };
 $('#pWin').value = iso(2) + ',' + iso(4); $('#dWin').value = iso(6) + ',' + iso(8); $('#lid').value = 'L-' + uid().slice(0, 6).toUpperCase();
 setInterval(() => $('#relays').textContent = bus().openCount + ' relays connected', 1000);
 $('#newCode').onclick = async () => { D.name = $('#dName').value; const { code, expires } = await D.newCode(p => log('paired with ' + (p.driver?.name || 'driver')));
   $('#codeBox').hidden = false; $('#code').textContent = code; $('#codeExp').textContent = 'Expires ' + new Date(expires).toLocaleTimeString() + ' · one driver per code';
   const url = new URL('./?pair=' + code, location.href).href; import('https://esm.sh/qrcode@1.5.4').then(q => q.toDataURL(url, { margin: 1 })).then(u => $('#qr').src = u).catch(() => $('#qr').remove()); };
-const ll = s => s.split(',').map(Number), win = s => { const [a, b] = s.split(','); return a ? { start: new Date(a).toISOString(), end: b ? new Date(b).toISOString() : null } : null; };
+const ll = s => s.split(',').map(Number), win = s => { const [a, b] = s.split(','); return a ? { start: fromNY(a.trim()).toISOString(), end: b ? fromNY(b.trim()).toISOString() : null, tz: TZ } : null; };
 $('#send').onclick = async () => { try { const [pl, pn] = ll($('#pLL').value), [dl, dn] = ll($('#dLL').value);
   const load = { id: $('#lid').value, ref: $('#ref').value, pickup: { name: $('#pName').value, address: $('#pAddr').value, lat: pl, lon: pn, window: win($('#pWin').value) },
     drop: { name: $('#dNameS').value, address: $('#dAddr').value, lat: dl, lon: dn, window: win($('#dWin').value) }, rate: { amount: +$('#rate').value, currency: 'USD', per: 'flat' },
@@ -45,4 +59,20 @@ function render() { const sel = $('#to').value; $('#to').innerHTML = D.drivers.m
   document.querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { const [s, id, a] = b.dataset.cr.split('|'); D.send(s, { type: 'counter_reply', loadId: id, accept: a === '1' }); });
   for (const p of D.drivers) for (const m of D.logs[p.session] || []) if (!seen.has(m.id)) { seen.add(m.id); log(`${m.type}${m.action ? ' ' + m.action : ''}${m.status ? ' ' + m.status : ''}${m.loadId ? ' ' + m.loadId : ''}${m.load ? ' ' + m.load.id : ''}`); } }
 D.onChange(render); render();
+import * as cloud from './js/cloud.js';
+(async () => { const c = await cloud.sb(); if (!c) { $('#sbSec').hidden = true; return; }
+  const show = async () => { const id = await cloud.uid(); $('#sbAuth').hidden = !!id; $('#sbMain').hidden = !id; if (!id) return; const { data: u } = await c.auth.getUser(); const role = await cloud.myRole();
+    $('#sbWho').textContent = u.user.email + ' (' + role + ')'; if (role !== 'dispatcher' && role !== 'admin') $('#sbSendMsg').textContent = '⚠ This account is a ' + role + ' account — sign up a separate dispatcher account to send loads.'; draw(); };
+  const draw = async () => { const L = await cloud.myLoads().catch(() => []); $('#sbLoads').innerHTML = L.map(l => `<div class="drv" data-sload="${l.id}"><b>${esc(l.ref || l.id.slice(0, 8))}</b> · ${esc(l.pickup_address)} → ${esc(l.dropoff_address)} · $${l.rate_usd ?? ''} · <b data-sstate="${l.status}">${esc(cloud.LOAD_LABEL[l.status])}</b> <button data-scancel="${l.id}">${l.status === 'offered' ? 'Withdraw' : 'Delete'}</button></div>`).join('') || '<p style="color:#888">No server loads yet.</p>';
+    document.querySelectorAll('[data-scancel]').forEach(b => b.onclick = async () => { await c.from('loads').delete().eq('id', b.dataset.scancel); draw(); }); };
+  const cred = () => ({ email: $('#sbEmail').value.trim(), password: $('#sbPass').value });
+  $('#sbIn').onclick = async () => { const { error } = await c.auth.signInWithPassword(cred()); $('#sbMsg').textContent = error ? '⚠ ' + error.message : ''; show(); };
+  $('#sbUp').onclick = async () => { const { data, error } = await c.auth.signUp({ ...cred(), options: { data: { role: 'dispatcher', display_name: $('#dName').value }, emailRedirectTo: location.href } }); $('#sbMsg').textContent = error ? '⚠ ' + error.message : data.session ? '' : '✅ Check your email to confirm, then sign in.'; show(); };
+  $('#sbOut').onclick = async () => { await c.auth.signOut(); show(); };
+  $('#sbSend').onclick = async () => { try { const f = await c.rpc('find_user', { p_query: $('#sbDriver').value.trim().replace(/^@/, '') }); if (f.error) throw f.error; const d = f.data.find(x => x.role === 'driver') || f.data[0]; if (!d) throw new Error('No RigRoute driver with that email/username');
+    const [pl, pn] = ll($('#sbPLL').value), [dl, dn] = ll($('#sbDLL').value);
+    await cloud.offerLoad({ driver: d.id, ref: $('#sbRef').value, pickup_address: $('#sbPA').value, pickup_lat: pl, pickup_lng: pn, dropoff_address: $('#sbDA').value, dropoff_lat: dl, dropoff_lng: dn, rate_usd: +$('#sbRate').value || null, commodity: $('#sbComm').value, weight_lb: +$('#sbWt').value || null, notes: $('#sbNotes').value });
+    $('#sbSendMsg').textContent = '✅ Sent to ' + (d.display_name || 'driver'); draw(); } catch (e) { $('#sbSendMsg').textContent = '⚠ ' + e.message; } };
+  c.auth.onAuthStateChange(() => setTimeout(show, 0)); await show(); cloud.watchLoads(() => draw());
+})();
 </script></body></html>
