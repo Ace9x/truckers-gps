@@ -1,15 +1,20 @@
 /* RigRoute GPS — Pro design system (v3). Dark-first, one accent (safety amber), 8px grid, Inter. Loaded after app.css. */
-:root{--bg:#0d1117;--panel:#161b22;--panel2:#1d232c;--raise:#232a35;--fg:#e8edf3;--mut:#8b96a5;--line:#2b333f;--acc:#ff9500;--acc2:#ffb340;--on-acc:#111;--ok:#2fb36d;--bad:#e5484d;--warn:#f5a524;--nav:#0f5c3a;--nav2:#0b4a2e;
- --r1:8px;--r2:12px;--r3:16px;--sh1:0 1px 2px #0006,0 2px 8px #0005;--sh2:0 8px 28px #000a;--font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
-body.day{--bg:#f3f5f8;--panel:#fff;--panel2:#f1f3f6;--raise:#fff;--fg:#121821;--mut:#5d6878;--line:#dde2e8;--sh1:0 1px 2px #0002,0 2px 8px #0001;--sh2:0 8px 28px #0003}
+:root,[data-theme=dark]{
+ /* RigRoute brand on the shared Ace9x tokens (css/tokens.css): spacing/radius/type/tap/icons from the design system, colors stay RigRoute's */
+ --brand:#ff9500;--brand-2:#ffb340;--brand-ink:#111;--brand-grad:var(--brand);
+ --bg:#0d1117;--surface:#161b22;--surface-2:#1d232c;--surface-3:#232a35;--line:#2b333f;--text:#e8edf3;--text-2:#8b96a5;--text-3:#6c7886;
+ --panel:var(--surface);--panel2:var(--surface-2);--raise:var(--surface-3);--fg:var(--text);--mut:var(--text-2);--acc:var(--brand);--acc2:var(--brand-2);--on-acc:var(--brand-ink);
+ --ok:#2fb36d;--bad:#e5484d;--danger:#e5484d;--warn:#f5a524;--nav:#0f5c3a;--nav2:#0b4a2e;
+ --r1:var(--r-sm);--r2:var(--r-md);--r3:var(--r-lg);--sh1:var(--sh-1);--sh2:var(--sh-3)}
+body.day{--surface:#fff;--surface-2:#f1f3f6;--surface-3:#e9ebef;--text:#121821;--text-2:#5d6878;--bg:#f3f5f8;--panel:#fff;--panel2:#f1f3f6;--raise:#fff;--fg:#121821;--mut:#5d6878;--line:#dde2e8;--sh1:0 1px 2px #0002,0 2px 8px #0001;--sh2:0 8px 28px #0003}
 body.dim{--panel:#0b0e13;--panel2:#11151b;--raise:#161b22;--fg:#c6d0db;--mut:#6c7886;--line:#1c232c;--acc:#c77700}
 html,body{font-family:var(--font);font-feature-settings:'tnum' 1,'cv11' 1;-webkit-font-smoothing:antialiased}
 /* icons */
 .pi{display:inline-flex;align-items:center;justify-content:center;vertical-align:-0.18em;line-height:0}
-.pi svg{width:1.15em;height:1.15em;stroke-width:2}
+.pi svg{width:1.15em;height:1.15em;stroke-width:1.75} /* DS: 24px-grid line icons, 1.75 stroke */
 .pi-t{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 /* controls */
-button,.btnlike{font-family:var(--font);font-weight:600;font-size:15px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r2);padding:8px 16px;min-height:48px;gap:8px;transition:background .15s,transform .1s,border-color .15s;letter-spacing:.01em}
+button,.btnlike{font-family:var(--font);font-weight:var(--fw-semi);font-size:var(--fs-md);background:var(--panel2);border:1px solid var(--line);border-radius:var(--r2);padding:var(--s-2) var(--s-4);min-height:var(--tap);gap:8px;transition:background .15s,transform .1s,border-color .15s;letter-spacing:.01em}
 button:active{transform:scale(.97)}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .primary{background:var(--acc);border-color:var(--acc);color:var(--on-acc);font-weight:700}
@@ -68,7 +73,7 @@ body.nav #sideBtns{top:calc(196px + var(--safe-t))}
 #dock button:active,#dock button.act{color:var(--acc)}
 #dock .pi svg{width:24px;height:24px}
 /* sheets */
-.panel{border-radius:20px 20px 0 0;padding:8px 16px calc(24px + var(--safe-b));box-shadow:0 -12px 40px #000c;border-top:1px solid var(--line);animation:sheetUp .28s cubic-bezier(.2,.9,.3,1)}
+.panel{border-radius:var(--r-xl) var(--r-xl) 0 0;padding:8px 16px calc(24px + var(--safe-b));box-shadow:0 -12px 40px #000c;border-top:1px solid var(--line);animation:sheetUp .28s cubic-bezier(.2,.9,.3,1)}
 .panel::before{content:'';display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 8px}
 @keyframes sheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 .phead{top:-8px;padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:8px}

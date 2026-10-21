@@ -1,0 +1,47 @@
+/* Ace9x shared design system — tokens + components. Theme per app by overriding the --brand* / --surface* vars on :root or [data-theme]. */
+:root{
+  /* brand (override per app) */
+  --brand:#2563eb; --brand-2:#60a5fa; --brand-ink:#ffffff; --brand-grad:linear-gradient(135deg,var(--brand-2),var(--brand));
+  /* surfaces (light default) */
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f2f3f5; --surface-3:#e9ebef; --line:#e3e5e9;
+  --text:#0f1115; --text-2:#5b6270; --text-3:#8a909c;
+  --ok:#16a34a; --warn:#d97706; --danger:#dc2626; --info:#2563eb;
+  /* spacing (4px base) */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-8:32px; --s-10:40px; --s-12:48px;
+  /* radius */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:24px; --r-pill:999px;
+  /* elevation */
+  --sh-1:0 1px 2px rgb(0 0 0/.06),0 1px 3px rgb(0 0 0/.08);
+  --sh-2:0 4px 12px rgb(0 0 0/.10);
+  --sh-3:0 12px 32px rgb(0 0 0/.18);
+  --sh-sheet:0 -8px 32px rgb(0 0 0/.22);
+  /* type */
+  --font:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --fs-xs:12px; --fs-sm:14px; --fs-md:16px; --fs-lg:18px; --fs-xl:22px; --fs-2xl:28px; --fs-3xl:34px;
+  --lh-tight:1.2; --lh:1.45; --fw-reg:400; --fw-med:500; --fw-semi:600; --fw-bold:700;
+  --tap:48px; --ease:cubic-bezier(.2,.8,.2,1); --dur:180ms;
+}
+[data-theme=dark]{--bg:#0b0b0c;--surface:#141416;--surface-2:#1b1b1e;--surface-3:#242428;--line:#2a2a2e;--text:#f5f5f6;--text-2:#a8abb2;--text-3:#767a83;
+  --sh-1:0 1px 2px rgb(0 0 0/.5);--sh-2:0 6px 16px rgb(0 0 0/.5);--sh-3:0 16px 40px rgb(0 0 0/.6);--sh-sheet:0 -10px 40px rgb(0 0 0/.6)}
+
+/* ---- components ---- */
+.ds-ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+.ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:var(--tap);padding:0 var(--s-5);border-radius:var(--r-md);border:1px solid transparent;font:var(--fw-semi) var(--fs-md)/1 var(--font);cursor:pointer;text-decoration:none;transition:transform var(--dur) var(--ease),background var(--dur)}
+.ds-btn:active{transform:scale(.98)} .ds-btn:disabled{opacity:.45;cursor:not-allowed}
+.ds-btn--primary{background:var(--brand-grad);color:var(--brand-ink)}
+.ds-btn--secondary{background:var(--surface-2);color:var(--text);border-color:var(--line)}
+.ds-btn--ghost{background:none;color:var(--brand)} .ds-btn--block{width:100%}
+.ds-card{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s-4)}
+.ds-sheet{background:var(--surface);border-radius:var(--r-xl) var(--r-xl) 0 0;box-shadow:var(--sh-sheet);padding:var(--s-2) var(--s-4) var(--s-4)}
+.ds-sheet::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--surface-3);margin:0 auto var(--s-3)}
+.ds-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 var(--s-3);border-radius:var(--r-pill);background:var(--surface-2);border:1px solid var(--line);color:var(--text);font:var(--fw-med) var(--fs-sm) var(--font);cursor:pointer}
+.ds-chip[aria-pressed=true]{border-color:var(--brand);color:var(--brand)}
+.ds-option{display:flex;align-items:center;gap:var(--s-3);padding:var(--s-3) var(--s-4);border-radius:var(--r-lg);border:2px solid transparent;background:var(--surface-2);cursor:pointer}
+.ds-option[aria-checked=true]{border-color:var(--brand)}
+.ds-input{width:100%;min-height:var(--tap);padding:0 var(--s-4);border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface-2);color:var(--text);font:var(--fs-md) var(--font)}
+.ds-input:focus{outline:2px solid var(--brand);outline-offset:1px}
+.ds-list-row{display:flex;align-items:center;gap:var(--s-3);padding:var(--s-3) 0;border-bottom:1px solid var(--line)}
+.ds-badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--r-pill);font:var(--fw-semi) var(--fs-xs) var(--font);background:var(--surface-3);color:var(--text)}
+.ds-avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:var(--surface-3);font-weight:var(--fw-bold);color:var(--brand)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

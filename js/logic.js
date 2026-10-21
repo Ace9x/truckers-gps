@@ -338,3 +338,12 @@ export function amenityLine(a) { if (!a) return ''; const o = [];
   if (a.showers) o.push('🚿 Showers'); if (a.restrooms) o.push(a.restrooms24 ? '🚻 Restrooms 24h' : '🚻 Restrooms'); if (a.food) o.push('🍔 Food' + (a.foodNames?.length ? ` (${a.foodNames.join(', ')})` : ''));
   return o.join(' · '); }
 export function nextWithAmenity(pois, along, key, kinds = ['stop', 'rest', 'parking', 'fuel']) { return pois.filter(p => p.along > along && kinds.includes(p.kind) && p.amen?.[key] && p.off < 1700).sort((a, b) => a.along - b.along)[0] || null; }
+
+// Sun altitude in degrees (NOAA-style approximation, good to ~0.5°). Used for automatic day/night map (UX P12).
+export function sunAltitude(lat, lon, date = new Date()) { const rad = Math.PI / 180, d = date.getTime() / 86400000 - 10957.5; // days since J2000
+  const g = (357.529 + 0.98560028 * d) * rad, q = 280.459 + 0.98564736 * d, L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * rad, e = (23.439 - 0.00000036 * d) * rad;
+  const dec = Math.asin(Math.sin(e) * Math.sin(L)), ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24, ha = ((gmst * 15 + lon) * rad - ra);
+  return Math.asin(Math.sin(lat * rad) * Math.sin(dec) + Math.cos(lat * rad) * Math.cos(dec) * Math.cos(ha)) / rad; }
+// Day when the sun is above civil-twilight-ish -4°; hysteresis band so the map doesn't flip at dusk.
+export const isDaylight = (lat, lon, date = new Date(), wasDay = null) => { const a = sunAltitude(lat, lon, date); return wasDay == null ? a > -4 : wasDay ? a > -5 : a > -3; };

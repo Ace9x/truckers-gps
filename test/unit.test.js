@@ -173,3 +173,8 @@ test('ETA sums remaining maneuver times and is smoothed', () => {
 test('puck filter: ignores bad accuracy, holds heading when slow', () => {
   const f = new PuckFilter(); f.update({ lon: 0, lat: 0, acc: 5, speed: 10, heading: 90 }); const p = f.update({ lon: 1, lat: 1, acc: 200, speed: 10, heading: 0 }); assert.equal(p.lon, 0);
   assert.equal(f.update({ lon: 0, lat: 0.00001, acc: 5, speed: 0.5, heading: 270 }).heading, 90); });
+import { sunAltitude, isDaylight } from '../js/logic.js';
+test('sun altitude / auto day-night for NYC', () => {
+  assert.ok(sunAltitude(40.71, -74.0, new Date('2026-06-21T16:50:00Z')) > 70); // ~local solar noon in June
+  assert.ok(sunAltitude(40.71, -74.0, new Date('2026-10-22T04:00:00Z')) < -30); // midnight
+  assert.equal(isDaylight(40.71, -74.0, new Date('2026-10-21T16:00:00Z')), true); assert.equal(isDaylight(40.71, -74.0, new Date('2026-10-22T00:30:00Z')), false); });

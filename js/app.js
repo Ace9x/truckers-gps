@@ -1,5 +1,5 @@
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
-  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter } from './logic.js';
+  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
@@ -20,7 +20,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const empty = { type: 'FeatureCollection', features: [] };
 const line = coords => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} });
 
-const DEFAULT_TRUCK = { driverType: 'otr', cycle: 70, heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5, hazmat: false, avoidTolls: false, avoidWeigh: false, units: 'mi', theme: 'night' };
+const DEFAULT_TRUCK = { driverType: 'otr', cycle: 70, heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5, hazmat: false, avoidTolls: false, avoidWeigh: false, units: 'mi', theme: 'auto' };
 const S = {
   truck: { ...DEFAULT_TRUCK, ...(LS.get('truck', null) || LS.get('truckBak', {})) }, // profile never silently resets (UX P15): backup copy kept by pro.js pos: LS.get('lastPos', null), dest: LS.get('dest', null),
   route: null, routes: [], sel: 0, chosen: null, carRoute: null, nav: false, demo: null, follow: true,
@@ -35,11 +35,14 @@ const say = (t, kind, force) => voice.say(t, kind, force);
 const profile = new Profile(); S.profile = profile;
 const mascot = new Mascot({ enabled: LS.get('mascot', false), isBusy: () => S.nav && (S.toNext ?? 1e9) < 600 }); S.mascot = mascot; let backend = null; S.reports = [];
 
-const applyTheme = () => { document.body.classList.toggle('day', S.truck.theme === 'day'); document.body.classList.toggle('dim', S.truck.theme === 'dim'); };
+// 'auto' = day map while the sun is up at the truck's position, night map after dusk (UX P12); hysteresis avoids flapping at twilight.
+let autoDay = null; const effTheme = () => { if (S.truck.theme !== 'auto') return S.truck.theme; const p = S.pos || { lat: 40.8, lon: -73.9 }; autoDay = isDaylight(p.lat, p.lon, new Date(), autoDay); return autoDay ? 'day' : 'night'; };
+S.effTheme = effTheme; let curTheme = null;
+const applyTheme = () => { curTheme = effTheme(); document.body.classList.toggle('day', curTheme === 'day'); document.body.classList.toggle('dim', curTheme === 'dim'); document.documentElement.dataset.theme = curTheme === 'day' ? 'light' : 'dark'; };
 applyTheme(); $('#ver').textContent = 'v' + VERSION;
 
 // ---------- Map ----------
-const map = new maplibregl.Map({ container: 'map', style: STYLES[S.truck.theme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true } });
+const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true } });
 S.map = map;
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
@@ -654,9 +657,10 @@ $('#navPickup').onclick = () => navTo('pickup'); $('#navDelivery').onclick = () 
 const tf = $('#truckForm');
 function fillTruck() { for (const [k, v] of Object.entries(S.truck)) { const el = tf.elements[k]; if (!el) continue; el.type === 'checkbox' ? (el.checked = !!v) : (el.value = v); } }
 fillTruck();
+setInterval(() => { if (S.truck.theme !== 'auto') return; const was = curTheme; applyTheme(); if (STYLES[curTheme] !== STYLES[was]) map.setStyle(STYLES[curTheme]); }, 60e3);
 tf.addEventListener('change', () => { const prevTheme = S.truck.theme;
   for (const el of tf.elements) if (el.name) S.truck[el.name] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value);
-  LS.set('truck', S.truck); if (S.truck.theme !== prevTheme) { applyTheme(); if (STYLES[S.truck.theme] !== STYLES[prevTheme]) map.setStyle(STYLES[S.truck.theme]); }
+  LS.set('truck', S.truck); if (S.truck.theme !== prevTheme) { const was = curTheme; applyTheme(); if (STYLES[curTheme] !== STYLES[was]) map.setStyle(STYLES[curTheme]); }
   if (S.dest && S.pos && !S.nav) plan(); });
 const PRESETS = { 53: { heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 }, box: { heightFt: 12, heightIn: 0, weightLbs: 26000, lengthFt: 34, widthFt: 8.5, axles: 2 }, bob: { heightFt: 13, heightIn: 0, weightLbs: 20000, lengthFt: 22, widthFt: 8.5, axles: 3 } };
 $$('[data-preset]').forEach(b => b.onclick = () => { Object.assign(S.truck, PRESETS[b.dataset.preset]); fillTruck(); tf.dispatchEvent(new Event('change')); toast('Truck profile updated'); });

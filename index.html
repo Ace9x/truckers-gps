@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
@@ -16,6 +16,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/pro.css">
 </head>
@@ -142,7 +143,7 @@
     <label class="chk"><input type="checkbox" name="avoidWeigh"> Avoid weigh stations</label>
     <label>HOS cycle<select name="cycle"><option value="70">70 h / 8 days</option><option value="60">60 h / 7 days</option></select></label>
     <label>Units<select name="units"><option value="mi">Miles</option><option value="km">Kilometers</option></select></label>
-    <label>Map<select name="theme"><option value="night">Night</option><option value="dim">Night – dim (low glare)</option><option value="day">Day</option></select></label>
+    <label>Map<select name="theme"><option value="auto">Auto (day / night by sunset)</option><option value="night">Night</option><option value="dim">Night – dim (low glare)</option><option value="day">Day</option></select></label>
   </form>
   <div class="row"><button class="small-btn" data-preset="53">53' dry van 80k</button><button class="small-btn" data-preset="box">26' box truck</button><button class="small-btn" data-preset="bob">Bobtail</button></div>
   <p class="muted small">⚖️ PrePass / Drivewyze: bypass status comes from your transponder or their app — RigRoute GPS can't see it. Scales show open/closed only when drivers report it here (👍/👎 to confirm).</p>

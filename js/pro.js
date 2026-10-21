@@ -37,7 +37,7 @@ const map = S?.map;
 const DARK = { background: '#0f141b', water: '#0a2033', waterway: '#0a2033', building: '#151b24', landuse_park: '#122019', landcover_wood: '#122019', landuse_residential: '#121820',
   highway_minor: '#252d38', highway_major_inner: '#3a4452', highway_major_casing: '#0f141b', highway_major_subtle: '#3a4452', highway_motorway_inner: '#6b5434', highway_motorway_casing: '#0f141b', highway_motorway_subtle: '#4a3b26', highway_path: '#1c232c' };
 function tuneStyle() {
-  if (!map?.getStyle()) return; const dark = (S.truck?.theme || 'night') !== 'day';
+  if (!map?.getStyle()) return; const dark = (S.effTheme ? S.effTheme() : S.truck?.theme || 'night') !== 'day';
   for (const l of map.getStyle().layers) { try {
     if (dark) { const c = DARK[l.id]; if (c) map.setPaintProperty(l.id, l.type === 'background' ? 'background-color' : l.type === 'fill' ? 'fill-color' : 'line-color', c);
       if (l.id === 'highway_motorway_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.4], ['zoom'], 5, 1, 9, 1.6, 14, 5, 18, 16]);
