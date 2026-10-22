@@ -185,7 +185,7 @@ ok(await page.inputValue('[name=bol]') === 'BOL-TEST', 'load details persist');
 // ===== v2.3: features competitors paywall, free in RigRoute =====
 await page.setViewportSize({ width: 390, height: 844 });
 await T(([hp, nj]) => { TruckNav.pos = { lon: hp.longitude, lat: hp.latitude, t: Date.now(), acc: 5 }; TruckNav.stops = []; localStorage.removeItem('tn_facilities'); TruckNav.facilities = {}; TruckNav.setDest(nj); }, [HUNTS_POINT, NJ]);
-await page.waitForFunction(() => TruckNav.ifta && Object.keys(TruckNav.ifta).length && TruckNav.weather && TruckNav.lanes, null, { timeout: 90000 }).catch(() => {});
+await page.waitForFunction(() => TruckNav.ifta && Object.keys(TruckNav.ifta).length && TruckNav.weather && TruckNav.lanesDone, null, { timeout: 90000 }).catch(() => {});
 const v2 = await T(() => ({ ifta: TruckNav.ifta, toll: TruckNav.tolls, wx: TruckNav.weather?.length, wxc: TruckNav.wxChecked, lanes: TruckNav.lanes?.length, fuel: TruckNav.fuelNear?.length, box: document.querySelector('#iftaBox').textContent, fb: document.querySelector('#fuelBox').textContent }));
 ok(v2.ifta.NY > 0 && v2.ifta.NJ > 0, `IFTA miles by state from real road data: ${v2.box}`);
 ok(v2.toll && typeof v2.toll.miles === 'number', `toll roads on route: ${v2.toll?.miles} mi (${(v2.toll?.segs || []).map(t => t.names.join('/')).join('; ')})`);
@@ -224,7 +224,7 @@ await page.waitForTimeout(1200); await shot('v2-02-speed-lanes');
 const pl = await T(() => { const e = TruckNav.edges.filter(x => x.speed_limit); return { n: e.length, tot: TruckNav.edges.length, sample: e.slice(0, 3).map(x => x.speed_limit) }; });
 ok(pl.n > 0, `posted speed limits on ${pl.n}/${pl.tot} route segments (km/h e.g. ${pl.sample.join(',')})`);
 // Driving lockout
-await T(() => { TruckNav.opts.maxMph = 65; TruckNav.pos.speed = 20; }); await page.click('#searchBtn');
+await T(() => { TruckNav.opts.maxMph = 65; TruckNav.pos.speed = 20; document.querySelector('#searchBtn').click(); });
 ok(await T(() => !document.querySelector('#lockout').classList.contains('hidden') && document.querySelector('#searchPanel').classList.contains('hidden')), 'typing locked while moving; voice/passenger options offered');
 await shot('v2-03-lockout'); await page.click('#lockClose');
 // Fatigue
@@ -236,8 +236,8 @@ await page.click('#moreBtn'); await page.click('#sosBtn'); const so = await T(()
 ok(so.tel === 'tel:911' && /40\.\d+/.test(so.where) && /sms:/.test(so.sms), `SOS: call 911 + share/text exact location (${so.where})`);
 await shot('v2-04-sos'); await closeP();
 // Multi-stop
-const ms = await T(async () => { const before = TruckNav.route.length; TruckNav.addStop({ lon: -74.0431, lat: 40.7282, name: 'Jersey City stop' }); await new Promise(r => setTimeout(r, 200)); await TruckNav.plan(); return { before, after: TruckNav.route.length, n: TruckNav.stops.length }; });
-ok(ms.n === 1 && ms.after > ms.before, `multi-stop routing: added stop, route ${(ms.before / 1609).toFixed(1)} → ${(ms.after / 1609).toFixed(1)} mi`);
+const ms = await T(async () => { const before = TruckNav.route.length; TruckNav.addStop({ lon: -74.0431, lat: 40.7282, name: 'Jersey City stop' }); await new Promise(r => setTimeout(r, 200)); await TruckNav.plan(); const near = Math.min(...TruckNav.route.line.map(([x, y]) => Math.hypot((x + 74.0431) * 84000, (y - 40.7282) * 111000))); return { before, after: TruckNav.route.length, n: TruckNav.stops.length, near }; });
+ok(ms.n === 1 && ms.near < 300, `multi-stop routing: added stop, route ${(ms.before / 1609).toFixed(1)} → ${(ms.after / 1609).toFixed(1)} mi, passes ${Math.round(ms.near)} m from the stop`);
 await T(() => document.querySelector('#stopsBox').scrollIntoView()); await shot('v2-05-multistop'); await T(() => { TruckNav.stops.length = 0; localStorage.setItem('tn_stops', '[]'); }); await closeP();
 // Parking + weather reports, accessibility
 await T(() => TruckNav.openPanel('reportPanel')); ok(await T(() => ['parking_full', 'parking_open', 'ice', 'wind', 'chains'].every(k => document.querySelector(`[data-rt=${k}]`))), 'driver reports for parking availability (open/few/full), ice, high wind, chain law');

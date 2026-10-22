@@ -78,13 +78,13 @@ export function init(S, h) {
       : `<b>🌤 No NWS weather warnings</b> along this route right now (${pts.length} points checked${S.wxErr ? ', some checks failed' : ''}).`;
     if (S.weather.length) { const w = S.weather[0]; alertBanner(`🌩 ${w.event} on your route`); say(`Weather alert on your route: ${w.event}. ${w.advice}`, 'danger'); } }
 
-  async function loadLanes(r) { S.lanes = []; try {
+  async function loadLanes(r) { S.lanes = []; S.lanesDone = false; try {
       const locs = [r.line[0], ...S.stops.map(s => [s.lon, s.lat]), r.line.at(-1)].map(([lon, lat]) => ({ lon, lat }));
       const body = { locations: locs, costing: 'truck', costing_options: { truck: (await import('./logic.js')).truckCosting(S.truck) }, format: 'osrm', banner_instructions: true };
       const j = await (await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) })).json();
       const ro = j.routes?.[0]; if (!ro || S.route !== r) return;
       S.lanes = laneIntersections(ro).map(x => { const sn = snapToRoute(x.loc, r.line, r.cum, 0); return { ...x, along: sn.along, off: sn.dist }; }).filter(x => x.off < 30).sort((a, b) => a.along - b.along);
-    } catch (e) { S.lanesErr = String(e); } }
+    } catch (e) { S.lanesErr = String(e); } finally { if (S.route === r) S.lanesDone = true; } }
 
   async function runawayRamps(r) { if (!(S.dangers || []).some(d => d.kind === 'grade') && !/(I-70|I-80|I-40|I-5|I-81|I-77|I-68)/.test(JSON.stringify(r.maneuvers.map(m => m.street_names)))) return;
     const pts = sampleLine(r.line, 40).map(([x, y]) => `${y.toFixed(4)},${x.toFixed(4)}`).join(',');
