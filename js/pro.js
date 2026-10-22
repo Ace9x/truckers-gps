@@ -205,7 +205,7 @@ setInterval(freshTick, 5000); S.ageHTML = ageHTML;
 let trip = null, wasNav = false;
 function viaOf(r) { const n = []; for (const m of r?.maneuvers || []) for (const s of m.street_names || []) if (/^(I|US|NJ|NY|PA|CT)\b|Turnpike|Parkway|Expressway|Highway/.test(s) && !n.includes(s)) n.push(s); return n.slice(0, 3).join(' → ') || 'local roads'; }
 function tripWatch() {
-  if (S.nav && !wasNav) trip = { start: S.tripStart || Date.now(), dest: S.dest?.name || 'Destination', reports0: (S.hz?.list || []).filter(r => r.mine).length };
+  if (S.nav && !wasNav) trip = S.demo ? null : { start: S.tripStart || Date.now(), dest: S.dest?.name || 'Destination', reports0: (S.hz?.list || []).filter(r => r.mine).length };
   if (S.nav && trip) { trip.via = viaOf(S.route); trip.ifta = { ...(S.ifta || {}) }; trip.stops = (S.stops || []).map(s => s.name || s.label || 'Stop'); trip.miles = S.tripMiles || 0; trip.arrived = trip.arrived || !!S.arrived; trip.tolls = S.tolls?.miles || 0; }
   if (!S.nav && wasNav && trip) { const t = trip; trip = null; t.arrived = t.arrived || !!S.arrived; t.miles = Math.max(t.miles || 0, S.tripMiles || 0); if ((t.miles || 0) >= 0.1 || t.arrived) showReceipt(t); }
   wasNav = !!S.nav; }

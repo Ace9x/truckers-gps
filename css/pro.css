@@ -311,7 +311,7 @@ html body #acctChips #acctBtn,html body #acctChips #loadsBtn,html body #acctChip
 html body #acctChips #acctBtn .pi svg,html body #acctChips #loadsBtn .pi svg,html body #acctChips #friendsBtn .pi svg{width:18px;height:18px}
 html body #acctChips .badge{font-size:10px}
 /* Sheets show their own content only: hide the map's chip row while any panel is open (profile appears once) */
-body:has(.panel:not(.hidden)) #acctChips{visibility:hidden}
+body:has(#routePanel:not(.hidden)) #acctChips #truckChip{display:none}
 /* Route sheet: 16px padding, 8-pt vertical rhythm */
 html body #routePanel{padding:16px 16px calc(16px + var(--safe-b))}
 html body #routePanel>*{margin-top:0;margin-bottom:0}html body #routePanel>*+*{margin-top:12px}
