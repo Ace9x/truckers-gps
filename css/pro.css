@@ -300,3 +300,50 @@ html body #tfLegend.min{max-width:calc(100vw - 110px)!important;overflow:visible
 html body #hzLive{left:12px!important;bottom:calc(270px + var(--safe-b))!important}
 /* Hazard alerts are a driving feature: only while navigating (no surprise banners while browsing) */
 body:not(.nav) #hzBanner{display:none!important}
+
+/* ---- Round 4 polish: design_playbook.md audit + design-system README checklist (8-pt rhythm, show once, truncate never clip) ---- */
+/* Top-left: search pill + chips fit beside the right rail; chips never clip ("Acc…"); account/loads/friends become 40px icon buttons */
+html body #searchBtn{max-width:calc(100vw - 88px);box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body #searchBtn #destLabel,html body #searchBtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+html body #acctChips{max-width:calc(100vw - 88px);overflow:visible;flex-wrap:nowrap}
+html body #acctChips #truckChip{flex:0 1 auto;min-width:0;white-space:nowrap}html body #acctChips #truckChip span{overflow:hidden;text-overflow:ellipsis}
+html body #acctChips #acctBtn,html body #acctChips #loadsBtn,html body #acctChips #friendsBtn{width:40px;height:40px;min-height:40px;padding:0;justify-content:center;font-size:0;flex:none;border-radius:50%}
+html body #acctChips #acctBtn .pi svg,html body #acctChips #loadsBtn .pi svg,html body #acctChips #friendsBtn .pi svg{width:18px;height:18px}
+html body #acctChips .badge{font-size:10px}
+/* Sheets show their own content only: hide the map's chip row while any panel is open (profile appears once) */
+body:has(.panel:not(.hidden)) #acctChips{visibility:hidden}
+/* Route sheet: 16px padding, 8-pt vertical rhythm */
+html body #routePanel{padding:16px 16px calc(16px + var(--safe-b))}
+html body #routePanel>*{margin-top:0;margin-bottom:0}html body #routePanel>*+*{margin-top:12px}
+html body #routePanel .phead{margin-bottom:4px;align-items:center;min-height:44px}html body #routePanel .phead h2{font:700 20px/1.2 var(--font);margin:0}
+html body #routePanel h3{font:700 12px/1.3 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:24px 0 8px}
+#routeSummary.dup-truck{display:none}
+html body #rpTruck{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;box-sizing:border-box;padding:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;font:600 14px var(--font);border-radius:12px}
+html body #rpTruck>*{flex:none}html body #rpTruck .muted{margin-left:auto}
+/* Go: full width 56px; Demo drive is a text link */
+html body #routePanel .row:has(#goBtn){display:flex;flex-direction:column;align-items:stretch;gap:4px}
+html body #goBtn{min-height:56px;height:56px;width:100%;flex:none}
+.textlink,html body #demoBtn.textlink{background:none!important;border:0!important;box-shadow:none!important;color:var(--acc,#38bdf8)!important;font:600 14px var(--font)!important;min-height:44px;height:44px;padding:0 4px;align-self:center;text-decoration:underline;text-underline-offset:3px;width:auto}
+html body #demoBtn.textlink:disabled{opacity:.45;text-decoration:none}
+/* Route cards: exactly 2 lines — "Route 1 · 2h 01m · 93 mi" / via … + chips */
+html body #alts{display:flex;flex-direction:column;gap:8px}
+html body #alts .alt{padding:12px 16px;border-radius:12px;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:8px;row-gap:4px;margin:0}
+html body #alts .alt>b{grid-column:1/-1;font:700 16px/1.3 var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+html body #alts .alt .rc-via{grid-column:1;font:400 14px/1.4 var(--font);color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+html body #alts .alt .why{grid-column:2;display:flex;gap:4px;white-space:nowrap;margin:0}
+.rc-chip{font:600 12px/20px var(--font);padding:0 8px;border-radius:999px;background:#ffffff14;color:var(--fg,#fff)}
+html[data-theme=light] .rc-chip{background:#0000000f;color:#000}
+html body #alts .alt.tf-none .tf-row{display:none}
+html body #alts .alt .tf-row{grid-column:1/-1;font-size:12px;margin:0}
+html body #alts>.muted.small{margin:0}
+#tfOnce{display:flex;align-items:center;gap:8px}#tfOnce::before{content:"◷";color:var(--mut)}#tfOnce[hidden]{display:none}
+/* Empty Stops collapse into a single "+ Add stop" link */
+#stopsBox.collapsed>*:not(#stopToggle){display:none!important}
+#stopsBox:not(.collapsed) #stopToggle{display:none}
+html body #stopsBox h3{margin-top:0}
+html body #stopsBox .row{display:flex;gap:8px}html body #stopsBox #stopQ{flex:1;min-width:0;min-height:48px;font-size:16px}
+html body #rpTruck .rpt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html body #rpTruck .muted{flex:none;color:var(--acc,#38bdf8);font-weight:700}
+html body #alts .alt .rc-tf{color:#fff}
+#tfBox{font-size:12px}
+html body #dock button{white-space:nowrap;min-width:0}html body #dock button span,html body #dock button{overflow:hidden;text-overflow:ellipsis}

@@ -165,10 +165,10 @@ function state() { const b = document.body, mph = (S.pos?.speed || 0) * 2.23694,
   for (const k of ['browse', 'nav', 'arriving']) b.classList.toggle('st-' + k, st === k); b.classList.toggle('moving', mph > 5); b.classList.toggle('mascot-opt', !!S.mascot?.enabled);
   b.classList.toggle('following', S.follow !== false); $('#nsMute').innerHTML = svg(ICONS[S.voiceObj?.enabled === false ? '🔇' : '🔊']); $('#nsMute').classList.toggle('off', S.voiceObj?.enabled === false);
   const t = S.truck || {}; const txt = `${ftIn(t)} · ${Number(t.weightLbs || 0).toLocaleString()} lb · ${t.hazmat ? 'Hazmat' : 'No hazmat'}`;
-  const chip = $('#truckChip'); if (chip.dataset.t !== txt) { chip.dataset.t = txt; chip.innerHTML = svg(ICONS['🚛']) + `<span>${txt}</span>`; }
+  const chip = $('#truckChip'); if (chip.dataset.t !== txt) { chip.dataset.t = txt; chip.innerHTML = svg(ICONS['🚛']) + `<span>${ftIn(t)} · ${Math.round((t.weightLbs || 0) / 1000)}k lb${t.hazmat ? ' · HM' : ''}</span>`; chip.setAttribute('aria-label', 'Truck profile: ' + txt); chip.title = txt; }
   try { if (S.truck) localStorage.setItem('tn_truckBak', JSON.stringify(S.truck)); } catch {}
   const rs = $('#routeSummary'); if (rs && !$('#rpTruck')) rs.insertAdjacentHTML('beforebegin', '<button id="rpTruck" class="small-btn"></button>');
-  const rp = $('#rpTruck'); if (rp && rp.dataset.t !== txt) { rp.dataset.t = txt; rp.innerHTML = svg(ICONS['🚛']) + ` Routing for ${txt} <span class="muted">· edit</span>`; rp.onclick = () => document.querySelector('[data-panel=truckPanel]')?.click(); } }
+  const rp = $('#rpTruck'); if (rp && rp.dataset.t !== txt) { rp.dataset.t = txt; rp.innerHTML = svg(ICONS['🚛']) + `<span class="rpt">Routing for ${txt}</span><span class="muted">Edit</span>`; rp.setAttribute('aria-label', 'Routing for ' + txt + '. Edit truck profile'); rp.onclick = () => document.querySelector('[data-panel=truckPanel]')?.click(); } }
 function placeChip() { const row = $('#acctChips'), c = $('#truckChip'); if (row && c && c.parentElement !== row) { c.classList.add('chip'); row.prepend(c); } }
 setInterval(() => { state(); placeChip(); }, 1000); state();
 
@@ -229,3 +229,27 @@ function showReceipt(t, end = Date.now()) {
   // Safety: never pop a sheet while the truck is moving — wait until parked (<3 mph)
   const wait = () => ((S.speed ?? S.pos?.speed ?? 0) * 2.237 < 3 ? show() : setTimeout(wait, 3000)); wait(); }
 S.showReceipt = showReceipt;
+
+// ---- Round 4: route sheet polish (design_playbook.md RigRoute audit 1-5; design-system README checklist) ----
+// One job per element: truck profile shown once (#rpTruck), compact 2-line route cards, one traffic note, collapsed empty Stops.
+function routeSheet() { const panel = $('#routePanel'); if (!panel) return;
+  const rs = $('#routeSummary'); if (rs) rs.classList.toggle('dup-truck', /^Truck routes for/.test(rs.textContent)); // same profile as #rpTruck → hide
+  const alts = [...panel.querySelectorAll('#alts .alt')];
+  let noLive = alts.length > 0, noteSrc = '';
+  for (const el of alts) { const row = el.querySelector('.tf-row'), live = row && !/no live data/.test(row.textContent); if (live) noLive = false;
+    el.classList.toggle('tf-none', true); // traffic folds into one chip on line 2; source shown once in #tfOnce
+    if (live) { const d = row.querySelector('b')?.textContent?.trim() || ''; const src = (row.textContent.match(/\(([^)]+)\)\s*$/) || [])[1]; if (src) noteSrc = src;
+      let c = el.querySelector('.rc-tf'); if (!c) { c = document.createElement('span'); c.className = 'rc-chip rc-tf'; } const lbl = d === 'no delay' ? 'No delay' : d + ' traffic'; if (c.textContent !== lbl) c.textContent = lbl; c.style.background = row.querySelector('b')?.style.background || '';
+      const why = el.querySelector('.why'); if (why && c.parentElement !== why) why.prepend(c); }
+    const why = el.querySelector('.why'); if (why && !why.dataset.chips) { const parts = why.textContent.split(' · ').map(x => x.trim()).filter(Boolean);
+      const keep = parts.filter(x => /^(Fastest|Shortest|Has tolls|No tolls|Fewest turns)$|^[+−-]\d+ min/.test(x))
+      .filter(x => !/Fewest turns/.test(x)).slice(0, 2);
+      why.dataset.chips = '1'; why.title = why.textContent; why.innerHTML = keep.map(x => `<span class="rc-chip">${x.replace('Has tolls', 'Tolls')}</span>`).join(''); }
+    const via = el.querySelector(':scope > div:not(.why):not(.tf-row)'); if (via) via.classList.add('rc-via'); }
+  let note = $('#tfOnce'); if (!note && $('#alts')) { note = document.createElement('div'); note.id = 'tfOnce'; note.className = 'muted small'; $('#alts').before(note); }
+  if (note) { const nt = noLive ? 'No live traffic for this area — times use normal speeds' : `Live traffic${noteSrc ? ' · ' + noteSrc : ''} included in times`; note.hidden = !alts.length; if (note.textContent !== nt) note.textContent = nt; }
+  const sb = $('#stopsBox'); if (sb) { const empty = !(S.stops || []).length; if (!sb.dataset.open) sb.classList.toggle('collapsed', empty);
+    let t = $('#stopToggle'); if (!t) { t = document.createElement('button'); t.id = 'stopToggle'; t.className = 'textlink'; t.textContent = '+ Add stop'; sb.prepend(t);
+      t.onclick = () => { sb.dataset.open = '1'; sb.classList.remove('collapsed'); $('#stopQ')?.focus(); }; } }
+  const demo = $('#demoBtn'); if (demo) demo.classList.add('textlink'); }
+setInterval(routeSheet, 500);
