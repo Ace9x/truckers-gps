@@ -1,0 +1,70 @@
+// Dispatch board on the RigRoute server: multi-stop loads (address autocomplete + address book, reorder, optimize),
+// live board (late first) with stop timestamps, detention, reefer temps, documents/POD and messages.
+import * as cloud from './cloud.js';
+import { stopsOf, nextIdx, detention, isLate, boardSort, tempStatus, optimize, routeLen, move, STAGE_LABEL } from './freightlogic.js';
+const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const TZ = 'America/New_York', dt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '', hm = t => t ? new Date(t).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) : '';
+const nyParts = d => Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(d).map(x => [x.type, x.value]));
+const nyOff = d => { const q = nyParts(d); return Date.UTC(+q.year, q.month - 1, +q.day, +q.hour, +q.minute, +q.second) - (d.getTime() - d.getMilliseconds()); };
+export const fromNY = s => { if (!s) return null; const g = Date.parse(s + ':00Z'); const t = g - nyOff(new Date(g)); return new Date(g - nyOff(new Date(t))).toISOString(); };
+const mi = m => (m / 1609.34).toFixed(1);
+let book = [], loads = [], events = [], draft = [], me = null;
+const blank = kind => ({ kind, address: '', lat: null, lng: null, appt: null, _appt: '' });
+async function photon(q) { const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lat=40.75&lon=-73.95&lang=en`); const j = await r.json();
+  return j.features.map(f => { const p = f.properties; return { address: [p.name, p.housenumber && p.street ? p.housenumber + ' ' + p.street : p.street, p.city || p.county, p.state, p.postcode].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', '), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] }; }); }
+function drawDraft() { const from = draft[0], len = draft.length > 1 && draft.every(s => s.lat != null) ? routeLen(draft) : null;
+  $('#bStops').innerHTML = draft.map((s, i) => `<div class="b-stop" data-bi="${i}"><select data-bk><option value="pickup" ${s.kind === 'pickup' ? 'selected' : ''}>Pickup</option><option value="drop" ${s.kind === 'drop' ? 'selected' : ''}>Drop</option></select>
+    <div class="b-ac"><input data-ba placeholder="Address or saved place" value="${esc(s.address)}" autocomplete="off"><div class="b-sug" hidden></div></div><input type="datetime-local" data-bt value="${esc(s._appt)}" title="Appointment (New York time)">
+    <span class="b-ok">${s.lat != null ? '📍' : '⚠'}</span><button data-bm="-1" title="Up">↑</button><button data-bm="1" title="Down">↓</button><button data-bsv title="Save to address book">★</button><button data-bx title="Remove">✕</button></div>`).join('');
+  $('#bLen').textContent = len ? `${draft.length} stops · ${mi(len)} mi straight-line` : '';
+  document.querySelectorAll('.b-stop').forEach(row => { const i = +row.dataset.bi, s = draft[i], inp = row.querySelector('[data-ba]'), sug = row.querySelector('.b-sug'); let tm;
+    row.querySelector('[data-bk]').onchange = e => s.kind = e.target.value; row.querySelector('[data-bt]').onchange = e => { s._appt = e.target.value; s.appt = fromNY(e.target.value); };
+    row.querySelector('[data-bx]').onclick = () => { draft.splice(i, 1); drawDraft(); }; row.querySelectorAll('[data-bm]').forEach(b => b.onclick = () => { draft = move(draft, i, +b.dataset.bm); drawDraft(); });
+    row.querySelector('[data-bsv]').onclick = async () => { if (s.lat == null) return msg('Pick an address from the list first'); const name = prompt('Name for this place', s.address.split(',')[0]); if (!name) return;
+      const notes = prompt('Notes for drivers (gate code, entrance, overnight parking)', '') || null; await cloud.saveAddress({ name, address: s.address, lat: s.lat, lng: s.lng, notes }); Object.assign(s, { name, notes: notes || undefined }); book = await cloud.addressBook(); drawBook(); msg('★ Saved ' + name); };
+    inp.oninput = () => { s.lat = s.lng = null; s.address = inp.value; row.querySelector('.b-ok').textContent = '⚠'; clearTimeout(tm); const q = inp.value.trim(); if (q.length < 3) { sug.hidden = true; return; }
+      const saved = book.filter(b => (b.name + ' ' + b.address).toLowerCase().includes(q.toLowerCase())).slice(0, 4).map(b => ({ ...b, saved: true }));
+      const show = list => { sug.innerHTML = list.map((r, k) => `<button type="button" data-sg="${k}">${r.saved ? '★ <b>' + esc(r.name) + '</b> ' : ''}${esc(r.address)}</button>`).join(''); sug.hidden = !list.length;
+        sug.querySelectorAll('[data-sg]').forEach(b => b.onmousedown = e => { e.preventDefault(); const r = list[+b.dataset.sg]; Object.assign(s, { address: r.address, lat: r.lat, lng: r.lng, notes: r.notes || undefined, name: r.saved ? r.name : undefined }); drawDraft(); }); };
+      show(saved); tm = setTimeout(async () => { try { show([...saved, ...(await photon(q))]); } catch {} }, 300); };
+    inp.onblur = () => setTimeout(() => sug.hidden = true, 150); }); }
+const msg = t => $('#bMsg').textContent = t;
+function drawBook() { $('#bBook').innerHTML = book.map(b => `<div class="b-bk" data-book="${b.id}"><b>★ ${esc(b.name)}</b> ${esc(b.address)}${b.notes ? `<div class="small">📝 ${esc(b.notes)}</div>` : ''}<button data-bdel>Delete</button></div>`).join('') || '<p class="muted">No saved places yet — use ★ on a stop.</p>';
+  document.querySelectorAll('[data-bdel]').forEach(b => b.onclick = async () => { await cloud.deleteAddress(b.closest('[data-book]').dataset.book); book = await cloud.addressBook(); drawBook(); }); }
+function card(l) { const st = stopsOf(l), ni = nextIdx(st), late = ni != null && isLate(st[ni]) && !['delivered', 'declined', 'cancelled'].includes(l.status), ev = events.filter(e => e.load_id === l.id);
+  const temps = ev.filter(e => e.kind === 'temp'), lastT = temps.at(-1), docs = ev.filter(e => e.kind === 'doc'), msgs = ev.filter(e => e.kind === 'message').slice(-12);
+  return `<article class="b-card ${late ? 'late' : ''} st-${l.status}" data-bload="${l.id}"><header><b>${esc(l.ref || l.id.slice(0, 8))}</b> <span class="b-pill" data-bstatus="${l.status}">${esc(cloud.LOAD_LABEL[l.status] || l.status)}</span>${l.stage ? ` <span class="b-pill">${esc(STAGE_LABEL(l.stage))}</span>` : ''}${late ? ' <span class="b-pill late" data-blate>LATE</span>' : ''}
+    ${lastT ? ` <span class="b-pill ${tempStatus(lastT.body.f, l.reefer) !== 'ok' ? 'late' : ''}" data-btemp>❄️ ${lastT.body.f}°F ${hm(lastT.t)}</span>` : ''}<span class="b-rate">${l.rate_usd != null ? '$' + Number(l.rate_usd).toLocaleString() : ''}</span></header>
+    <ol class="b-stops">${st.map((s, i) => { const d = detention(s, l.detention); return `<li class="${s.departed_at ? 'done' : i === ni ? 'cur' : ''}" data-bstop="${i}"><b>${s.kind === 'pickup' ? 'P' : 'D'}${i + 1}</b> ${esc(s.name ? s.name + ' · ' : '')}${esc(s.address)}
+      ${s.appt ? `<span class="${isLate(s) ? 'late' : 'muted'}"> · appt ${dt(s.appt)}</span>` : ''}${s.arrived_at ? ` · <span data-barr>arr ${hm(s.arrived_at)}</span>` : ''}${s.departed_at ? ` · dep ${hm(s.departed_at)}` : ''}
+      ${d && (d.billMin || d.running) ? ` · <span class="${d.billMin ? 'late' : ''}" data-bdet>⏱ ${d.billMin ? 'detention ' + d.billMin + 'm $' + d.amount.toFixed(2) : 'on site ' + d.onSiteMin + 'm, free ' + d.freeLeftMin + 'm left'}</span>` : ''}
+      ${s.pod ? ` · 📦 POD ${esc(s.pod.name)}, ${s.pod.pieces} pcs${s.pod.damage ? ' ⚠ ' + esc(s.pod.damage) : ''}` : ''}
+      ${!s.arrived_at && !['delivered', 'declined'].includes(l.status) ? `<button data-bmv="${i}|-1">↑</button><button data-bmv="${i}|1">↓</button>` : ''}</li>`; }).join('')}</ol>
+    ${st.filter(s => !s.arrived_at).length >= 3 && l.status !== 'delivered' ? '<button data-bopt>Optimize remaining stops</button>' : ''}
+    ${docs.length ? `<div class="b-docs">${docs.map(e => `<figure data-bdoc="${e.body.type}"><img src="${e.body.data}" alt="${esc(e.body.type)}">${e.body.signature ? `<img src="${e.body.signature}" alt="signature" class="sig">` : ''}<figcaption>${esc(e.body.type.toUpperCase())}${e.body.amount ? ' $' + e.body.amount : ''}${e.body.receiver ? ' · ' + esc(e.body.receiver) : ''} · ${hm(e.t)}</figcaption></figure>`).join('')}</div>` : ''}
+    ${temps.length ? `<details><summary>Reefer log (${temps.length})</summary>${temps.map(e => `<div class="${tempStatus(e.body.f, l.reefer) !== 'ok' ? 'late' : ''}">${dt(e.t)} · ${e.body.f}°F</div>`).join('')}</details>` : ''}
+    <div class="b-msgs">${msgs.map(e => `<div class="b-m ${e.actor === me ? 'me' : ''}" data-bmsg>${esc(e.body.text)} <small>${hm(e.t)}</small></div>`).join('')}</div>
+    <div class="row"><input data-bmi placeholder="Message driver" maxlength="500"><button data-bms>Send</button>${l.status === 'offered' ? '<button data-bwd class="ghost">Withdraw</button>' : ''}</div></article>`; }
+function drawBoard() { if ($('#bBoard').contains(document.activeElement) && document.activeElement.matches('input')) return; const L = boardSort(loads);
+  $('#bBoard').innerHTML = L.map(card).join('') || '<p class="muted">No loads yet.</p>'; $('#bCount').textContent = `${L.filter(l => ['accepted', 'in_transit'].includes(l.status)).length} active · ${L.filter(l => l.status === 'offered').length} offered · ${document.querySelectorAll('.b-card.late').length} late`;
+  document.querySelectorAll('[data-bload]').forEach(el => { const l = loads.find(x => x.id === el.dataset.bload);
+    el.querySelectorAll('[data-bmv]').forEach(b => b.onclick = async () => { const [i, d] = b.dataset.bmv.split('|').map(Number); await cloud.updateLoad(l.id, { stops: move(stopsOf(l), i, d) }); await refresh(); });
+    const o = el.querySelector('[data-bopt]'); if (o) o.onclick = async () => { const s = stopsOf(l), n = optimize(s, null); await cloud.updateLoad(l.id, { stops: n }); msg(`Optimized ${l.ref}: ${mi(routeLen(s))} → ${mi(routeLen(n))} mi`); await refresh(); };
+    const send = async () => { const i = el.querySelector('[data-bmi]'); if (!i.value.trim()) return; await cloud.postEvent(l.id, 'message', { text: i.value.trim() }); i.value = ''; await refreshEvents(); drawBoard(); };
+    el.querySelector('[data-bms]').onclick = send; el.querySelector('[data-bmi]').onkeydown = e => e.key === 'Enter' && send();
+    const w = el.querySelector('[data-bwd]'); if (w) w.onclick = async () => { await cloud.sb().then(c => c.from('loads').delete().eq('id', l.id)); await refresh(); }; }); }
+async function refreshEvents() { events = await cloud.loadEvents(loads.map(l => l.id)).catch(() => events); }
+export async function refresh() { loads = (await cloud.myLoads().catch(() => loads)).filter(l => l.dispatcher === me); await refreshEvents(); drawBoard(); }
+export async function start() { me = await cloud.uid(); if (!me) return; window.RRB = { refresh, get loads() { return loads; }, get events() { return events; }, get draft() { return draft; }, fromNY };
+  book = await cloud.addressBook().catch(() => []); drawBook(); draft = [blank('pickup'), blank('drop')]; drawDraft();
+  $('#bAdd').onclick = () => { draft.splice(draft.length - 1, 0, blank('drop')); drawDraft(); };
+  $('#bOpt').onclick = () => { if (draft.some(s => s.lat == null)) return msg('Pick every address from the list first'); const a = routeLen(draft); draft = optimize(draft, null); drawDraft(); msg(`Optimized: ${mi(a)} → ${mi(routeLen(draft))} mi`); };
+  $('#bReefer').onchange = () => $('#bReeferF').hidden = !$('#bReefer').checked;
+  $('#bSend').onclick = async () => { try { if (draft.length < 2 || draft.some(s => s.lat == null)) throw new Error('Every stop needs an address picked from the list'); if (draft[0].kind !== 'pickup' || draft.at(-1).kind !== 'drop') throw new Error('Start with a pickup and end with a drop');
+      const f = await (await cloud.sb()).rpc('find_user', { p_query: $('#bDriver').value.trim().replace(/^@/, '') }); if (f.error) throw f.error; const d = f.data.find(x => x.role === 'driver') || f.data[0]; if (!d) throw new Error('No RigRoute driver with that email/username');
+      const stops = draft.map(({ _appt, ...s }) => s), a = stops[0], z = stops.at(-1);
+      await cloud.offerLoad({ driver: d.id, ref: $('#bRef').value, commodity: $('#bComm').value, weight_lb: +$('#bWt').value || null, rate_usd: +$('#bRate').value || null, notes: $('#bNotes').value || null, stops,
+        pickup_address: a.address, pickup_lat: a.lat, pickup_lng: a.lng, pickup_at: a.appt, dropoff_address: z.address, dropoff_lat: z.lat, dropoff_lng: z.lng, dropoff_at: z.appt,
+        reefer: $('#bReefer').checked ? { setpoint: +$('#bSet').value, min: +$('#bMin').value, max: +$('#bMax').value } : null, detention: { free_min: $('#bFree').value === '' ? 120 : Math.max(0, +$('#bFree').value), rate_hr: $('#bDetR').value === '' ? 50 : Math.max(0, +$('#bDetR').value) } });
+      msg('✅ Sent ' + $('#bRef').value + ' to ' + (d.display_name || 'driver')); draft = [blank('pickup'), blank('drop')]; drawDraft(); await refresh(); } catch (e) { msg('⚠ ' + e.message); } };
+  await refresh(); cloud.watchLoads(() => refresh()); cloud.watchEvents(e => { if (loads.some(l => l.id === e.load_id)) { events.push(e); drawBoard(); } }); setInterval(drawBoard, 30000); }

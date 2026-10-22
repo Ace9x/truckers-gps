@@ -1,16 +1,24 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RigRoute Dispatch — test console</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RigRoute Dispatch</title>
 <style>body{font:15px system-ui;background:#111;color:#eee;margin:0;padding:16px;max-width:980px}h1{font-size:20px}section{background:#1c1c1c;border-radius:12px;padding:12px;margin:10px 0}input,textarea,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#eee}button{background:#ff6d00;color:#111;font-weight:700;border:0;cursor:pointer}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid label{display:flex;flex-direction:column;font-size:12px;color:#aaa}.code{font:700 34px ui-monospace,monospace;letter-spacing:3px;color:#ff9e40}.log{font:12px ui-monospace,monospace;white-space:pre-wrap;max-height:260px;overflow:auto}.drv{border:1px solid #333;border-radius:10px;padding:8px;margin:6px 0}.pod{max-width:200px;border-radius:8px}</style></head><body>
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid label{display:flex;flex-direction:column;font-size:12px;color:#aaa}.code{font:700 34px ui-monospace,monospace;letter-spacing:3px;color:#ff9e40}.log{font:12px ui-monospace,monospace;white-space:pre-wrap;max-height:260px;overflow:auto}.drv{border:1px solid #333;border-radius:10px;padding:8px;margin:6px 0}.pod{max-width:200px;border-radius:8px}.b-stop{display:grid;grid-template-columns:90px 1fr 190px 24px 34px 34px 34px 34px;gap:4px;align-items:center;margin:4px 0}.b-ac{position:relative}.b-ac input{width:100%;box-sizing:border-box}.b-sug{position:absolute;z-index:5;left:0;right:0;background:#222;border:1px solid #444;border-radius:8px}.b-sug button{display:block;width:100%;text-align:left;background:none;color:#eee;font-weight:400;padding:8px;border-radius:0}.b-sug button:hover{background:#333}
+.b-stop button{padding:6px;background:#333;color:#eee}.ghost{background:#333!important;color:#eee!important}.b-card{background:#1c1c1c;border:1px solid #333;border-radius:12px;padding:10px;margin:8px 0}.b-card.late{border-color:#ff6b6b;box-shadow:0 0 0 1px #ff6b6b}.b-card.st-delivered{opacity:.7}
+.b-pill{display:inline-block;background:#333;border-radius:999px;padding:2px 8px;font-size:12px}.b-pill.late,.late{color:#ff6b6b;font-weight:700}.b-rate{float:right;font-weight:700}.b-stops{margin:6px 0;padding-left:18px;font-size:13px}.b-stops li.done{opacity:.6}.b-stops li.cur{color:#ffb340}.b-stops button{padding:2px 6px;margin-left:4px;background:#333;color:#eee}
+.b-docs{display:flex;gap:6px;flex-wrap:wrap}.b-docs figure{margin:0;width:120px}.b-docs img{width:120px;height:90px;object-fit:cover;border-radius:8px}.b-docs img.sig{height:40px;object-fit:contain;background:#fff}.b-docs figcaption{font-size:11px;color:#aaa}
+.b-msgs{display:flex;flex-direction:column;gap:3px;margin:6px 0}.b-m{background:#2a2a2a;border-radius:10px;padding:4px 8px;align-self:flex-start;font-size:13px}.b-m.me{align-self:flex-end;background:#0b4f6c}.b-m small{color:#aaa}.row{display:flex;gap:6px}.row input{flex:1}.b-bk{border-bottom:1px solid #333;padding:6px 0}.b-bk button{float:right;padding:2px 8px;background:#333;color:#eee}.muted{color:#888}.small{font-size:12px}details summary{cursor:pointer;margin:8px 0;color:#bbb}.chk{display:inline-flex;gap:6px;align-items:center}
+@media(max-width:700px){.b-stop{grid-template-columns:1fr 1fr 1fr 1fr}.b-ac,.b-stop input[type=datetime-local]{grid-column:1/-1}}</style></head><body>
 <h1>📋 RigRoute Dispatch — test console <small style="color:#888">(Dispatch API v1, free encrypted relay transport)</small></h1>
 <section id="sbSec"><h3>☁️ RigRoute server dispatch <small style="color:#888">(dispatcher account; driver signs in to RigRoute with their email)</small></h3>
 <div id="sbAuth"><input id="sbEmail" type="email" placeholder="Dispatcher email"> <input id="sbPass" type="password" placeholder="Password"> <button id="sbIn">Sign in</button> <button id="sbUp">Create dispatcher account</button> <span id="sbMsg"></span></div>
 <div id="sbMain" hidden><p>Signed in as <b id="sbWho"></b> <button id="sbOut">Sign out</button></p>
-<div class="grid"><label>Driver email or @username<input id="sbDriver"></label><label>Ref<input id="sbRef" value="PO-55821"></label>
-<label>Pickup address<input id="sbPA" value="355 Food Center Dr, Bronx, NY 10474"></label><label>Pickup lat,lon<input id="sbPLL" value="40.8085,-73.8740"></label>
-<label>Drop address<input id="sbDA" value="1 Export St, Newark, NJ 07114"></label><label>Drop lat,lon<input id="sbDLL" value="40.6930,-74.1520"></label>
-<label>Rate $<input id="sbRate" type="number" value="850"></label><label>Commodity<input id="sbComm" value="Fresh produce (reefer)"></label>
-<label>Weight lb<input id="sbWt" type="number" value="38000"></label><label>Notes<input id="sbNotes" value="Check in at gate 3."></label></div>
-<button id="sbSend" style="margin-top:8px">Send load to driver</button> <span id="sbSendMsg"></span><div id="sbLoads"></div></div></section>
+<h3>New load</h3><div class="grid"><label>Driver email or @username<input id="bDriver"></label><label>Ref / PO<input id="bRef" value="PO-55821"></label>
+<label>Commodity<input id="bComm" value="Fresh produce"></label><label>Weight lb<input id="bWt" type="number" value="38000"></label><label>Rate $<input id="bRate" type="number" value="850"></label><label>Notes<input id="bNotes" value="Check in at gate 3."></label>
+<label>Detention free min<input id="bFree" type="number" value="120"></label><label>Detention $/hr<input id="bDetR" type="number" value="50"></label></div>
+<label class="chk"><input type="checkbox" id="bReefer"> Reefer load</label><span id="bReeferF" hidden> set °F <input id="bSet" type="number" value="34" style="width:70px"> min <input id="bMin" type="number" value="32" style="width:70px"> max <input id="bMax" type="number" value="36" style="width:70px"></span>
+<h4>Stops <small class="muted">(appointments in New York time)</small></h4><div id="bStops"></div><p><button id="bAdd" class="ghost">+ Add stop</button> <button id="bOpt" class="ghost">Optimize order</button> <span id="bLen" class="muted"></span></p>
+<button id="bSend">Send load to driver</button> <span id="bMsg"></span>
+<details><summary>★ Address book</summary><div id="bBook"></div></details>
+<h3>Live board <small class="muted" id="bCount"></small></h3><div id="bBoard"></div></div></section>
+<details class="legacy"><summary>Relay pairing console (code / QR, no account)</summary>
 <section><label>Dispatcher name <input id="dName" value="Rocapulco Freight"></label> <button id="newCode">Show pairing code</button> <span id="relays" style="color:#888"></span>
 <div id="codeBox" hidden><p>Driver: open RigRoute → 📋 Loads → enter code, or scan:</p><div class="code" id="code"></div><img id="qr" width="150" height="150" style="background:#fff"><p id="codeExp" style="color:#888"></p></div></section>
 <section><h3>Drivers</h3><div id="drivers">None paired yet.</div></section>
@@ -25,7 +33,7 @@
 <label>Hazmat class (blank = none)<input id="hz"></label><label>UN number<input id="un"></label>
 <label>BOL refs (comma)<input id="bol" value="BOL-77812"></label><label>Notes<input id="notes" value="Check in at gate 3. Keep reefer at 34°F."></label></div>
 <button id="send" style="margin-top:8px">Send load</button> <span id="sendMsg"></span></section>
-<section><h3>Loads & updates</h3><div id="loads"></div></section><section><h3>Raw log</h3><div class="log" id="log"></div></section>
+<section><h3>Loads & updates</h3><div id="loads"></div></section><details><summary>Debug log</summary><div class="log" id="log"></div></details></details>
 <script type="module">
 import { DispatcherConsole, STATUS_LABEL } from './js/dispatch.js'; import { bus, hex, unhex, newSecret, uid } from './js/link.js';
 const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -62,17 +70,12 @@ D.onChange(render); render();
 import * as cloud from './js/cloud.js';
 (async () => { const c = await cloud.sb(); if (!c) { $('#sbSec').hidden = true; return; }
   const show = async () => { const id = await cloud.uid(); $('#sbAuth').hidden = !!id; $('#sbMain').hidden = !id; if (!id) return; const { data: u } = await c.auth.getUser(); const role = await cloud.myRole();
-    $('#sbWho').textContent = u.user.email + ' (' + role + ')'; if (role !== 'dispatcher' && role !== 'admin') $('#sbSendMsg').textContent = '⚠ This account is a ' + role + ' account — sign up a separate dispatcher account to send loads.'; draw(); };
-  const draw = async () => { const L = await cloud.myLoads().catch(() => []); $('#sbLoads').innerHTML = L.map(l => `<div class="drv" data-sload="${l.id}"><b>${esc(l.ref || l.id.slice(0, 8))}</b> · ${esc(l.pickup_address)} → ${esc(l.dropoff_address)} · $${l.rate_usd ?? ''} · <b data-sstate="${l.status}">${esc(cloud.LOAD_LABEL[l.status])}</b> <button data-scancel="${l.id}">${l.status === 'offered' ? 'Withdraw' : 'Delete'}</button></div>`).join('') || '<p style="color:#888">No server loads yet.</p>';
-    document.querySelectorAll('[data-scancel]').forEach(b => b.onclick = async () => { await c.from('loads').delete().eq('id', b.dataset.scancel); draw(); }); };
+    $('#sbWho').textContent = u.user.email + ' (' + role + ')'; if (role !== 'dispatcher' && role !== 'admin') $('#bMsg').textContent = '⚠ This account is a ' + role + ' account — sign up a separate dispatcher account to send loads.'; draw(); };
+  const draw = async () => { if (!window.RRB) (await import('./js/board.js')).start(); else window.RRB.refresh(); };
   const cred = () => ({ email: $('#sbEmail').value.trim(), password: $('#sbPass').value });
   $('#sbIn').onclick = async () => { const { error } = await c.auth.signInWithPassword(cred()); $('#sbMsg').textContent = error ? '⚠ ' + error.message : ''; show(); };
   $('#sbUp').onclick = async () => { const { data, error } = await c.auth.signUp({ ...cred(), options: { data: { role: 'dispatcher', display_name: $('#dName').value }, emailRedirectTo: location.href } }); $('#sbMsg').textContent = error ? '⚠ ' + error.message : data.session ? '' : '✅ Check your email to confirm, then sign in.'; show(); };
   $('#sbOut').onclick = async () => { await c.auth.signOut(); show(); };
-  $('#sbSend').onclick = async () => { try { const f = await c.rpc('find_user', { p_query: $('#sbDriver').value.trim().replace(/^@/, '') }); if (f.error) throw f.error; const d = f.data.find(x => x.role === 'driver') || f.data[0]; if (!d) throw new Error('No RigRoute driver with that email/username');
-    const [pl, pn] = ll($('#sbPLL').value), [dl, dn] = ll($('#sbDLL').value);
-    await cloud.offerLoad({ driver: d.id, ref: $('#sbRef').value, pickup_address: $('#sbPA').value, pickup_lat: pl, pickup_lng: pn, dropoff_address: $('#sbDA').value, dropoff_lat: dl, dropoff_lng: dn, rate_usd: +$('#sbRate').value || null, commodity: $('#sbComm').value, weight_lb: +$('#sbWt').value || null, notes: $('#sbNotes').value });
-    $('#sbSendMsg').textContent = '✅ Sent to ' + (d.display_name || 'driver'); draw(); } catch (e) { $('#sbSendMsg').textContent = '⚠ ' + e.message; } };
-  c.auth.onAuthStateChange(() => setTimeout(show, 0)); await show(); cloud.watchLoads(() => draw());
+  c.auth.onAuthStateChange(() => setTimeout(show, 0)); await show();
 })();
 </script></body></html>

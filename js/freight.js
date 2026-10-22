@@ -1,0 +1,70 @@
+// Driver side of the freight flow: stop-by-stop arrive/depart with timestamps, POD before delivery, live detention,
+// reefer temp log, documents (BOL / lumper / scale) and dispatcher messages — all on the RigRoute server (load_events).
+import * as cloud from './cloud.js';
+import { stopsOf, nextIdx, detention, tempStatus, STAGE_LABEL } from './freightlogic.js';
+let S; const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const TZ = 'America/New_York', hm = t => t ? new Date(t).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) : '', dt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+const mins = m => m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`;
+let events = [], watching = false; const sig = {}, openSec = {};
+const det = h => h.replace(/<div class="small fx-det[^"]*" data-det>[^<]*<\/div>/g, '');
+export async function compress(file, max = 1024, q = 0.6) { const img = await createImageBitmap(file); const k = Math.min(1, max / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', q); }
+const toast = m => S.toast ? S.toast(m) : console.log(m);
+async function refreshEvents() { const ids = (S.cloudLoads || []).filter(l => l.driver && ['accepted', 'in_transit', 'delivered'].includes(l.status)).map(l => l.id); events = await cloud.loadEvents(ids).catch(() => events); }
+function html(l) { const st = stopsOf(l), ni = nextIdx(st), ev = events.filter(e => e.load_id === l.id), me = S.auth?.user?.id;
+  const stops = st.map((s, i) => { const d = detention(s, l.detention), cur = i === ni, late = s.appt && !s.arrived_at && Date.parse(s.appt) < Date.now();
+    return `<li class="fx-stop ${s.departed_at ? 'done' : cur ? 'cur' : ''}" data-stop="${i}"><span class="fx-n">${s.departed_at ? '✓' : i + 1}</span><div><b>${s.kind === 'pickup' ? 'Pickup' : 'Drop'}</b> · ${esc(s.address)}
+      ${s.appt ? `<div class="small ${late ? 'fx-late' : 'muted'}">Appt ${dt(s.appt)}${late ? ' · LATE' : ''}</div>` : ''}
+      ${s.arrived_at ? `<div class="small" data-times>Arrived ${hm(s.arrived_at)}${s.departed_at ? ' · Departed ' + hm(s.departed_at) : ''}</div>` : ''}
+      ${d ? `<div class="small fx-det ${d.billMin ? 'bill' : ''}" data-det>${d.running ? (d.billMin ? `⏱ Detention ${mins(d.billMin)} · $${d.amount.toFixed(2)}` : `⏱ On site ${mins(d.onSiteMin)} · detention starts in ${mins(d.freeLeftMin)}`) : d.billMin ? `Detention ${mins(d.billMin)} · $${d.amount.toFixed(2)}` : `On site ${mins(d.onSiteMin)}`}</div>` : ''}
+      ${s.pod ? `<div class="small">📦 POD: ${esc(s.pod.name)} · ${s.pod.pieces} pcs${s.pod.damage ? ' · ⚠ ' + esc(s.pod.damage) : ''}</div>` : ''}
+      ${cur && l.status !== 'delivered' ? `<div class="row fx-act">${s.lat != null ? `<button class="small-btn" data-fnav="${i}">Navigate</button>` : ''}${!s.arrived_at ? `<button class="primary" data-farr="${i}">I've arrived</button>` : s.kind === 'drop' ? `<button class="primary" data-fpod="${i}">Deliver · proof of delivery</button>` : `<button class="primary" data-fdep="${i}">Loaded · depart</button>`}</div>` : ''}</div></li>`; }).join('');
+  const temps = ev.filter(e => e.kind === 'temp').slice(-5).reverse(), docs = ev.filter(e => e.kind === 'doc'), msgs = ev.filter(e => e.kind === 'message').slice(-20);
+  return `<div class="fx-stage" data-stage>${esc(STAGE_LABEL(l.stage))}</div><ol class="fx-stops">${stops}</ol>
+  ${l.reefer ? `<details class="fx-sec" data-sec="reefer" open><summary>❄️ Reefer · set ${l.reefer.setpoint}°F (${l.reefer.min ?? l.reefer.setpoint - 2}–${l.reefer.max ?? l.reefer.setpoint + 2})</summary><div class="row"><input type="number" step="0.1" inputmode="decimal" placeholder="Box temp °F" data-ftemp><button class="small-btn" data-flogtemp>Log</button></div>
+    ${temps.map(e => `<div class="small fx-t ${tempStatus(e.body.f, l.reefer)}" data-tempr>${hm(e.t)} · ${e.body.f}°F${tempStatus(e.body.f, l.reefer) !== 'ok' ? ' ⚠ out of range' : ''}</div>`).join('') || '<div class="small muted">No readings yet.</div>'}</details>` : ''}
+  <details class="fx-sec" data-sec="docs"><summary>📄 Documents (${docs.length})</summary><div class="row"><select data-fdoct><option value="bol">BOL</option><option value="lumper">Lumper receipt</option><option value="scale">Scale ticket</option><option value="other">Other</option></select><input type="number" step="0.01" placeholder="$ amount" data-fdocamt hidden><label class="small-btn fx-file">📷 Add photo<input type="file" accept="image/*" capture="environment" data-fdoc hidden></label></div>
+    <div class="fx-docs">${docs.map(e => `<figure data-docr="${e.body.type}"><img src="${e.body.data}" alt="${esc(e.body.type)}" loading="lazy"><figcaption>${esc(e.body.type.toUpperCase())}${e.body.amount ? ' $' + e.body.amount : ''} · ${hm(e.t)}</figcaption></figure>`).join('')}</div></details>
+  <details class="fx-sec" data-sec="msgs" ${msgs.length ? 'open' : ''}><summary>💬 Dispatch messages (${msgs.length})</summary><div class="fx-msgs">${msgs.map(e => `<div class="fx-m ${e.actor === me ? 'me' : ''}" data-msg>${esc(e.body.text)}<small>${hm(e.t)}</small></div>`).join('')}</div>
+    <div class="row"><input placeholder="Message dispatch" data-fmsg maxlength="500"><button class="small-btn" data-fsend>Send</button></div><div class="row">${['Running late', 'At the gate', 'Loaded, rolling', 'Need a lumper'].map(q => `<button class="small-btn" data-fq="${q}">${q}</button>`).join('')}</div></details>`; }
+function fill() { for (const el of document.querySelectorAll('[data-fx]')) { if (el.contains(document.activeElement) && document.activeElement.matches('input,select,textarea')) continue; const l = (S.cloudLoads || []).find(x => x.id === el.dataset.fx); if (!l) continue;
+    const h = html(l), k = det(h);
+    if (sig[l.id] === k && el.innerHTML) { const tmp = document.createElement('div'); tmp.innerHTML = h; const nd = tmp.querySelectorAll('[data-det]'), od = el.querySelectorAll('[data-det]'); od.forEach((o, i) => { if (nd[i] && o.textContent !== nd[i].textContent) { o.textContent = nd[i].textContent; o.className = nd[i].className; } }); continue; }
+    sig[l.id] = k; const keep = [...el.querySelectorAll('input:not([type=file]),select')].map(i => [[...i.attributes].find(a => a.name.startsWith('data-'))?.name, i.value, i.hidden]); el.innerHTML = h;
+    for (const [a, v, hid] of keep) { const i = a && el.querySelector(`[${a}]`); if (i && v) { i.value = v; if (i.matches('[data-fdocamt]')) i.hidden = hid; } } el.querySelectorAll('details[data-sec]').forEach(d => { const key = l.id + d.dataset.sec; if (key in openSec) d.open = openSec[key]; d.ontoggle = () => openSec[key] = d.open; }); wire(el, l); } }
+const act = async (fn, okMsg) => { try { await fn(); if (okMsg) toast(okMsg); await S.refreshCloudLoads?.(); await refreshEvents(); fill(); } catch (e) { toast('⚠ ' + e.message); } };
+function wire(el, l) { const st = stopsOf(l);
+  el.querySelectorAll('[data-farr]').forEach(b => b.onclick = () => act(() => cloud.stopEvent(l.id, +b.dataset.farr, 'arrive', S.pos), 'Arrival time sent to dispatch'));
+  el.querySelectorAll('[data-fdep]').forEach(b => b.onclick = () => act(() => cloud.stopEvent(l.id, +b.dataset.fdep, 'depart', S.pos), 'Departure time sent'));
+  el.querySelectorAll('[data-fpod]').forEach(b => b.onclick = () => podSheet(l, +b.dataset.fpod));
+  el.querySelectorAll('[data-fnav]').forEach(b => b.onclick = async () => { const s = st[+b.dataset.fnav]; S.stops = []; document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden')); await S.setDest({ lat: s.lat, lon: s.lng, name: (s.kind === 'pickup' ? 'Pickup: ' : 'Deliver: ') + s.address }); if (S.route) $('#goBtn')?.click(); });
+  const lt = el.querySelector('[data-flogtemp]'); if (lt) lt.onclick = () => { const f = parseFloat(el.querySelector('[data-ftemp]').value); if (isNaN(f) || f < -40 || f > 120) return toast('Enter the box temperature in °F'); act(() => cloud.postEvent(l.id, 'temp', { f, setpoint: l.reefer.setpoint }, S.pos), tempStatus(f, l.reefer) === 'ok' ? 'Temp logged' : '⚠ Out of range — dispatch notified'); };
+  const dtp = el.querySelector('[data-fdoct]'), amt = el.querySelector('[data-fdocamt]'); if (dtp) dtp.onchange = () => amt.hidden = dtp.value !== 'lumper';
+  const df = el.querySelector('[data-fdoc]'); if (df) df.onchange = async () => { const f = df.files[0]; if (!f) return; const type = dtp.value, a = parseFloat(amt.value); if (type === 'lumper' && !(a > 0)) { df.value = ''; return toast('Enter the lumper amount first'); }
+    act(async () => cloud.postEvent(l.id, 'doc', { type, data: await compress(f), ...(type === 'lumper' ? { amount: a } : {}) }, S.pos), type.toUpperCase() + ' uploaded'); };
+  const send = text => text.trim() && act(() => cloud.postEvent(l.id, 'message', { text: text.trim().slice(0, 500) }, S.pos));
+  const sb = el.querySelector('[data-fsend]'); if (sb) sb.onclick = () => { const i = el.querySelector('[data-fmsg]'); send(i.value); i.value = ''; };
+  el.querySelectorAll('[data-fq]').forEach(b => b.onclick = () => send(b.dataset.fq)); }
+// Proof of delivery: photo + signature + receiver name + pieces (+ damage) — the server refuses delivery without them.
+export function podSheet(l, idx) { $('#fxPodSheet')?.remove(); const d = document.createElement('section'); d.id = 'fxPodSheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Proof of delivery');
+  d.innerHTML = `<div class="pod-card"><h2>Proof of delivery</h2><p class="small muted">${esc(stopsOf(l)[idx].address)}</p>
+    <label class="pod-photo">📷 Photo of delivered freight / signed BOL<input type="file" accept="image/*" capture="environment" id="fxPodPhoto"></label><img id="fxPodPrev" hidden alt="">
+    <label>Receiver name<input id="fxPodName" autocomplete="off"></label><label>Pieces delivered<input id="fxPodPcs" type="number" min="0" inputmode="numeric"></label>
+    <div class="pod-sig-h">Receiver signature <button class="small-btn" id="fxPodClr" type="button">Clear</button></div><canvas id="fxPodSig" width="600" height="220"></canvas>
+    <label class="chk"><input type="checkbox" id="fxPodDmg"> Damage / shortage / refused</label><textarea id="fxPodDmgT" placeholder="Describe the damage" hidden maxlength="500"></textarea>
+    <p id="fxPodMsg" class="small"></p><div class="row"><button id="fxPodCancel">Cancel</button><button class="primary" id="fxPodGo" disabled>Submit & mark delivered</button></div></div>`;
+  document.body.appendChild(d); let photo = null, inked = false; const cv = d.querySelector('#fxPodSig'), g = cv.getContext('2d'); g.lineWidth = 4; g.lineCap = 'round'; g.strokeStyle = '#111';
+  const clr = () => { g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); inked = false; check(); };
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; }; let down = false, ink = 0;
+  cv.onpointerdown = e => { down = true; cv.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...pt(e)); }; cv.onpointermove = e => { if (!down) return; g.lineTo(...pt(e)); g.stroke(); if (++ink > 8) { inked = true; check(); } }; cv.onpointerup = () => down = false;
+  const v = () => ({ name: d.querySelector('#fxPodName').value.trim(), pieces: d.querySelector('#fxPodPcs').value, dmg: d.querySelector('#fxPodDmg').checked, dmgT: d.querySelector('#fxPodDmgT').value.trim() });
+  const check = () => { const x = v(), ok = photo && inked && x.name && /^\d+$/.test(x.pieces) && (!x.dmg || x.dmgT); d.querySelector('#fxPodGo').disabled = !ok; d.querySelector('#fxPodMsg').textContent = ok ? '' : `Needs: ${[!photo && 'photo', !inked && 'signature', !x.name && 'name', !/^\d+$/.test(x.pieces) && 'pieces', x.dmg && !x.dmgT && 'damage note'].filter(Boolean).join(', ')}`; };
+  clr(); d.querySelector('#fxPodClr').onclick = clr; d.querySelector('#fxPodCancel').onclick = () => d.remove(); d.querySelectorAll('input,textarea').forEach(i => i.oninput = check);
+  d.querySelector('#fxPodDmg').onchange = () => { d.querySelector('#fxPodDmgT').hidden = !d.querySelector('#fxPodDmg').checked; check(); };
+  d.querySelector('#fxPodPhoto').onchange = async e => { const f = e.target.files[0]; if (!f) return; photo = await compress(f); const p = d.querySelector('#fxPodPrev'); p.src = photo; p.hidden = false; check(); };
+  d.querySelector('#fxPodGo').onclick = async () => { const x = v(); d.querySelector('#fxPodGo').disabled = true; d.querySelector('#fxPodMsg').textContent = 'Sending…';
+    try { await cloud.stopEvent(l.id, idx, 'depart', S.pos, { name: x.name, pieces: +x.pieces, photo, signature: cv.toDataURL('image/png'), damage: x.dmg ? x.dmgT : null }); d.remove(); toast('✅ Delivered — POD sent to dispatch'); try { navigator.vibrate?.(30); } catch {}
+      await S.refreshCloudLoads?.(); await refreshEvents(); fill(); } catch (e) { d.querySelector('#fxPodMsg').textContent = '⚠ ' + e.message; d.querySelector('#fxPodGo').disabled = false; } }; }
+export function start() { S = window.TruckNav; S.freight = { refresh: async () => { await refreshEvents(); fill(); }, podSheet, events: () => events };
+  let lastIds = ''; setInterval(async () => { const ids = (S.cloudLoads || []).map(l => l.id + l.updated_at).join(); if (ids !== lastIds && document.querySelector('[data-fx]')) { lastIds = ids; await refreshEvents(); }
+    if (!watching && S.cloudLoads?.length) { watching = true; cloud.watchEvents(e => { if ((S.cloudLoads || []).some(l => l.id === e.load_id)) { events.push(e); fill(); if (e.kind === 'message' && e.actor !== S.auth?.user?.id) { toast('💬 Dispatch: ' + e.body.text); S.voiceObj?.say('Message from dispatch: ' + e.body.text, 'info'); } } }).catch(() => { watching = false; }); }
+    fill(); }, 1000); }

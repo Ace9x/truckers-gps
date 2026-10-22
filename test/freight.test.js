@@ -1,0 +1,20 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { stopsOf, nextIdx, detention, isLate, boardSort, tempStatus, optimize, routeLen, move, settlement, weekKey } from '../js/freightlogic.js';
+const t = s => new Date(s).toISOString();
+test('legacy load becomes pickup+drop stops', () => { const s = stopsOf({ pickup_address: 'A', pickup_lat: 1, pickup_lng: 2, dropoff_address: 'B', dropoff_lat: 3, dropoff_lng: 4 }); assert.equal(s.length, 2); assert.equal(s[1].kind, 'drop'); assert.equal(nextIdx(s), 0); });
+test('detention: clock from later of arrival/appt, 2h free, billed per 15 min', () => {
+  const st = { appt: t('2026-10-22T14:00:00Z'), arrived_at: t('2026-10-22T13:30:00Z'), departed_at: t('2026-10-22T16:40:00Z') };
+  const d = detention(st, { free_min: 120, rate_hr: 60 }); assert.equal(d.onSiteMin, 190); assert.equal(d.billMin, 40); assert.equal(d.amount, 45); assert.ok(d.early);
+  assert.equal(detention({ arrived_at: t('2026-10-22T13:00:00Z') }, {}, Date.parse('2026-10-22T14:00:00Z')).freeLeftMin, 60); assert.equal(detention({}, {}), null); });
+test('late = appointment passed without arrival; board puts late first, finished last', () => { const now = Date.parse('2026-10-22T15:00:00Z');
+  const late = { id: 'late', status: 'in_transit', stops: [{ kind: 'pickup', appt: t('2026-10-22T14:00:00Z') }, { kind: 'drop' }] }, ok = { id: 'ok', status: 'accepted', stops: [{ kind: 'pickup', appt: t('2026-10-22T18:00:00Z') }, { kind: 'drop' }] }, done = { id: 'done', status: 'delivered' }, off = { id: 'off', status: 'offered' };
+  assert.ok(isLate(late.stops[0], now)); assert.deepEqual(boardSort([done, off, ok, late], now).map(l => l.id), ['late', 'ok', 'off', 'done']); });
+test('reefer temp out of range', () => { const r = { setpoint: 34, min: 32, max: 36 }; assert.equal(tempStatus(34, r), 'ok'); assert.equal(tempStatus(38.5, r), 'high'); assert.equal(tempStatus(30, r), 'low'); assert.equal(tempStatus(31, { setpoint: 34 }), 'low'); });
+test('optimize: shorter, pickups before drops, first stop fixed', () => { const P = (n, lat, lng, kind = 'drop') => ({ address: n, lat, lng, kind });
+  const s = [P('Hunts Pt', 40.81, -73.87, 'pickup'), P('Newark', 40.69, -74.15), P('Bronx', 40.85, -73.88), P('Jersey City', 40.72, -74.05), P('Yonkers pickup', 40.93, -73.89, 'pickup')];
+  const o = optimize(s, { lat: 40.8, lng: -73.9 }); assert.equal(o[0].address, 'Hunts Pt'); assert.equal(o[1].address, 'Yonkers pickup'); assert.ok(routeLen(o) < routeLen(s)); assert.equal(o.length, 5);
+  const m = move(s, 1, 1); assert.equal(m[2].address, 'Newark'); assert.equal(move([{ arrived_at: 'x' }, {}], 1, -1)[0].arrived_at, 'x'); });
+test('weekly settlement: rate + detention + lumper, Monday weeks in New York time', () => { assert.equal(weekKey('2026-10-22T12:00:00Z'), '2026-10-19'); assert.equal(weekKey('2026-10-19T03:00:00Z'), '2026-10-12');
+  const l = { id: 'a', ref: 'PO1', status: 'delivered', rate_usd: '850.00', detention: { free_min: 120, rate_hr: 60 }, stops: [{ kind: 'pickup', arrived_at: t('2026-10-21T13:00:00Z'), departed_at: t('2026-10-21T16:00:00Z') }, { kind: 'drop', arrived_at: t('2026-10-21T19:00:00Z'), departed_at: t('2026-10-21T19:30:00Z') }] };
+  const w = settlement([l, { id: 'b', status: 'in_transit', rate_usd: 500 }], [{ load_id: 'a', body: { type: 'lumper', amount: 120 } }, { load_id: 'a', body: { type: 'bol' } }]);
+  assert.equal(w.length, 1); assert.equal(w[0].linehaul, 850); assert.equal(w[0].detention, 60); assert.equal(w[0].lumper, 120); assert.equal(w[0].total, 1030); assert.deepEqual(w[0].loads[0].docs, ['lumper', 'bol']); });

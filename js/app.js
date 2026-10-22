@@ -691,6 +691,7 @@ $('#layersBtn').onclick = () => openPanel('layersPanel'); map.on('idle', () => {
 function setHud(v) { S.hud = v; $('#hud').classList.toggle('hidden', !v); if (v) { toast('HUD: lay the phone flat under the windshield at night'); updateHud(); } }
 updateHud = function () { if (!S.hud) return; $('#hudArrow').textContent = $('#bArrow').textContent; $('#hudDist').textContent = S.nav ? $('#bDist').textContent : '--'; $('#hudSpeed').textContent = $('#speed').textContent + ' mph'; }
 $('#hudBtn').onclick = () => setHud(true); $('#hudExit').onclick = () => setHud(false); S.setHud = setHud; S.updateHud = () => updateHud();
+S.toast = toast;
 S.setTruck = t => { Object.assign(S.truck, t); fillTruck(); LS.set('truck', S.truck); };
 
 // ---------- Boot (resume after crash/reload) ----------

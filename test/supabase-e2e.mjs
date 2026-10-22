@@ -20,7 +20,7 @@ await p.click('#loadsBtn');
 ok(await wait(id => !!document.querySelector(`[data-cload="${id}"]`), L.id, 20), 'offered load appears in driver Loads inbox'); await p.screenshot({ path: SH + '/2-load-offered.png' });
 await p.click(`[data-cload="${L.id}"] [data-cs="accepted"]`); ok(await wait(id => document.querySelector(`[data-cload="${id}"] [data-state]`)?.textContent === 'Accepted', L.id), 'driver accepted in app');
 const { data: Lx } = await X.from('loads').select('status').eq('id', L.id).single(); ok(Lx.status === 'accepted', 'dispatcher sees accepted');
-await p.click(`[data-cload="${L.id}"] [data-cs="in_transit"]`); await p.waitForTimeout(1500); await p.screenshot({ path: SH + '/3-in-transit.png' });
+await p.click(`[data-cload="${L.id}"] [data-farr="0"]`); await p.waitForTimeout(2500); await p.screenshot({ path: SH + '/3-in-transit.png' });
 ok((await X.from('loads').select('status').eq('id', L.id).single()).data.status === 'in_transit', 'in transit synced');
 // hazard from app -> server -> guest
 const hid = await p.evaluate(async () => { const r = await TruckNav.report('police', [-73.881, 40.817]); return r.id; }); await p.waitForTimeout(1500);

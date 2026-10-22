@@ -62,7 +62,7 @@ export async function init(S, h) {
     S.cloud = cloud; try { await refreshCloudLoads(); unwatch = await cloud.watchLoads(async (row, ev) => { const isNew = ev === 'INSERT' && row.driver === auth.user.id && row.status === 'offered';
       await refreshCloudLoads(); if (isNew) { say(`New load offer: ${row.pickup_address} to ${row.dropoff_address}.`, 'info'); toast('📋 New load offer'); } }); } catch (e) { console.warn('cloud loads', e); }
     refreshCloudFriends(); }
-  async function refreshCloudLoads() { if (!cOn()) return; cLoads = await cloud.myLoads().catch(() => cLoads); const n = cLoads.filter(l => l.driver === auth.user.id && l.status === 'offered').length + (dd?.allLoads().filter(l => l.state === 'offered').length || 0);
+  async function refreshCloudLoads() { if (!cOn()) return; cLoads = await cloud.myLoads().catch(() => cLoads); S.cloudLoads = cLoads; S.refreshCloudLoads ||= async () => { await refreshCloudLoads(); renderLoads(); }; const n = cLoads.filter(l => l.driver === auth.user.id && l.status === 'offered').length + (dd?.allLoads().filter(l => l.state === 'offered').length || 0);
     badge(loadsBtn, n); if (!$('#loadsPanel').classList.contains('hidden')) renderLoads(); }
   async function refreshCloudFriends() { if (!cOn()) return; try { cFr = await cloud.friendsList(); cLocs = await cloud.friendLocations(); cRoutes = await cloud.friendRoutes(); } catch (e) { console.warn('cloud friends', e); }
     badge(friendsBtn, (fr?.requests.length || 0) + cFr.incoming.length); drawCloudFriends(); if (!$('#friendsPanel').classList.contains('hidden')) renderFriends(); }
@@ -81,7 +81,7 @@ export async function init(S, h) {
       <div class="small"><b>Pickup:</b> ${esc(l.pickup_address)}${l.pickup_at ? ' · ' + new Date(l.pickup_at).toLocaleString() : ''}</div><div class="small"><b>Deliver:</b> ${esc(l.dropoff_address)}${l.dropoff_at ? ' · ' + new Date(l.dropoff_at).toLocaleString() : ''}</div>
       <div class="small">${l.rate_usd != null ? '💵 $' + Number(l.rate_usd).toLocaleString() : ''} ${l.commodity ? '· ' + esc(l.commodity) : ''} ${l.weight_lb ? '· ' + l.weight_lb.toLocaleString() + ' lb' : ''}</div>${l.notes ? `<div class="small">📝 ${esc(l.notes)}</div>` : ''}
       <div class="row">${(cloud.LOAD_NEXT[l.status] || []).map(s => `<button class="${s === 'declined' ? '' : 'primary'}" data-cs="${s}">${s === 'accepted' ? 'Accept' : s === 'declined' ? 'Decline' : s === 'in_transit' ? 'Start trip' : 'Mark delivered'}</button>`).join('')}
-      ${['accepted', 'in_transit'].includes(l.status) && l.dropoff_lat != null ? '<button data-cnav>Navigate</button>' : ''}</div></div>`).join('') + '<h3>Relay dispatch (code)</h3>'; }
+</div>${['accepted', 'in_transit', 'delivered'].includes(l.status) ? `<div class="fx" data-fx="${l.id}"></div>` : ''}</div>`).join('') + '<h3>Relay dispatch (code)</h3>'; }
   function wireCloudLoads() { Lp.querySelectorAll('[data-cload]').forEach(card => { const l = cLoads.find(x => x.id === card.dataset.cload);
     card.querySelectorAll('[data-cs]').forEach(b => b.onclick = async () => { try { await cloud.setLoadStatus(l.id, b.dataset.cs); toast('Load ' + cloud.LOAD_LABEL[b.dataset.cs].toLowerCase()); await refreshCloudLoads(); renderLoads(); } catch (e) { toast(e.message); } });
     const nb = card.querySelector('[data-cnav]'); if (nb) nb.onclick = async () => { const pre = l.status === 'accepted' && l.pickup_lat != null; S.stops = pre ? [{ lat: l.pickup_lat, lon: l.pickup_lng, name: 'Pickup: ' + l.pickup_address }] : []; LS.set('stops', S.stops); closePanels();

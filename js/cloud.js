@@ -34,7 +34,7 @@ export async function shareRoute(line, name = 'My route', eta = null) { const c 
 export async function friendRoutes() { const c = await sb(), me = await uid(); if (!me) return []; return must(await c.from('shared_routes').select('owner,name,geometry,eta,updated_at').neq('owner', me).eq('active', true)); }
 
 // ---- loads (dispatcher -> driver contracts)
-export const LOAD_NEXT = { offered: ['accepted', 'declined'], accepted: ['in_transit'], in_transit: ['delivered'] };
+export const LOAD_NEXT = { offered: ['accepted', 'declined'] }; // after accept, the driver works stop by stop (driver_stop_event); delivery needs POD
 export const LOAD_LABEL = { offered: 'Offered', accepted: 'Accepted', declined: 'Declined', in_transit: 'In transit', delivered: 'Delivered', cancelled: 'Cancelled' };
 export async function myLoads() { const c = await sb(), me = await uid(); if (!me) return []; return must(await c.from('loads').select('*').or(`driver.eq.${me},dispatcher.eq.${me}`).order('created_at', { ascending: false }).limit(50)); }
 export async function setLoadStatus(id, status) { const c = await sb(); return must(await c.rpc('driver_update_load', { p_id: id, p_status: status })); }
@@ -51,3 +51,13 @@ export async function joinChannel(channel) { const c = await sb(); if (!(await u
 export async function sendEnvelope(channel, body) { const c = await sb(); must(await c.from('dispatch_messages').insert({ channel, body })); }
 export async function channelHistory(channel, since = 0) { const c = await sb(); return must(await c.from('dispatch_messages').select('body,t,sender').eq('channel', channel).gt('t', new Date(since).toISOString()).order('t')); }
 export async function watchChannel(channel, cb) { const c = await sb(); await c.realtime.setAuth(); const ch = c.channel('dm-' + channel.slice(0, 16)).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dispatch_messages', filter: 'channel=eq.' + channel }, p => cb(p.new.body, p.new)).subscribe(); return () => c.removeChannel(ch); }
+
+// ---- freight flow (supabase/010_freight_flow.sql)
+export async function stopEvent(id, idx, event, pos, pod) { const c = await sb(); return must(await c.rpc('driver_stop_event', { p_id: id, p_idx: idx, p_event: event, p_lat: pos?.lat ?? null, p_lng: pos?.lon ?? pos?.lng ?? null, p_pod: pod || null })); }
+export async function loadEvents(ids) { const c = await sb(); if (!ids.length) return []; return must(await c.from('load_events').select('*').in('load_id', ids).order('t')); }
+export async function postEvent(load_id, kind, body, pos) { const c = await sb(); return must(await c.from('load_events').insert({ load_id, kind, body, lat: pos?.lat ?? null, lng: pos?.lon ?? pos?.lng ?? null }).select().single()); }
+export async function watchEvents(cb) { const c = await sb(); if (!(await uid())) return () => {}; await c.realtime.setAuth(); const ch = c.channel('lev-' + Math.random().toString(36).slice(2, 8)).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'load_events' }, p => cb(p.new)).subscribe(); return () => c.removeChannel(ch); }
+export async function updateLoad(id, patch) { const c = await sb(); return must(await c.from('loads').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).select().single()); }
+export async function addressBook() { const c = await sb(); return must(await c.from('address_book').select('*').order('name')); }
+export async function saveAddress(a) { const c = await sb(); return must(await c.from('address_book').upsert(a).select().single()); }
+export async function deleteAddress(id) { const c = await sb(); must(await c.from('address_book').delete().eq('id', id)); }
