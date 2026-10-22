@@ -7,6 +7,7 @@ import { routeGradient } from './trafficlogic.js';
 import { freshness, ageHTML, receipt, receiptCSV } from './fresh.js';
 import { privacyHTML, wirePrivacy, NOT_ELD } from './privacy.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
+import * as NYCT from './nyctruck.js'; import * as WIZ from './wizard.js'; NYCT.start(); WIZ.start();
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
 
@@ -312,3 +313,6 @@ function hosEta() { const rp = $('#routePanel'); if (!rp || !S.route) return; le
   const c = truckCosting(S.truck || {}); let ts = $('#rpUsed'); if (!ts) { ts = document.createElement('div'); ts.id = 'rpUsed'; ts.className = 'small muted'; $('#rpTruck')?.after(ts); }
   const tx = `Router uses ${c.height} m high · ${c.weight} t · ${c.length} m long · ${c.width} m wide · ${c.axle_count} axles${c.hazmat ? ' · hazmat' : ''}`; if (ts.textContent !== tx) ts.textContent = tx; }
 setInterval(hosEta, 1000);
+// Layout state follows nav end immediately (no 1 s lag hiding the dock after Exit)
+{ const wrap = () => { const pe = S.endNav; if (!pe || pe.__pro) return !!pe; const f = (...a) => { const r = pe(...a); try { state(); } catch {} return r; }; f.__pro = true; S.endNav = f; return true; };
+  if (!wrap()) { const t = setInterval(() => wrap() && clearInterval(t), 300); } }

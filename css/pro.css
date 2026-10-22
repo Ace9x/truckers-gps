@@ -394,3 +394,21 @@ body.moving input[type=search],body.moving input[type=text],body.moving #stopQ,b
 #rpUsed{margin-top:4px!important;font-size:12px}
 /* One-tap / voice only while moving (49 CFR 392.80/392.82): no lists or forms over the map */
 body.moving.st-nav .panel{display:none!important}
+#nycOff{padding:12px;border-radius:12px;background:#facc1514;border:1px solid #facc1540;font:500 13px/1.45 var(--font)}#nycOff b{font-weight:700}
+/* Truck wizard */
+#truckWiz{position:fixed;inset:0;z-index:85;background:#0f141af0;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + var(--safe-b))}
+#truckWiz .wz-card{width:100%;max-width:440px;background:#161c24;color:#f4f6f8;border-radius:20px;padding:20px 20px 16px;font-family:var(--font)}
+.wz-top{display:flex;justify-content:space-between;align-items:center}.wz-step{font:700 12px var(--font);letter-spacing:.14em;text-transform:uppercase;color:var(--rr-mut)}
+.wz-x{width:44px;height:44px;border-radius:50%;border:0;background:#232a33;color:#fff;font-size:16px}
+.wz-dots{display:flex;gap:6px;margin:8px 0 12px}.wz-dots i{flex:1;height:4px;border-radius:2px;background:#2b333f}.wz-dots i.on{background:var(--brand,#ff9500)}
+.wz-truck{width:100%;height:auto;display:block;margin:4px 0 8px}
+#truckWiz h2{font:800 24px/1.2 var(--font);margin:8px 0 4px}.wz-hint{color:var(--rr-mut);font-size:14px;margin:0 0 16px}
+.wz-stepper{display:grid;grid-template-columns:64px 1fr 64px;gap:12px;align-items:center}
+.wz-stepper button{height:64px;border-radius:16px;border:1px solid #3a424d;background:#232a33;color:#fff;font:700 32px var(--font);touch-action:none;user-select:none}
+.wz-stepper output{text-align:center;font:800 36px var(--font);font-variant-numeric:tabular-nums}
+.wz-yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}.wz-yn button{height:64px;border-radius:16px;border:1px solid #3a424d;background:#232a33;color:#fff;font:700 16px var(--font)}.wz-yn button.on{border:2px solid var(--brand,#ff9500);background:#ff95001a}
+.wz-nav{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:20px}.wz-nav button,.wz-saved .wz-next{height:56px;border-radius:14px;font:800 17px var(--font);border:0}
+.wz-back{background:#232a33;color:#fff}.wz-back:disabled{opacity:.4}.wz-next{background:var(--rr-go);color:#111;width:100%}
+.wz-saved{text-align:center}.wz-check{width:72px;height:72px;margin:8px auto 0;display:block}.wz-check path{stroke-dasharray:40;stroke-dashoffset:40;animation:wzDraw .4s ease-out .1s forwards}@keyframes wzDraw{to{stroke-dashoffset:0}}
+.wz-saved p{color:var(--rr-mut);margin:4px 0 20px}
+@media (prefers-reduced-motion:reduce){.wz-check path{animation:none;stroke-dashoffset:0}}
