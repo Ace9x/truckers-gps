@@ -394,9 +394,9 @@ function alertBanner(txt) { const el = document.createElement('div'); el.classNa
 // ---------- Last-mile facility mode ----------
 function lastMile(remaining) {
   const on = remaining < 3 * MI; $('#lastMile').classList.toggle('hidden', !on); if (!on) return;
-  const f = S.facilities[facKey(S.dest)] || {};
-  $('#lmNote').textContent = f.notes ? f.notes.slice(0, 90) : (f.gate ? 'Routing to saved truck entrance.' : 'No notes yet — check the yard on satellite.');
-  if (!S.lmSpoken) { S.lmSpoken = true; say(f.notes ? `Facility notes: ${f.notes.slice(0, 140)}` : 'Approaching destination. Tap Facility to check the yard on satellite.', 'info'); }
+  const f = S.facilities[facKey(S.dest)] || {}, notes = S.jobs?.facSummary(f, S.facShared || []) || f.notes;
+  $('#lmNote').textContent = notes ? notes.slice(0, 120) : (f.gate ? 'Routing to saved truck entrance.' : 'No notes yet — check the yard on satellite.');
+  if (!S.lmSpoken) { S.lmSpoken = true; say(notes ? `Facility notes: ${notes.slice(0, 160)}` : 'Approaching destination. Tap Facility to check the yard on satellite.', 'info'); }
 }
 $('#lmOpen').onclick = () => openFac(); $('#facBtn').onclick = () => openFac();
 function openFac() { if (!S.dest) return; const f = S.facilities[facKey(S.dest)] || {}; $('#facName').textContent = S.dest.name; $('#facNotes').value = f.notes || '';
@@ -478,7 +478,7 @@ async function loadPois(quiet) {
   if (S.nav && !S.showerSaid && S.pois.some(p => p.amen?.showers)) { S.showerSaid = true; nextAmenity('showers'); }
 }
 $('#poiBtn').onclick = () => loadPois();
-function amenConfirmHTML(p) { if (!['stop', 'rest', 'parking', 'fuel'].includes(p.kind)) return ''; return `${p.kind === 'fuel' || p.kind === 'stop' ? `<div class="vote"><button onclick="TruckNav.reportPrice('${esc(p.id)}')">💲 Report diesel price</button></div>` : ''}<div class="vote">${['showers', 'restrooms', 'food'].map(k => `<button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',true)">👍 ${k}</button><button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',false)">👎</button>`).join('')}</div>`; }
+function amenConfirmHTML(p) { if (!['stop', 'rest', 'parking', 'fuel'].includes(p.kind)) return ''; return `${p.kind !== 'fuel' ? `<div class="pk" data-pk="${esc(p.id)}" data-pkname="${esc(p.name)}" data-pkll="${p.lat},${p.lon}"></div>` : ''}${p.kind === 'fuel' || p.kind === 'stop' ? `<div class="vote"><button onclick="TruckNav.reportPrice('${esc(p.id)}')">💲 Report diesel price</button></div>` : ''}<div class="vote">${['showers', 'restrooms', 'food'].map(k => `<button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',true)">👍 ${k}</button><button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',false)">👎</button>`).join('')}</div>`; }
 S.refreshPois = () => { if (S.route && S.lastPoiRaw) showPois(S.lastPoiRaw, S.lastPoiNote); };
 S.confirmAmenity = async (id, key, val) => { const c = LS.get('amenConf', {}); (c[id] ||= {})[key] = val; LS.set('amenConf', c); const p = S.pois.find(x => String(x.id) === String(id));
   try { await backend.addReport({ id: crypto.randomUUID?.() || String(Math.random()).slice(2), type: 'amenity', poi: id, key, val, lat: p?.lat, lon: p?.lon, t: Date.now(), up: 0, down: 0, mine: true }); } catch {}

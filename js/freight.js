@@ -13,7 +13,7 @@ async function refreshEvents() { const ids = (S.cloudLoads || []).filter(l => l.
 function html(l) { const st = stopsOf(l), ni = nextIdx(st), ev = events.filter(e => e.load_id === l.id), me = S.auth?.user?.id;
   const stops = st.map((s, i) => { const d = detention(s, l.detention), cur = i === ni, late = s.appt && !s.arrived_at && Date.parse(s.appt) < Date.now();
     return `<li class="fx-stop ${s.departed_at ? 'done' : cur ? 'cur' : ''}" data-stop="${i}"><span class="fx-n">${s.departed_at ? '✓' : i + 1}</span><div><b>${s.kind === 'pickup' ? 'Pickup' : 'Drop'}</b> · ${esc(s.address)}
-      ${s.appt ? `<div class="small ${late ? 'fx-late' : 'muted'}">Appt ${dt(s.appt)}${late ? ' · LATE' : ''}</div>` : ''}
+      ${s.notes ? `<div class="small fx-notes" data-snotes>📝 ${esc(s.notes)}</div>` : ''}${s.appt ? `<div class="small ${late ? 'fx-late' : 'muted'}">Appt ${dt(s.appt)}${late ? ' · LATE' : ''}</div>` : ''}
       ${s.arrived_at ? `<div class="small" data-times>Arrived ${hm(s.arrived_at)}${s.departed_at ? ' · Departed ' + hm(s.departed_at) : ''}</div>` : ''}
       ${d ? `<div class="small fx-det ${d.billMin ? 'bill' : ''}" data-det>${d.running ? (d.billMin ? `⏱ Detention ${mins(d.billMin)} · $${d.amount.toFixed(2)}` : `⏱ On site ${mins(d.onSiteMin)} · detention starts in ${mins(d.freeLeftMin)}`) : d.billMin ? `Detention ${mins(d.billMin)} · $${d.amount.toFixed(2)}` : `On site ${mins(d.onSiteMin)}`}</div>` : ''}
       ${s.pod ? `<div class="small">📦 POD: ${esc(s.pod.name)} · ${s.pod.pieces} pcs${s.pod.damage ? ' · ⚠ ' + esc(s.pod.damage) : ''}</div>` : ''}

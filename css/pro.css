@@ -427,3 +427,12 @@ body.moving.st-nav .panel{display:none!important}
 .pod-photo{border:2px dashed #3a424d;border-radius:14px;padding:14px;text-align:center;cursor:pointer}#fxPodPrev{max-height:160px;object-fit:contain;border-radius:10px}
 #fxPodSig{width:100%;height:auto;aspect-ratio:600/220;background:#fff;border-radius:12px;touch-action:none}.pod-sig-h{display:flex;justify-content:space-between;align-items:center;font-size:13px}
 .pod-card .row button{flex:1;min-height:56px}#fxPodGo{background:var(--rr-go);color:#111;font-weight:800}#fxPodGo:disabled{opacity:.4}
+/* Driver tools: parking, HOS parking, facility, pay, creds */
+.pk{margin:6px 0;color:#222}.pk-open{color:#15803d}.pk-some{color:#b45309}.pk-full{color:#b91c1c}.pk-btns button{min-height:36px}
+.hos-park{padding:12px;border-radius:12px;background:#ff95001a;border:1px solid #ff950066;font-size:14px;line-height:1.4;display:flex;flex-direction:column;gap:6px}.hos-park button{align-self:flex-start;min-height:44px}
+#facMore{display:flex;flex-direction:column;gap:8px;margin-top:8px}#facMore .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}#facMore input,#facMore select{min-height:44px}.fac-o{background:#ffffff0a;border-radius:10px;padding:8px;margin:4px 0}
+.pay-wk{background:#ffffff08;border-radius:12px;padding:8px 12px;margin:6px 0}.pay-wk summary{display:flex;justify-content:space-between;align-items:center;min-height:40px;cursor:pointer}.pay-tot{font:800 20px var(--font);color:#4ade80}
+.pay-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff10}.pay-load{padding:4px 0}.pay-miss{color:#facc15}
+.cred{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0}.cred input{min-height:44px}.cred-expired{color:#ff6b6b;font-weight:700}.cred-week,.cred-urgent{color:#ff9500;font-weight:700}.cred-soon{color:#facc15}
+.cred-banner{position:fixed;left:12px;right:12px;bottom:calc(var(--safe-b,0px) + 104px);z-index:60;background:#161c24;border:2px solid currentColor;border-radius:14px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:700}
+.cred-banner button{min-height:44px;min-width:64px;border-radius:10px}

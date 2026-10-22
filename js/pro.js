@@ -7,7 +7,7 @@ import { routeGradient } from './trafficlogic.js';
 import { freshness, ageHTML, receipt, receiptCSV } from './fresh.js';
 import { privacyHTML, wirePrivacy, NOT_ELD } from './privacy.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
-import * as NYCT from './nyctruck.js'; import * as WIZ from './wizard.js'; import * as FX from './freight.js'; NYCT.start(); WIZ.start(); FX.start();
+import * as NYCT from './nyctruck.js'; import * as WIZ from './wizard.js'; import * as FX from './freight.js'; import * as JOBS from './jobs.js'; NYCT.start(); WIZ.start(); FX.start(); JOBS.start();
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
 

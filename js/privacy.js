@@ -18,6 +18,9 @@ export async function locGate(start) {
 }
 // What leaves the device, and where. Used by Me > Privacy and privacy.html.
 export const DATA_MAP = [
+  { item: 'Parking reports (open / some / full) and shared facility notes', where: 'Your RigRoute account; readable by other drivers (parking also by guests)', sync: true },
+  { item: 'Loads, stop times, POD photos, documents, messages', where: 'Your RigRoute account; visible only to you and the dispatcher on that load', sync: true },
+  { item: 'CDL / med card expiry dates', where: 'This phone only', sync: false },
   { item: 'Truck profile, name, points', where: 'Your RigRoute account (Supabase) when signed in; otherwise this phone only', sync: true },
   { item: 'Hazard reports and votes you make', where: 'Public to other drivers (Supabase + Nostr relays), with a random driver key', sync: true },
   { item: 'Anonymous traffic speeds', where: 'Nostr relays, only if "Share my speed" is on', sync: 'opt-in' },
@@ -29,7 +32,8 @@ export function exportAll() { const out = { exported: new Date().toISOString(), 
   for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k.startsWith('tn_')) continue; if (/sk$|devkey|hzsk|tfsk/.test(k)) { out.data[k] = '(private key — not exported)'; continue; }
     const v = localStorage.getItem(k); try { out.data[k] = JSON.parse(v); } catch { out.data[k] = v; } }
   return out; }
-export async function deleteAll() { try { await window.TruckNav?.auth?.signOut?.(); } catch {}
+export async function deleteAll() { try { const S = window.TruckNav, me = S?.auth?.user; if (me?.method === 'supabase') { const c = await (await import('./cloud.js')).sb(); await c.from('parking_reports').delete().eq('reporter', me.id); await c.from('facility_notes').delete().eq('author', me.id); } } catch {}
+  try { await window.TruckNav?.auth?.signOut?.(); } catch {}
   for (const k of Object.keys(localStorage)) if (k.startsWith('tn_') || k.startsWith('sb-')) localStorage.removeItem(k);
   try { for (const k of await caches.keys()) if (/^tn-|tiles/.test(k)) await caches.delete(k); } catch {}
   try { for (const db of (await indexedDB.databases?.()) || []) if (db.name) indexedDB.deleteDatabase(db.name); } catch {} }
