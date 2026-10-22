@@ -206,3 +206,9 @@ test('parkway ban: NY/CT parkways flagged, Garden State and ordinary roads not',
   assert.equal(parkwayBan(['Garden State Parkway']), null); assert.equal(parkwayBan(['I 278', 'Bruckner Expressway']), null); assert.equal(parkwayBan(['Bay Parkway']), null);
   const d = dangersAhead([{ along: 500, way_id: 1, names: ['Henry Hudson Parkway'], length: 300 }], {}, { heightM: 4.1, weightT: 36, lengthM: 21, hazmat: false });
   assert.equal(d[0].kind, 'parkway'); assert.equal(d[0].sev, 'stop'); });
+import { hazmatTunnel as _ht, dangersAhead as _da2 } from '../js/safety.js';
+test('hazmat tunnel bans: Holland/Lincoln/QM/Carey flagged only when hauling hazmat', () => {
+  assert.equal(_ht(['Lincoln Tunnel']), 'Lincoln Tunnel'); assert.equal(_ht(['Brooklyn Battery Tunnel']), 'Brooklyn Battery Tunnel'); assert.equal(_ht(['Midtown Tunnel']), null);
+  const edges = [{ way_id: 1, along: 900, names: ['Holland Tunnel'], tunnel: true }];
+  assert.ok(_da2(edges, {}, { heightM: 4.1, weightT: 36, lengthM: 21, hazmat: true }).some(d => d.kind === 'hazmat' && d.sev === 'stop' && /Holland Tunnel/.test(d.text)));
+  assert.ok(!_da2(edges, {}, { heightM: 4.1, weightT: 36, lengthM: 21, hazmat: false }).some(d => d.kind === 'hazmat')); });

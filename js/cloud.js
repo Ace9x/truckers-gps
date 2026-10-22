@@ -61,3 +61,4 @@ export async function updateLoad(id, patch) { const c = await sb(); return must(
 export async function addressBook() { const c = await sb(); return must(await c.from('address_book').select('*').order('name')); }
 export async function saveAddress(a) { const c = await sb(); return must(await c.from('address_book').upsert(a).select().single()); }
 export async function deleteAddress(id) { const c = await sb(); must(await c.from('address_book').delete().eq('id', id)); }
+export async function stopUndo(id) { const c = await sb(); return must(await c.rpc('driver_stop_undo', { p_id: id })); }

@@ -35,6 +35,7 @@ export function dangersAhead(edges, tags, truck) {
     if (L && L < truck.lengthM) push(e, 'length', 'stop', `Length limit ${Math.round(L / FT)} feet ahead. Your rig is ${Math.round(truck.lengthM / FT)} feet. Rerouting.`, `Length limit ${Math.round(L / FT)} ft`);
     if (truck.hazmat && (t.hazmat === 'no' || t['hazmat:water'] === 'no' || (e.tunnel && /^[BCDE]$/.test(t['hazmat:adr_tunnel_cat'] || t.tunnel_category || '')))) push(e, 'hazmat', 'stop', 'Hazmat restriction ahead. Rerouting.', 'No hazmat');
     if (t.hgv === 'no') push(e, 'notrucks', 'stop', 'No trucks road ahead. Rerouting.', 'No trucks');
+    const ht = truck.hazmat && hazmatTunnel(e.names || [], t); if (ht) push(e, 'hazmat', 'stop', `Hazmat is banned in the ${ht}. Rerouting.`, `No hazmat: ${ht}`);
     const pk = parkwayBan(e.names || [], t); if (pk) push(e, 'parkway', 'stop', `Trucks are banned on the ${pk}. Rerouting.`, `No trucks: ${pk.replace(/ Parkway$/, ' Pkwy')}`);
     if (e.tunnel) push(e, 'tunnel', h ? 'warn' : 'info', `Tunnel ahead${h ? ', clearance ' + ftIn(h) : ''}.`, `Tunnel${h ? ' ' + ftInShort(h) : ''}`);
     const down = Math.abs(e.max_downward_grade || 0), up = e.max_upward_grade || 0, len = e.length || 0, incl = parseFloat(t.incline);
@@ -84,3 +85,8 @@ export function wzdxToZones(feed, now = Date.now()) {
 export const BANNED_PARKWAYS = ['Belt', 'Grand Central', 'Hutchinson River', 'Henry Hudson', 'Cross Island', 'Jackie Robinson', 'Interborough', 'Bronx River', 'Saw Mill River', 'Sprain Brook', 'Taconic State', 'Taconic', 'Southern State', 'Northern State', 'Meadowbrook State', 'Meadowbrook', 'Wantagh State', 'Wantagh', 'Sagtikos State', 'Sagtikos', 'Sunken Meadow State', 'Loop', 'Ocean', 'Laurelton', 'Shore', 'Leif Ericson', 'Mosholu', 'Pelham', 'Pelham Parkway', 'Palisades Interstate', 'Bear Mountain State', 'Merritt'];
 const PK_RE = new RegExp(`\\b(${BANNED_PARKWAYS.map(x => x.replace(/ /g, '\\s+')).join('|')})\\s+(State\\s+)?(Parkway|Pkwy)\\b`, 'i');
 export function parkwayBan(names, tags = {}) { for (const n of [...names, tags.name || '']) { const m = PK_RE.exec(n || ''); if (m && !/Garden State/i.test(n)) return n.replace(/\bPkwy\b/i, 'Parkway'); } return null; }
+
+// Tunnels where placarded hazmat is banned outright (port-authority / state rules), even where OSM lacks hazmat tags.
+export const HAZMAT_TUNNELS = ['Holland Tunnel', 'Lincoln Tunnel', 'Queens-Midtown Tunnel', 'Queens Midtown Tunnel', 'Hugh L. Carey Tunnel', 'Brooklyn-Battery Tunnel', 'Baltimore Harbor Tunnel', 'Fort McHenry Tunnel', 'Ted Williams Tunnel', 'Thomas P. O\'Neill Jr. Tunnel', 'Sumner Tunnel', 'Callahan Tunnel'];
+const HT_RE = new RegExp(HAZMAT_TUNNELS.map(x => x.replace(/[.'-]/g, m => m === '-' ? '[- ]' : '\\' + m).replace(/ /g, '\\s+')).join('|'), 'i');
+export function hazmatTunnel(names, tags = {}) { for (const n of [...names, tags.name || '', tags['tunnel:name'] || '']) { const m = HT_RE.exec(n || ''); if (m) return m[0]; } return null; }

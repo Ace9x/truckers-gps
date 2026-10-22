@@ -16,12 +16,13 @@ function ui() { const lp = $('#layersPanel'); if (!lp || $('#nycTruckChk')) retu
   const c = $('#nycTruckChk'); c.checked = localStorage.getItem(LSK) === '1'; c.onchange = () => { localStorage.setItem(LSK, c.checked ? '1' : '0'); if (c.checked) load().then(() => layer(true)); else layer(false); }; }
 // Plan-time: the route sheet says if (and where) the route leaves designated truck routes inside NYC
 let lastRoute = null;
-async function planCheck() { const r = S.route; if (!r || r === lastRoute) return; const line = r.line; if (!line?.some(p => inNYC(p[0], p[1]))) { lastRoute = r; S.nycOff = []; render(); return; }
+async function planCheck() { const r = S.route; if (!r || r === lastRoute) return; const line = r.line; S.nycIn = !!line?.some(p => inNYC(p[0], p[1])); if (!S.nycIn) { lastRoute = r; S.nycOff = []; render(); return; }
   await load(); lastRoute = r; S.nycOff = offTruckRoute(ix, line, r.cum); render(); }
-function render() { const rp = $('#routePanel'); if (!rp) return; let n = $('#nycOff'); const off = S.nycOff || [];
-  if (!off.length) { n?.remove(); return; } if (!n) { n = document.createElement('div'); n.id = 'nycOff'; n.setAttribute('role', 'note'); ($('#hosEta') || $('#alts'))?.before(n); }
-  const mi = off.reduce((a, o) => a + o.len, 0) / 1609.34, near = nearestRoute(ix, off[0].at[0], off[0].at[1], 400);
-  n.innerHTML = `⚠ <b>Leaves NYC truck routes for ${mi.toFixed(1)} mi</b>${near ? ` near ${near.name}` : ''}. NYC tickets trucks off designated routes except to reach your stop.`; }
+function render() { const rp = $('#routePanel'); if (!rp) return; let n = $('#nycOff'); const off = S.nycOff || [], long = S.nycIn && (+S.truck?.lengthFt || 0) > 55;
+  if (!off.length && !long) { n?.remove(); return; } if (!n) { n = document.createElement('div'); n.id = 'nycOff'; n.setAttribute('role', 'note'); ($('#hosEta') || $('#alts'))?.before(n); }
+  const mi = off.reduce((a, o) => a + o.len, 0) / 1609.34, near = off.length ? nearestRoute(ix, off[0].at[0], off[0].at[1], 400) : null;
+  n.innerHTML = (off.length ? `⚠ <b>Leaves NYC truck routes for ${mi.toFixed(1)} mi</b>${near ? ` near ${near.name}` : ''}. NYC tickets trucks off designated routes except to reach your stop.` : '')
+    + (long ? `<div data-nyc53>📏 <b>${S.truck.lengthFt} ft rig in NYC:</b> 53′ trailers and rigs over 55 ft may only use the interstate network in the city — a NYC DOT oversize permit is needed to leave it.</div>` : ''); }
 // Live: off a designated route for ~150 m inside NYC, not within 0.5 mi of start/destination -> voice + haptic, at most every 2 min
 let offCount = 0, lastWarn = 0;
 function live() { const p = S.pos; if (!S.nav || !p || !inNYC(p.lon, p.lat) || !ix) { offCount = 0; return; }
