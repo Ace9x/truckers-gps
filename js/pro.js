@@ -4,7 +4,8 @@ import { ICONS } from './iconset.js';
 import { HZ } from './hazlogic.js';
 import { railItems, distLabel } from './rail.js';
 import { routeGradient } from './trafficlogic.js';
-import { freshness, ageHTML, receipt } from './fresh.js';
+import { freshness, ageHTML, receipt, receiptCSV } from './fresh.js';
+import { privacyHTML, wirePrivacy, NOT_ELD } from './privacy.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
@@ -212,28 +213,51 @@ function tripWatch() {
 setInterval(tripWatch, 250);
 const esc2 = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function showReceipt(t, end = Date.now()) {
-  const r = receipt({ start: t.start, end, drivenMi: t.miles, plannedByState: t.ifta, via: t.via, stops: t.stops, dest: t.dest, reports: Math.max(0, (S.hz?.list || []).filter(x => x.mine).length - (t.reports0 || 0)), tolls: t.tolls });
-  S.lastReceipt = r; const max = Math.max(1, ...r.states.map(s => s.mi)), fmt = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const tk = S.truck || {}; const r = t.saved || receipt({ id: t.id, unit: tk.unit || '', odoStart: tk.odometer ?? null, start: t.start, end, drivenMi: t.miles, plannedByState: t.ifta, via: t.via, stops: t.stops, dest: t.dest, reports: Math.max(0, (S.hz?.list || []).filter(x => x.mine).length - (t.reports0 || 0)), tolls: t.tolls });
+  S.lastReceipt = r; if (!t.saved) saveTrip(r); const max = Math.max(1, ...r.states.map(s => s.mi)), fmt = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const show = () => { $('#tripReceipt')?.remove(); const el = document.createElement('section'); el.id = 'tripReceipt'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Trip receipt');
     el.innerHTML = `<div class="trc-paper"><header><span class="trc-tag">TRIP RECEIPT</span><span class="trc-st ${t.arrived ? 'ok' : ''}">${t.arrived ? '✓ Arrived' : 'Trip ended'}</span></header>
-      <div class="trc-dest">${esc2(r.dest)}</div><div class="trc-time">${new Date(r.start).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${fmt(r.start)} – ${fmt(r.end)}</div>
+      <div class="trc-id">Receipt <b>${esc2(r.id)}</b>${r.unit ? ` · Unit <b>${esc2(r.unit)}</b>` : ""}</div><div class="trc-dest">${esc2(r.dest)}</div><div class="trc-time">${new Date(r.start).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${fmt(r.start)} – ${fmt(r.end)}</div>
       <div class="trc-big"><div><b>${r.miles.toFixed(1)}</b><i>miles</i></div><div><b>${r.dur}</b><i>drive time</i></div><div><b>${r.avgMph}</b><i>avg mph</i></div></div>
       <h4>Miles by state <small>IFTA estimate</small></h4>${r.states.length ? r.states.map(s => `<div class="trc-bar"><span>${esc2(s.st)}</span><i style="--w:${Math.round(s.mi / max * 100)}%"></i><b>${s.mi.toFixed(1)}</b></div>`).join('') : '<p class="trc-none">State split unavailable for this trip</p>'}
       <h4>Route taken</h4><p class="trc-via">${esc2(r.via)}</p>
       ${r.stops.length ? `<h4>Stops</h4><ol class="trc-stops">${r.stops.map(s => `<li>${esc2(s)}</li>`).join('')}</ol>` : ''}
+      <div class="trc-odo"><label>Unit # <input id="trcUnit" value="${esc2(r.unit)}" inputmode="text" maxlength="20"></label><label>Odometer start <input id="trcOdo" value="${r.odoStart ?? ""}" inputmode="decimal" maxlength="9"></label><span>End <b id="trcOdoEnd">${r.odoEnd ?? "—"}</b></span></div>
       <div class="trc-meta"><span>Toll miles <b>${r.tolls}</b></span><span>Reports you made <b>${r.reports}</b></span></div>
-      <div class="trc-tear"></div><div class="trc-btns"><button id="trcCsv">Download CSV</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
+      <div class="trc-tear"></div><div class="trc-btns"><button id="trcCsv">CSV</button><button id="trcPdf">PDF</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
     document.body.appendChild(el);
     // Calm arrival moment (app_polish_ideas §10): one short buzz, stats count up over 600 ms, gentle HOS reminder. No confetti.
     if (t.arrived) try { navigator.vibrate?.(30); } catch {}
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) el.querySelectorAll('.trc-big b').forEach(b => { const fin = b.textContent, n = parseFloat(fin); if (!(n > 0) || /h/.test(fin)) return; const dec = /\./.test(fin) ? 1 : 0, t0 = performance.now();
       const step = now => { const k = Math.min(1, (now - t0) / 600); b.textContent = (n * (1 - Math.pow(1 - k, 3))).toFixed(dec); if (k < 1) requestAnimationFrame(step); else b.textContent = fin; }; requestAnimationFrame(step); });
     if (t.arrived) el.querySelector('.trc-meta').insertAdjacentHTML('afterend', '<p class="trc-hos">Log your hours — update your duty status in the HOS clock.</p>');
-    $('#trcCsv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([`trip,${new Date(r.start).toISOString()},${new Date(r.end).toISOString()},${r.miles}\n${r.csv}\n`], { type: 'text/csv' })); a.download = `rigroute-trip-${new Date(r.start).toISOString().slice(0, 10)}.csv`; a.click(); };
+    const upd = () => { r.unit = $('#trcUnit').value.trim(); const o = $('#trcOdo').value.trim(); r.odoStart = o === '' ? null : +o; r.odoEnd = r.odoStart != null && !isNaN(r.odoStart) ? Math.round((r.odoStart + r.miles) * 10) / 10 : null; $('#trcOdoEnd').textContent = r.odoEnd ?? '—'; saveTrip(r);
+      if (S.truck) { S.truck.unit = r.unit; if (r.odoEnd != null) S.truck.odometer = r.odoEnd; try { localStorage.setItem('tn_truck', JSON.stringify(S.truck)); } catch {} } };
+    $('#trcUnit').onchange = upd; $('#trcOdo').onchange = upd;
+    $('#trcCsv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([receiptCSV(r)], { type: 'text/csv' })); a.download = `rigroute-${r.id}.csv`; a.click(); };
+    $('#trcPdf').onclick = () => { document.body.classList.add('print-receipt'); window.print(); setTimeout(() => document.body.classList.remove('print-receipt'), 500); };
     $('#trcDone').onclick = () => el.remove(); };
   // Safety: never pop a sheet while the truck is moving — wait until parked (<3 mph)
   const wait = () => ((S.speed ?? S.pos?.speed ?? 0) * 2.237 < 3 ? show() : setTimeout(wait, 3000)); wait(); }
 S.showReceipt = showReceipt;
+// Saved trips (device only): newest first, max 200
+function saveTrip(r) { const L = LS.get('trips', []).filter(x => x.id !== r.id); L.unshift(r); LS.set('trips', L.slice(0, 200)); }
+S.trips = () => LS.get('trips', []);
+
+// ---- Me > Trips and Me > Privacy; not-an-ELD notices ----
+function mePrivacy() { const me = $('#mePanel'); if (!me) return;
+  let tr = $('#meTrips'); if (!tr) { tr = document.createElement('div'); tr.id = 'meTrips'; me.appendChild(tr); }
+  const trips = S.trips(), key = trips.map(x => x.id + x.unit + x.odoStart).join('|');
+  if (tr.dataset.k !== key) { tr.dataset.k = key; tr.innerHTML = `<h3>Trips</h3>` + (trips.length ? `<ul class="trip-list">${trips.slice(0, 30).map(x => `<li><button data-trip="${esc2(x.id)}"><b>${esc2(x.dest)}</b><small>${new Date(x.start).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${x.miles.toFixed(1)} mi · ${esc2(x.id)}</small></button></li>`).join('')}</ul>` : '<p class="small muted">Finished trips appear here with a receipt you can export.</p>');
+    tr.querySelectorAll('[data-trip]').forEach(b => b.onclick = () => { const x = S.trips().find(y => y.id === b.dataset.trip); if (x) showReceipt({ saved: x, arrived: true }); }); }
+  if (!$('#mePriv')) { const d = document.createElement('div'); d.id = 'mePriv'; d.innerHTML = privacyHTML(); me.appendChild(d); wirePrivacy(d); } }
+setInterval(mePrivacy, 1000);
+function eldNotes() { const hp = $('#hosPanel .warnnote'); if (hp && !hp.dataset.v) { hp.dataset.v = 1; hp.innerHTML = '⚠ <b>Not a certified ELD</b> — this is a helper, not a legal log. Use your carrier\'s ELD for compliance.'; }
+  const rp = $('#routePanel'); if (rp && S.route && !LS.get('firstRouteNote', false) && !$('#eldRoute')) { const n = document.createElement('div'); n.id = 'eldRoute'; n.className = 'eld-note'; n.setAttribute('role', 'note');
+    n.innerHTML = `<span>⚠ ${NOT_ELD}</span><button class="textlink" id="eldOk">Got it</button>`; ($('#alts') || rp.lastChild).before(n); $('#eldOk').onclick = () => { LS.set('firstRouteNote', true); n.remove(); }; } }
+setInterval(eldNotes, 700);
+// Locate button also (re)starts GPS if the driver skipped the location screen
+document.addEventListener('click', e => { if (e.target.closest('#followBtn, #nsRecenter') && !S.pos) S.startGPS?.(); }, true);
 
 // ---- Round 4: route sheet polish (design_playbook.md RigRoute audit 1-5; design-system README checklist) ----
 // One job per element: truck profile shown once (#rpTruck), compact 2-line route cards, one traffic note, collapsed empty Stops.

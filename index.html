@@ -12,7 +12,13 @@
 <meta name="description" content="RigRoute GPS — free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops, HOS clock.">
 <title>RigRoute GPS – Truck GPS for drivers</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="icons/icon-192.png" type="image/png">
+<meta property="og:type" content="website"><meta property="og:site_name" content="RigRoute GPS"><meta property="og:title" content="RigRoute GPS — free truck-safe navigation">
+<meta property="og:description" content="Truck routing by height, weight, length and hazmat, voice turn-by-turn, live hazards and IFTA miles. Free, no account needed.">
+<meta property="og:url" content="https://ace9x.github.io/truckers-gps/"><meta property="og:image" content="https://ace9x.github.io/truckers-gps/icons/og-image.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="RigRoute GPS logo and tagline">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://ace9x.github.io/truckers-gps/icons/og-image.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
@@ -225,6 +231,7 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
 </section>
 <div id="hud" class="hidden" aria-hidden="true"><div id="hudArrow">↑</div><div id="hudDist">--</div><div id="hudSpeed">--</div><button id="hudExit">Exit HUD</button></div>
 <div id="toast" class="hidden"></div>
+<noscript><div style="position:fixed;inset:0;z-index:200;background:#0f141a;color:#fff;font:16px/1.5 system-ui;padding:32px">RigRoute GPS needs JavaScript to show the map and navigate. Please enable JavaScript, or open this page in Chrome or Safari. <a style="color:#38bdf8" href="privacy.html">Privacy</a></div></noscript>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script type="module" src="js/app.js"></script>
 <script type="module" src="js/pro.js"></script>

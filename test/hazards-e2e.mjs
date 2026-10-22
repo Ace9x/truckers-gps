@@ -32,6 +32,11 @@ await A.screenshot({ path: `${SHOTS}/02-driver-A-filed.png` });
 const got = await B.waitForFunction(ids => ids.every(x => TruckNav.hz.visible().some(r => r.id === x.id)), aIds, { timeout: N * 1000, polling: 250 }).then(() => true).catch(() => false);
 ok(got, `driver B (1.7 km south) received all 3 over the relays within ${((Date.now() - ts) / 1000).toFixed(1)} s of A's first tap (limit ${N} s)`);
 await B.evaluate(() => { const m = TruckNav.map; m.jumpTo({ center: [TruckNav.pos.lon, TruckNav.pos.lat + 0.008], zoom: 14.3 }); });
+await B.clock.runFor(3000); await B.waitForTimeout(600);
+const heldB = await B.evaluate(ids => ({ held: ids.every(x => TruckNav.hz.isHeld(TruckNav.hz.byId.get(x.id))), alert: TruckNav.hzAhead?.length || 0, unconf: [...document.querySelectorAll('.hz-pin.held')].length }), aIds);
+ok(heldB.held && heldB.alert === 0 && heldB.unconf >= 1, `new driver A's reports are held on B (pins marked unconfirmed: ${heldB.unconf}, no alert) until someone confirms`);
+// another driver confirms (vote from a different key, as it arrives over the relays) -> released
+await B.evaluate(ids => { for (const x of ids) { const r = TruckNav.hz.byId.get(x.id); r.ups = ['confirmer-key']; r.up = 1; } }, aIds);
 await B.clock.runFor(6000); await B.waitForTimeout(800);
 const bv = await B.evaluate(() => ({ pins: [...document.querySelectorAll('.hz-pin')].map(e => e.dataset.hz), calls: [...document.querySelectorAll('.hz-pin .hz-call')].filter(e => e.style.display !== 'none').map(e => e.textContent), ahead: TruckNav.hzAhead, alert: TruckNav.hzLastAlert, banner: document.querySelector('#hzBanner')?.textContent || TruckNav.hzLastBanner /* banner auto-dismisses after 8 s */ }));
 ok(types.every(t => bv.pins.includes(t)), `B's map shows pins: ${bv.pins.join(', ')}`);

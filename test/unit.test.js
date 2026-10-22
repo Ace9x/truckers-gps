@@ -183,12 +183,20 @@ test('restriction rail: nearest 3 restrictions/scales ahead with values', () => 
   const it = railItems({ along: 1000, dangers: [{ kind: 'height', sev: 'warn', along: 20000, short: `Tight clearance 13'8"` }, { kind: 'weight', sev: 'stop', along: 5000, short: 'Weight limit 40k lb' }, { kind: 'curve', along: 3000 }, { kind: 'height', along: 500, short: `Low bridge 11'0"` }],
     pois: [{ kind: 'weigh', along: 80000, name: 'I-95 scale' }, { kind: 'fuel', along: 2000 }] });
   assert.deepEqual(it.map(x => x.kind), ['weight', 'height', 'weigh']); assert.equal(it[0].value, '40k'); assert.equal(it[1].value, `13'8"`); assert.equal(distLabel(it[0].dist), '2 mi'); });
-import { freshness, receipt } from '../js/fresh.js';
+import { freshness, receipt, receiptCSV } from '../js/fresh.js';
 test('freshness labels: just now / min ago, stale after threshold', () => { const n = 1e12;
   assert.deepEqual(freshness(n - 20e3, n), { text: 'just now', stale: false }); assert.deepEqual(freshness(n - 12 * 60e3, n, 10), { text: '12 min ago', stale: true }); assert.equal(freshness(0, n).stale, true); });
 test('trip receipt scales planned state split to driven miles', () => {
   const r = receipt({ start: 0, end: 125 * 60e3, drivenMi: 50, plannedByState: { NY: 30, NJ: 70 } });
-  assert.equal(r.dur, '2h 05m'); assert.deepEqual(r.states, [{ st: 'NJ', mi: 35 }, { st: 'NY', mi: 15 }]); assert.equal(r.avgMph, 24); assert.match(r.csv, /NJ,35/); });
+  assert.equal(r.dur, '2h 05m'); assert.deepEqual(r.states, [{ st: 'NJ', mi: 35 }, { st: 'NY', mi: 15 }]); assert.equal(r.avgMph, 24); const c = receiptCSV({ ...r, unit: 'T-12' }); assert.match(c, /NJ,35.0/); assert.match(c, /TOTAL,50/); });
+test('receipt: state miles always sum to the total; id, unit, odometer', () => {
+  const r = receipt({ start: 1.7e12, end: 1.7e12 + 3600e3, drivenMi: 10, plannedByState: { NY: 1, NJ: 1, CT: 1 }, unit: '42', odoStart: 120000 });
+  assert.equal(r.states.reduce((a, b) => a + Math.round(b.mi * 10), 0), 100); assert.match(r.id, /^RR-\d{8}-[0-9A-Z]{4}$/); assert.equal(r.odoEnd, 120010); assert.equal(r.unit, '42');
+  assert.deepEqual(receipt({ start: 0, end: 1, drivenMi: 3.2 }).states, [{ st: 'Unknown', mi: 3.2 }]); });
 import { smoothBearing } from '../js/logic.js';
 test('camera bearing turns gradually along the shortest arc', () => {
   assert.equal(smoothBearing(null, 90), 90); const b = smoothBearing(350, 10); assert.ok(b > 350 || b < 10, 'wraps through north'); assert.ok(Math.abs(smoothBearing(0, 180) - 25) < 1e-9 || Math.abs(smoothBearing(0, 180) - 335) < 1e-9, 'max 25° per fix'); assert.equal(smoothBearing(45, null), 45); });
+import { tooFar, held, MAX_REPORT_M } from '../js/hazlogic.js';
+test('hazard abuse: >2 km from reporter rejected; new reporters held until confirmed', () => {
+  assert.equal(MAX_REPORT_M, 2000); assert.equal(tooFar({ lat: 40.70, lon: -74, rlat: 40.71, rlon: -74 }), false); assert.equal(tooFar({ lat: 40.70, lon: -74, rlat: 40.73, rlon: -74 }), true); assert.equal(tooFar({ lat: 40.7, lon: -74 }), true);
+  const t = new Set(); assert.equal(held({ by: 'x', up: 0 }, t), true); assert.equal(held({ by: 'x', up: 1 }, t), false); t.add('x'); assert.equal(held({ by: 'x', up: 0 }, t), false); assert.equal(held({ by: 'y', mine: true }, new Set()), false); });

@@ -201,6 +201,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     if (S.nav && S.off && !S.off.isOff()) $('#offGuide').classList.add('hidden');
     if (S.nav && !online() && S.off?.isOff()) offlineGuide();
     fast = mph > 10 ? fast + 1 : 0;
+    if (!S.nav && S.drive) setDrive(false); // nav ended internally (arrival): never leave drive mode stuck hiding the dock
     if (S.nav && fast >= 2 && !S.drive && !S.driveDismissedAt) setDrive(true);
     if (S.drive) renderDrive(mph); };
   function setDrive(v) { S.drive = v; document.body.classList.toggle('driving', v); $('#drive').classList.toggle('hidden', !v); if (!v) $('#dRep').classList.add('hidden');

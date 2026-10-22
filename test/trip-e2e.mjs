@@ -18,6 +18,15 @@ ok(r.shown && r.r && r.r.miles > 0 && Math.abs(r.r.miles - routeMi) / routeMi < 
 ok(r.r && r.r.states.length >= 1 && r.r.states.every(s => s.mi > 0), 'miles by state from the real route: ' + JSON.stringify(r.r?.states));
 ok(/Arrived/.test(r.text) && !/undefined|NaN|Invalid Date/.test(r.text), 'receipt text clean, marked Arrived');
 ok(r.vib.some(v => v === 30), 'single short arrival buzz');
+ok(/^RR-\d{8}-/.test(r.r?.id || '') && /Receipt RR-/.test(r.text), 'receipt has an ID: ' + r.r?.id);
+await p.fill('#trcUnit', 'T-12'); await p.fill('#trcOdo', '100000'); await p.press('#trcOdo', 'Tab');
+const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#trcCsv')]); const csv = await (await import('node:fs')).promises.readFile(await dl.path(), 'utf8');
+const tot = +csv.match(/total_miles,([\d.]+)/)[1], sum = +csv.match(/TOTAL,([\d.]+)/)[1];
+ok(/unit,T-12/.test(csv) && /odometer_end,1000\d\d?\.?\d?/.test(csv) && Math.abs(tot - sum) < 1e-9, `CSV has unit, odometer, and state miles add up (${sum} = ${tot})`);
+ok(await T(() => TruckNav.trips().length === 1 && TruckNav.trips()[0].unit === 'T-12'), 'trip saved to the trip list with unit');
 await p.click('#trcDone'); ok(!(await T(() => !!document.querySelector('#tripReceipt'))), 'Done closes the receipt');
+await p.click('#meBtn'); await p.waitForSelector('#meTrips [data-trip]', { timeout: 5000 }).catch(() => {}); await p.click('#meTrips [data-trip]'); await p.waitForSelector('#tripReceipt', { timeout: 5000 }).catch(() => {});
+ok(/T-12/.test(await p.textContent('#tripReceipt').catch(() => '')), 'Me > Trips reopens the saved receipt');
+ok(await T(() => !document.body.classList.contains('driving')), 'drive mode exits after arrival (dock visible again)');
 ok(!errs.length, 'no page errors ' + errs.slice(0, 2).join(' | '));
 await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASS'); process.exit(fail ? 1 : 0);

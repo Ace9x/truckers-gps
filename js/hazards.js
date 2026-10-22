@@ -1,7 +1,7 @@
 // Live shared hazard reports: one-tap UI, Waze-style pins/callouts, approaching alerts,
 // shared in real time over free public Nostr relays (geohash-tagged), MQTT public broker fallback.
 import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
-import { HZ, HZ_ORDER, alive, opacity, ingest, applyVote, RateLimiter, geohash, ghNeighbors, AREA_P, ahead, alertText, dist } from './hazlogic.js';
+import { HZ, HZ_ORDER, alive, opacity, ingest, applyVote, RateLimiter, geohash, ghNeighbors, AREA_P, ahead, alertText, dist, tooFar, held, MAX_REPORT_M, FLAG_REASONS } from './hazlogic.js';
 import { snapToRoute } from './logic.js';
 
 export const RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom'];
@@ -15,7 +15,7 @@ export const CHAN = IS_TEST ? TAG + '-test' : TAG; // automated tests publish on
 export class LiveHazards {
   constructor({ onChange = () => {}, onStatus = () => {}, relays = RELAYS } = {}) {
     let sk; try { sk = new Uint8Array(JSON.parse(localStorage.getItem('tn_hzsk'))); if (sk.length !== 32) throw 0; } catch { sk = generateSecretKey(); localStorage.setItem('tn_hzsk', JSON.stringify([...sk])); }
-    this.sk = sk; this.me = null; this.list = []; this.byId = new Map(); this.pendingVotes = []; this.seen = new Set();
+    this.sk = sk; this.me = null; this.list = []; this.byId = new Map(); this.pendingVotes = []; this.seen = new Set(); this.trusted = new Set();
     this.mine = new RateLimiter(); this.theirs = new RateLimiter({ perType: 30e3, windowMs: 600e3, maxInWindow: 10 });
     this.onChange = onChange; this.onStatus = onStatus; this.cells = []; this.relays = []; this.status = 'connecting';
     this.urls = relays; relays.forEach(u => this._open(u));
@@ -48,27 +48,31 @@ export class LiveHazards {
     if (!c.v || !!c.test !== IS_TEST) return; // automated-test reports never show to real drivers (and untagged legacy test reports are ignored)
     const t = Math.min(ev.created_at * 1000, Date.now() + 60e3);
     if (c.a === 'r') { if (ev.pubkey !== this.me && !this.theirs.allow(ev.pubkey, c.type, t)) return;
-      const rep = { id: ev.id, type: c.type, lat: +c.lat, lon: +c.lon, hd: c.hd ?? null, t, by: ev.pubkey, mine: ev.pubkey === this.me };
+      const rep = { id: ev.id, type: c.type, lat: +c.lat, lon: +c.lon, hd: c.hd ?? null, t, by: ev.pubkey, mine: ev.pubkey === this.me, rlat: c.rlat == null ? null : +c.rlat, rlon: c.rlon == null ? null : +c.rlon };
+      if (tooFar(rep)) return; // filed >2 km from the reporter (or no reporter position): rejected
       const res = ingest(this.list, rep); if (res.added) this.byId.set(rep.id, this.list.find(x => x.id === rep.id)); if (res.merged) this.byId.set(rep.id, res.merged);
       this.pendingVotes = this.pendingVotes.filter(v => { const r = this.byId.get(v.rid); if (r) applyVote(r, v); return !r; });
       if (!res.dropped) this.onChange(); }
-    else if (c.a === 'v') { const v = { rid: c.rid, dir: c.dir === 'down' ? 'down' : 'up', by: ev.pubkey, t }; const r = this.byId.get(c.rid);
+    else if (c.a === 'v') { if (ev.pubkey !== this.me && !this.theirs.allow(ev.pubkey, 'vote', t)) return; const v = { rid: c.rid, dir: c.dir === 'down' ? 'down' : 'up', reason: FLAG_REASONS[c.reason] ? c.reason : null, by: ev.pubkey, t }; const r = this.byId.get(c.rid);
       if (r) { applyVote(r, v); this.onChange(); } else this.pendingVotes.push(v); } }
   // ---------- outbound ----------
-  report(type, lat, lon, hd = null) { const h = HZ[type]; if (!h) return { error: 'type' };
+  report(type, lat, lon, hd = null, from = null) { const h = HZ[type]; if (!h) return { error: 'type' };
+    if (!from || !isFinite(from.lat)) return { nofix: true }; if (dist(from, { lat, lon }) > MAX_REPORT_M) return { far: true };
     const now = Date.now(), near = this.list.find(x => x.type === type && alive(x, now) && dist(x, { lat, lon }) <= h.r);
     if (near) { if (!near.mine) this.vote(near, 'up'); return { dup: near }; }   // dedupe: same thing already reported → confirm it instead
     if (!this.mine.allow('me', type, now)) return { limited: true };
-    const ev = this._sign({ a: 'r', type, lat: +lat.toFixed(6), lon: +lon.toFixed(6), hd: hd == null ? null : Math.round(hd) }, lat, lon, Math.floor((now + h.ttl * 3) / 1000));
+    const ev = this._sign({ a: 'r', type, lat: +lat.toFixed(6), lon: +lon.toFixed(6), hd: hd == null ? null : Math.round(hd), rlat: +from.lat.toFixed(5), rlon: +from.lon.toFixed(5) }, lat, lon, Math.floor((now + h.ttl * 3) / 1000));
     const rep = { id: ev.id, type, lat, lon, hd, t: now, by: ev.pubkey, mine: true }; ingest(this.list, rep); this.byId.set(rep.id, this.list.find(x => x.id === rep.id));
     const sent = this._send(ev); this.onChange(); return { rep: this.byId.get(rep.id), sent }; }
-  vote(r, dir) { if (r.mine) return; const ev = this._sign({ a: 'v', rid: r.id, dir }, r.lat, r.lon, Math.floor((expiresAtSafe(r) + 86400e3) / 1000));
+  vote(r, dir, reason = null) { if (r.mine) return; if (!this.mine.allow('me', 'vote', Date.now())) return { limited: true }; const ev = this._sign({ a: 'v', rid: r.id, dir, ...(dir === 'down' && reason ? { reason } : {}) }, r.lat, r.lon, Math.floor((expiresAtSafe(r) + 86400e3) / 1000));
     applyVote(r, { by: ev.pubkey, dir, t: Date.now() }); this._send(ev); this.onChange(); }
-  visible(now = Date.now()) { return this.list.filter(r => alive(r, now)); }
+  visible(now = Date.now()) { const L = this.list.filter(r => alive(r, now)); for (const r of L) if (r.up > 0) this.trusted.add(r.by); return L; }
+  isHeld(r) { return held(r, this.trusted); }
 }
 const expiresAtSafe = r => (r.t || Date.now()) + (HZ[r.type]?.ttl || 0) * 3;
 
 // ---------- UI ----------
+const REASON_OPTS = Object.entries(FLAG_REASONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
 export function init(S, { $, map, say, toast, report: legacyReport, openPanel, closePanels, esc }) {
   const ago = ms => ms < 60e3 ? 'just now' : ms < 3600e3 ? `${Math.round(ms / 60e3)} min ago` : ms < 86400e3 ? `${Math.round(ms / 3600e3)} h ago` : `${Math.round(ms / 86400e3)} d ago`;
   const css = document.createElement('style'); css.textContent = `
@@ -102,12 +106,12 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
       if (!m) { const el = document.createElement('div'); el.className = `hz-pin ${color(r.type)}`; el.dataset.hz = r.type; el.dataset.id = r.id;
         el.innerHTML = `<div class="bub"></div><i>${h.icon}</i><div class="hz-call"></div>`;
         const pop = new maplibregl.Popup({ offset: 30 }); pop.on('open', () => { const box = document.createElement('div');
-          box.innerHTML = `<b style="color:#111;font-size:15px">${h.icon} ${h.label}</b><br><span style="color:#333">${ago(Date.now() - r.t)} · 👍 ${r.up || 0} · 👎 ${r.down || 0}</span>` + (r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up" style="min-height:44px">👍 Still there</button><button data-v="down" style="min-height:44px">👎 Not there</button></div>');
-          box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v); pop.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — 2 "not there" votes remove it'); });
+          box.innerHTML = `<b style="color:#111;font-size:15px">${h.icon} ${h.label}</b><br><span style="color:#333">${ago(Date.now() - r.t)} · 👍 ${r.up || 0} · 👎 ${r.down || 0}</span>` + (r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up" style="min-height:44px">👍 Still there</button><button data-v="down" style="min-height:44px">👎 Not there</button><label style="display:block;color:#333;font-size:13px;margin-top:6px">Reason for "not there" <select class="hz-reason" style="min-height:40px;font-size:15px;width:100%">' + REASON_OPTS + '</select></label></div>');
+          box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v, box.querySelector('.hz-reason')?.value || 'gone'); pop.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — 2 "not there" votes remove it'); });
           pop.setDOMContent(box); });
         m = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([r.lon, r.lat]).setPopup(pop).addTo(map); markers.set(r.id, m); }
       const el = m.getElement(); el.style.opacity = opacity(r, now); el.dataset.op = opacity(r, now);
-      const call = el.querySelector('.hz-call'); call.textContent = `${h.label} · ${ago(now - (r.lastUp || r.t))}`; call.style.display = d < 3000 ? '' : 'none';
+      const call = el.querySelector('.hz-call'); call.textContent = `${h.label} · ${hz.isHeld(r) ? 'unconfirmed' : ago(now - (r.lastUp || r.t))}`; el.classList.toggle('held', hz.isHeld(r)); call.style.display = d < 3000 ? '' : 'none';
       el.style.display = S.layers?.reports === false ? 'none' : ''; }
     for (const [id, m] of markers) if (!keep.has(id)) { m.remove(); markers.delete(id); }
     checkAhead(); }
@@ -117,11 +121,11 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
     // UX P9: approach-triggered, two equal 76 px answers, auto-dismiss after 8 s (progress bar), spoken at the same time.
     banner.innerHTML = `<div class="hzb-top"><b>${HZ[r.type].icon}</b><div class="t">${HZ[r.type].label} ahead<div class="d">${(d / 1609.34).toFixed(1)} mi · reported ${ago(Date.now() - r.t)} · 👍 ${r.up || 0}</div></div></div>` +
       (r.mine ? '' : '<div class="hzb-btns"><button data-v="up" aria-label="Thanks, still there">Thanks</button><button data-v="down" aria-label="Not there">Not there</button></div>') + '<i class="hzb-bar"></i>';
-    banner.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v); banner.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — marked not there'); });
+    banner.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v, 'gone'); banner.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — marked not there'); });
     document.body.appendChild(banner); S.hzLastBanner = banner.textContent; const bb = banner; setTimeout(() => bb.remove(), 8000); }
   function checkAhead() { const p = S.pos; if (!p) return;
     const route = S.nav && S.route ? { line: S.route.line, cum: S.route.cum, along: S.along || 0 } : null;
-    const list = ahead(hz.visible(), { pos: p, heading: p.heading, route, snap: snapToRoute }).filter(x => !x.r.mine);
+    const list = ahead(hz.visible().filter(r => !hz.isHeld(r)), { pos: p, heading: p.heading, route, snap: snapToRoute }).filter(x => !x.r.mine);
     S.hzAhead = list.map(x => ({ id: x.r.id, type: x.r.type, d: Math.round(x.d) }));
     for (const { r, d } of list) { const w = warned.get(r.id) || 0, stage = d < 500 ? 2 : 1; if (w >= stage) continue; warned.set(r.id, stage);
       showBanner(r, d); const txt = alertText(r, d); S.hzLastAlert = txt; say(txt, 'hazard', true); break; } }
@@ -137,8 +141,10 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
     const mic = sheet.querySelector('#hzMic'); if (mic) mic.onclick = listen; }
   function closeSheet() { sheet?.remove(); sheet = null; }
   function file(type, quiet) { closeSheet(); const p = S.pos || here(), [lon, lat] = S.nav && S.reportPoint ? S.reportPoint() : [p.lon, p.lat];
-    const res = hz.report(type, lat, lon, S.pos?.heading ?? null), h = HZ[type];
-    if (res.limited) toast('Easy, driver — you just reported that. Try again in a minute.');
+    const res = hz.report(type, lat, lon, S.pos?.heading ?? null, S.pos ? { lat: S.pos.lat, lon: S.pos.lon } : null), h = HZ[type];
+    if (res.nofix) toast('Waiting for GPS — reports need your real position');
+    else if (res.far) toast('Reports must be within 2 km of where you are');
+    else if (res.limited) toast('Easy, driver — you just reported that. Try again in a minute.');
     else if (res.dup) toast(res.dup.mine ? `You already reported this ${h.label.toLowerCase()}` : `${h.label} was already reported here — added your 👍`);
     else { toast(`${h.icon} ${h.label} reported — shared with drivers nearby`); if (!quiet) say(`${h.say} reported. Thanks, driver.`, 'report');
       if (!h.avoid) S.award?.(10, `${h.label} report`); if (h.avoid && legacyReport) legacyReport(type, [lon, lat]).catch?.(() => {}); }

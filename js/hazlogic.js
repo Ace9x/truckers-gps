@@ -78,3 +78,10 @@ export function ahead(list, { pos, heading, route, snap, now = Date.now(), maxM 
 }
 export function spokenDist(m) { const mi = m / 1609.34; if (mi >= 0.9) return `${Math.round(mi * 2) / 2 === 1 ? '1 mile' : Math.round(mi * 2) / 2 + ' miles'}`; if (mi >= 0.2) return `${(Math.round(mi * 4) / 4).toString().replace(/^0/, '')} mile`.replace('.25 mile', 'a quarter mile').replace('.5 mile', 'half a mile').replace('.75 mile', 'three quarters of a mile'); return `${Math.round(m * 3.281 / 50) * 50} feet`; }
 export function alertText(r, m) { return `${HZ[r.type].say} reported ahead in ${spokenDist(m)}`; }
+
+// ---- Abuse checks (trust review) ----
+export const MAX_REPORT_M = 2000; // a report must be filed within 2 km of where the reporter actually is
+export function tooFar(rep) { return rep.rlat == null || rep.rlon == null || !isFinite(rep.rlat) || !isFinite(rep.rlon) || dist(rep, { lat: rep.rlat, lon: rep.rlon }) > MAX_REPORT_M; }
+// New reporters (no report of theirs ever confirmed by someone else) are held: shown as "unconfirmed", never alerted, until another driver confirms.
+export function held(r, trusted) { return !r.mine && !(r.up > 0) && !trusted.has(r.by); }
+export const FLAG_REASONS = { gone: 'Not there anymore', wrong: 'Wrong location', dup: 'Duplicate', abuse: 'Spam or abusive' };

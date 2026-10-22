@@ -1,3 +1,4 @@
+import { locGate } from './privacy.js';
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
   hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
@@ -702,7 +703,7 @@ drawAvoids(); renderDock(); S.lastLevel = profile.level.index;
 const na = LS.get('navActive', null);
 if (na && S.route && Date.now() - na.t < 12 * H) { S.resumed = true; setTimeout(() => startNav(true), 300); toast('Resumed your navigation'); }
 loadOverlays();
-startGPS();
+S.startGPS = startGPS; locGate(startGPS); // explain why before the browser's location prompt
 makeBackend().then(async b => { backend = b; S.backend = b; const u = await b.session().catch(() => null); if (u) profile.p.uid = u.id;
   const bb = S.pos ? [S.pos.lon - 3, S.pos.lat - 3, S.pos.lon + 3, S.pos.lat + 3] : null; S.reports = await b.listReports(bb).catch(() => []); S.reports.forEach(r => { if (u && r.user_id === u.id) r.mine = true; }); drawReports(); S.backendReady = true;
   b.subscribe?.((ev, r) => { if (!r) return; const i = S.reports.findIndex(x => x.id === r.id); if (r.mine = !!(S.auth?.user && r.user_id === S.auth.user.id), i >= 0) S.reports[i] = { ...S.reports[i], ...r, mine: S.reports[i].mine || r.mine }; else S.reports.push(r); drawReports(); }); });

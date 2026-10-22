@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Privacy — RigRoute GPS</title>
+<meta name="description" content="What RigRoute GPS collects, what leaves your phone, and the services it uses.">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="css/tokens.css">
+<style>body{margin:0;background:#0f141a;color:#e9edf2;font:16px/1.6 Inter,system-ui,sans-serif}main{max-width:720px;margin:0 auto;padding:32px 16px 64px}h1{font-size:32px;line-height:1.2}h2{font-size:20px;margin-top:32px}a{color:#38bdf8}table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid #2a313b;padding:8px;text-align:left;vertical-align:top}small{color:#a3a9b3}</style></head>
+<body><main>
+<h1>Privacy at RigRoute GPS</h1><p><small>Last updated October 22, 2026</small></p>
+<p>RigRoute is a free truck navigation web app. It works without an account. We don't sell data and there are no ads or trackers.</p>
+<h2>Your location</h2><p>Used on your phone to show your position, plan truck-safe routes and warn you about hazards ahead. Your position is not stored on our servers. It leaves your phone only in these cases:</p>
+<ul><li>Route requests (start, stops, destination and your truck's size) go to <b>Valhalla</b> routing servers run by the OpenStreetMap community (valhalla1.openstreetmap.de).</li>
+<li>Searches go to <b>Photon</b> (photon.komoot.io), an OpenStreetMap geocoder.</li>
+<li>Truck stops, weigh stations and restrictions along your route are looked up from <b>Overpass</b> (OpenStreetMap) using the route area.</li>
+<li>If you turn on <b>Share my speed</b>, anonymous speed samples are published to <b>Nostr</b> relays under a random key.</li>
+<li>If you share with friends, your live position goes only to friends you approved, only while sharing is on.</li></ul>
+<h2>What syncs and what stays on your phone</h2>
+<table><tr><th>Data</th><th>Where it goes</th></tr>
+<tr><td>Truck profile, display name, points</td><td>Your RigRoute account (Supabase) if you sign in; otherwise this phone only</td></tr>
+<tr><td>Hazard reports and votes</td><td>Public to other drivers via Supabase and Nostr relays, signed with a random driver key, not your name</td></tr>
+<tr><td>Loads</td><td>Only the dispatcher you paired with</td></tr>
+<tr><td>Routes, stops, trips and receipts, HOS log, facility notes, settings</td><td>This phone only</td></tr></table>
+<h2>Map and traffic data</h2><p>Map tiles come from <b>OpenFreeMap</b>. Traffic speeds come from <b>NYC DOT</b> open data. These requests reveal the map area you view, like any map website.</p>
+<h2>Export or delete</h2><p>In the app, open <b>Me &gt; Privacy</b>. <b>Export my data</b> downloads everything stored on your phone as JSON. <b>Delete all data</b> erases it and signs you out. Hazard reports already sent to public relays can't be recalled. To delete your cloud account, sign in and use Delete all, then contact us on GitHub and we will delete the server profile.</p>
+<h2>Safety notice</h2><p>RigRoute is <b>not a certified ELD</b>. Truck restrictions come from OpenStreetMap and may be incomplete. Always obey posted signs.</p>
+<h2>Contact</h2><p><a href="https://github.com/Ace9x/truckers-gps/issues">github.com/Ace9x/truckers-gps/issues</a></p>
+<p><a href="./">← Back to RigRoute</a></p></main></body></html>
