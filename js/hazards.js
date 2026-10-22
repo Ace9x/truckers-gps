@@ -118,7 +118,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
     banner.innerHTML = `<div class="hzb-top"><b>${HZ[r.type].icon}</b><div class="t">${HZ[r.type].label} ahead<div class="d">${(d / 1609.34).toFixed(1)} mi · reported ${ago(Date.now() - r.t)} · 👍 ${r.up || 0}</div></div></div>` +
       (r.mine ? '' : '<div class="hzb-btns"><button data-v="up" aria-label="Thanks, still there">Thanks</button><button data-v="down" aria-label="Not there">Not there</button></div>') + '<i class="hzb-bar"></i>';
     banner.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v); banner.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — marked not there'); });
-    document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), 8000); }
+    document.body.appendChild(banner); S.hzLastBanner = banner.textContent; const bb = banner; setTimeout(() => bb.remove(), 8000); }
   function checkAhead() { const p = S.pos; if (!p) return;
     const route = S.nav && S.route ? { line: S.route.line, cum: S.route.cum, along: S.along || 0 } : null;
     const list = ahead(hz.visible(), { pos: p, heading: p.heading, route, snap: snapToRoute }).filter(x => !x.r.mine);

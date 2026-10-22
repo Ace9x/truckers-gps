@@ -33,7 +33,7 @@ const got = await B.waitForFunction(ids => ids.every(x => TruckNav.hz.visible().
 ok(got, `driver B (1.7 km south) received all 3 over the relays within ${((Date.now() - ts) / 1000).toFixed(1)} s of A's first tap (limit ${N} s)`);
 await B.evaluate(() => { const m = TruckNav.map; m.jumpTo({ center: [TruckNav.pos.lon, TruckNav.pos.lat + 0.008], zoom: 14.3 }); });
 await B.clock.runFor(6000); await B.waitForTimeout(800);
-const bv = await B.evaluate(() => ({ pins: [...document.querySelectorAll('.hz-pin')].map(e => e.dataset.hz), calls: [...document.querySelectorAll('.hz-pin .hz-call')].filter(e => e.style.display !== 'none').map(e => e.textContent), ahead: TruckNav.hzAhead, alert: TruckNav.hzLastAlert, banner: document.querySelector('#hzBanner')?.textContent }));
+const bv = await B.evaluate(() => ({ pins: [...document.querySelectorAll('.hz-pin')].map(e => e.dataset.hz), calls: [...document.querySelectorAll('.hz-pin .hz-call')].filter(e => e.style.display !== 'none').map(e => e.textContent), ahead: TruckNav.hzAhead, alert: TruckNav.hzLastAlert, banner: document.querySelector('#hzBanner')?.textContent || TruckNav.hzLastBanner /* banner auto-dismisses after 8 s */ }));
 ok(types.every(t => bv.pins.includes(t)), `B's map shows pins: ${bv.pins.join(', ')}`);
 ok(bv.calls.length >= 3, `B sees callouts: ${bv.calls.join(' | ')}`);
 ok(/reported ahead in/.test(bv.alert || '') && bv.banner, `B gets approaching alert: voice "${bv.alert}", banner "${bv.banner}"`);
