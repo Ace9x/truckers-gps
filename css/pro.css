@@ -242,3 +242,4 @@ html body #hzBanner .hzb-btns button[data-v=up]{background:var(--ok,#2e7d32);bor
 #restrictRail .s-stop{border-color:var(--bad,#d32f2f);background:#fff5f5}#restrictRail .s-warn{border-color:#f5a524;background:#fffbea}
 /* Drive mode (offline.js #drive, at speed) already has its own 4-button bar: never show two Report/Mute rows */
 body.driving #navStack{display:none!important}
+#acGoogle[hidden]{display:none!important}

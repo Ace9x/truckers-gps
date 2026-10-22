@@ -40,6 +40,7 @@ export class DeviceAuth {
 }
 
 // Supabase email+password (project ace-platform). Activated automatically when config.js is filled in. Uses the shared client from cloud.js.
+export const OAUTH_REDIRECT = 'https://ace9x.github.io/truckers-gps/';
 export class SupabaseAuth {
   constructor(cfg) { this.kind = 'supabase'; this.cfg = cfg; this.cbs = []; this.user = null; this.local = new DeviceAuth(); }
   async init() { const { sb } = await import('./cloud.js'); this.sb = await sb(); if (!this.sb) throw new Error('no supabase');
@@ -56,6 +57,9 @@ export class SupabaseAuth {
     await this.sb.from('profiles').update({ display_name: name || null, username: username.trim().toLowerCase() || null, truck: truck || {} }).eq('id', data.user.id); await this._from(data.session); return this.user; }
   async signIn({ email, password }) { const { data, error } = await this.sb.auth.signInWithPassword({ email: email.trim(), password }); if (error) { if (error.code === 'email_not_confirmed' || error.message === 'Email not confirmed') return { pending: 'confirm', email: email.trim() }; throw new Error(error.message); } await this._from(data.session); return this.user; }
   async resendConfirmation(email) { const { error } = await this.sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.href.split('?')[0] } }); if (error) throw new Error(error.code === 'over_email_send_rate_limit' ? 'Please wait a minute before asking for another email' : error.message); }
+  // Google sign-in. Shown only when the provider is enabled, checked like queens-cab cloud.js: GET /auth/v1/settings -> external.google
+  async providers() { if (this._prov) return this._prov; try { const r = await fetch(this.cfg.url + '/auth/v1/settings', { headers: { apikey: this.cfg.anonKey } }); const j = await r.json(); this._prov = { google: !!j.external?.google }; } catch { this._prov = { google: false }; } return this._prov; }
+  async oauth(provider = 'google') { const { error } = await this.sb.auth.signInWithOAuth({ provider, options: { redirectTo: OAUTH_REDIRECT } }); if (error) throw error; }
   async magicLink(email) { const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('?')[0] } }); if (error) throw error; }
   async resetPassword(email) { const { error } = await this.sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.href.split('?')[0] }); if (error) throw error; }
   async signInRecovery() { throw new Error('Use "Forgot password" — we will email you a reset link'); }
