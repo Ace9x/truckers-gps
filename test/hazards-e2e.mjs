@@ -10,7 +10,7 @@ const browser = await chromium.launch();
 async function driver(name, geo, clock) { const ctx = await browser.newContext({ ...devices['iPhone 13'], geolocation: geo, permissions: ['geolocation'] });
   const page = await ctx.newPage(); page.on('pageerror', e => { console.log(name, 'PAGE ERROR', e.message); fails++; });
   if (clock) await page.clock.install();
-  await page.goto(BASE); await page.waitForFunction(() => window.TruckNav?.ready && TruckNav.pos && TruckNav.hz, null, { timeout: 30000 });
+  await page.goto(BASE); await page.waitForFunction(() => window.TruckNav?.ready && TruckNav.pos && TruckNav.hz, null, { timeout: 60000 }).catch(async e => { console.log(name, 'STATE', await page.evaluate(() => JSON.stringify([!!window.TruckNav?.ready, !!window.TruckNav?.pos, !!window.TruckNav?.hz]))); throw e; });
   await page.waitForFunction(() => /live/.test(TruckNav.hz.status), null, { timeout: 20000 }); await page.waitForTimeout(1500);
   await page.evaluate(() => document.querySelector('#splash')?.remove()); return page; }
 const t0 = Date.now();

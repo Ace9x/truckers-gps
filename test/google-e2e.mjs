@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const BASE = process.env.BASE || 'http://localhost:8841/'; let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fail++; };
 const b = await chromium.launch();
 for (const google of [false, true]) {
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx.addInitScript(() => { localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_aceTour', '"done"'); });
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, geolocation: { latitude: 40.75, longitude: -73.99 }, permissions: ['geolocation'] }); await ctx.addInitScript(() => { localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_aceTour', '"done"'); });
   const p = await ctx.newPage(); let authUrl = null;
   await p.route('**/auth/v1/settings**', r => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ external: { google, email: true } }) }));
   await p.route('**/auth/v1/authorize**', r => { authUrl = r.request().url(); r.fulfill({ status: 200, contentType: 'text/html', body: 'stub' }); });
