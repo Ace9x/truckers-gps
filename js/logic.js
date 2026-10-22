@@ -1,3 +1,4 @@
+import { hosEngine } from './hos.js';
 // Pure, testable navigation + HOS logic (no DOM).
 export const R = 6371008.8;
 const rad = d => d * Math.PI / 180;
@@ -210,45 +211,9 @@ export function truckCosting(p) {
 // ===== Hours of Service helper (US FMCSA property-carrying: 11h drive, 14h window, 30-min break after 8h driving, 10h reset). =====
 // events: [{t:ms, s:'off'|'sb'|'on'|'drive'}], chronological. Returns remaining limits at time `now`.
 export const H = 3600e3;
-export function hosStatus(events, now = Date.now(), opts = {}) {
-  const ev = events.filter(e => e.t <= now).sort((a, b) => a.t - b.t);
-  // find start of shift: last end of >=10h consecutive off/sleeper
-  let shiftStart = null, restStart = null;
-  const segs = ev.map((e, i) => ({ s: e.s, a: e.t, b: i + 1 < ev.length ? ev[i + 1].t : now }));
-  // merge rest blocks
-  let lastResetEnd = -Infinity;
-  for (const g of segs) {
-    const rest = g.s === 'off' || g.s === 'sb';
-    if (rest) { if (restStart === null) restStart = g.a; if (g.b - restStart >= 10 * H) lastResetEnd = g.b; }
-    else restStart = null;
-  }
-  const after = segs.filter(g => g.b > lastResetEnd).map(g => ({ ...g, a: Math.max(g.a, lastResetEnd) }));
-  let drive = 0, sinceBreakDrive = 0, breakRun = 0;
-  for (const g of after) {
-    const d = g.b - g.a;
-    if (shiftStart === null && (g.s === 'on' || g.s === 'drive')) shiftStart = g.a;
-    if (g.s === 'drive') { drive += d; sinceBreakDrive += d; breakRun = 0; }
-    else { breakRun += d; if (breakRun >= 0.5 * H) sinceBreakDrive = 0; }
-  }
-  const cur = ev.length ? ev[ev.length - 1].s : 'off';
-  // 70-hour / 8-day cycle (60/7 if cycle=60) with 34-hour restart
-  const cycH = (opts.cycle || 70) * H, days = opts.cycle === 60 ? 7 : 8;
-  let lastRestart = -Infinity, rs = null;
-  for (const g of segs) { const rest = g.s === 'off' || g.s === 'sb'; if (rest) { if (rs === null) rs = g.a; if (g.b - rs >= 34 * H) lastRestart = g.b; } else rs = null; }
-  const from = Math.max(now - days * 24 * H, lastRestart); let onDuty = 0;
-  for (const g of segs) if (g.s === 'on' || g.s === 'drive') { const a = Math.max(g.a, from), b = g.b; if (b > a) onDuty += b - a; }
-  const cycleLeft = Math.max(0, cycH - onDuty);
-  const windowLeft = shiftStart === null ? 14 * H : Math.max(0, shiftStart + 14 * H - now);
-  const driveLeftRaw = Math.max(0, Math.min(11 * H - drive, windowLeft));
-  const breakLeft = Math.max(0, 8 * H - sinceBreakDrive);
-  const driveLeft = Math.min(driveLeftRaw, cycleLeft);
-  const warnings = [];
-  if (driveLeft <= 0) warnings.push('11-hour driving limit reached'); else if (driveLeft < H) warnings.push('Under 1 hour of driving left');
-  if (shiftStart !== null && windowLeft <= 0) warnings.push('14-hour duty window ended'); else if (shiftStart !== null && windowLeft < H) warnings.push('14-hour window closes in under 1 hour');
-  if (breakLeft <= 0) warnings.push('30-minute break required now'); else if (breakLeft < 0.5 * H) warnings.push('30-minute break due soon');
-  if (cycleLeft <= 0) warnings.push(`${opts.cycle || 70}-hour cycle used up — 34-hour restart needed`); else if (cycleLeft < 3 * H) warnings.push(`Under 3 hours left on your ${opts.cycle || 70}-hour cycle`);
-  return { status: cur, cycleLeft, cycleUsed: onDuty, driveUsed: drive, driveLeft, windowLeft, breakLeft, shiftStarted: shiftStart, warnings };
-}
+// Delegates to the exact engine in hos.js (split sleeper, adverse, short-haul). Planning aid — not an ELD.
+export function hosStatus(events, now = Date.now(), opts = {}) { return hosEngine(events, now, opts); }
+
 
 // Sample a line to ~n points for Overpass "around" polyline queries.
 export function sampleLine(line, n = 80) {

@@ -200,3 +200,9 @@ import { tooFar, held, MAX_REPORT_M } from '../js/hazlogic.js';
 test('hazard abuse: >2 km from reporter rejected; new reporters held until confirmed', () => {
   assert.equal(MAX_REPORT_M, 2000); assert.equal(tooFar({ lat: 40.70, lon: -74, rlat: 40.71, rlon: -74 }), false); assert.equal(tooFar({ lat: 40.70, lon: -74, rlat: 40.73, rlon: -74 }), true); assert.equal(tooFar({ lat: 40.7, lon: -74 }), true);
   const t = new Set(); assert.equal(held({ by: 'x', up: 0 }, t), true); assert.equal(held({ by: 'x', up: 1 }, t), false); t.add('x'); assert.equal(held({ by: 'x', up: 0 }, t), false); assert.equal(held({ by: 'y', mine: true }, new Set()), false); });
+import { parkwayBan } from '../js/safety.js';
+test('parkway ban: NY/CT parkways flagged, Garden State and ordinary roads not', () => {
+  assert.equal(parkwayBan(['Grand Central Pkwy']), 'Grand Central Parkway'); assert.equal(parkwayBan(['Belt Parkway']), 'Belt Parkway'); assert.equal(parkwayBan(['Merritt Parkway']), 'Merritt Parkway');
+  assert.equal(parkwayBan(['Garden State Parkway']), null); assert.equal(parkwayBan(['I 278', 'Bruckner Expressway']), null); assert.equal(parkwayBan(['Bay Parkway']), null);
+  const d = dangersAhead([{ along: 500, way_id: 1, names: ['Henry Hudson Parkway'], length: 300 }], {}, { heightM: 4.1, weightT: 36, lengthM: 21, hazmat: false });
+  assert.equal(d[0].kind, 'parkway'); assert.equal(d[0].sev, 'stop'); });

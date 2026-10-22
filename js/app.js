@@ -287,15 +287,17 @@ async function analyzeRoute(r) {
   renderDangers();
 }
 S.analyzeRoute = analyzeRoute;
-const DICON = { height: '⛔', weight: '⚖️', length: '📏', hazmat: '☣️', notrucks: '🚫', tunnel: '🚇', grade: '⛰️', curve: '↪️' };
+const DICON = { parkway: '🚫', height: '⛔', weight: '⚖️', length: '📏', hazmat: '☣️', notrucks: '🚫', tunnel: '🚇', grade: '⛰️', curve: '↪️' };
 function renderDangers() { const d = S.dangers || [], base = S.nav ? S.along : 0;
   $('#dangerList').innerHTML = d.length ? d.filter(x => x.along >= base).slice(0, 25).map(x => `<li class="${x.sev}">${DICON[x.kind] || '⚠'} ${esc(x.short)} · in ${fmtDist(x.along - base, U())}</li>`).join('') : `<li>No mapped clearance/weight/grade dangers found on this route${S.routeEdges ? '' : ' (road data server busy — curves only)'}.</li>`; }
 function dangerAlerts() {
   for (const d of S.dangers || []) { const ahead = d.along - S.along; if (ahead < 0 || ahead > 2.1 * MI) continue; if (d.kind === 'curve' && (S.pos.speed || 0) < 13) continue;
     const a = (S.dangerSpoken[d.kind + d.along] ||= {});
-    const tier = ahead <= 0.5 * MI ? 'half' : ahead <= 2 * MI ? 'two' : null; if (!tier || a[tier] || (d.sev === 'info' && tier === 'two')) continue;
-    a[tier] = true; if (tier === 'half') a.two = true;
-    const where = tier === 'half' ? (ahead < 300 ? 'just ahead' : 'in half a mile') : 'in two miles';
+    // Restriction warnings at 2 mi, 1 mi and ¼ mi (low bridges, weight, parkways); curves/info only at the last tier
+    const tier = ahead <= 0.25 * MI ? 'q' : ahead <= 1 * MI ? 'one' : ahead <= 2 * MI ? 'two' : null; const major = ['height', 'weight', 'length', 'parkway', 'notrucks', 'hazmat'].includes(d.kind);
+    if (!tier || a[tier] || (!major && tier !== 'q' && (d.sev === 'info' || tier === 'two'))) continue;
+    a[tier] = true; if (tier !== 'two') a.two = true; if (tier === 'q') a.one = true;
+    const where = tier === 'q' ? (ahead < 150 ? 'just ahead' : 'in a quarter mile') : tier === 'one' ? 'in one mile' : 'in two miles';
     say(d.text.replace(' ahead', ' ' + where), 'danger'); alertBanner(`${DICON[d.kind] || '⚠'} ${d.short} · ${fmtDist(ahead, U())}`); if (['height', 'weight', 'length'].includes(d.kind)) try { navigator.vibrate?.([200, 100, 200]); } catch {} // low bridge / limit: voice + haptic, no flashing
     if (d.sev === 'stop' && !S.rerouting && Date.now() - S.lastReroute > 15000) { S.avoids.push({ lat: pointAlong(S.route.line, S.route.cum, d.along)[1], lon: pointAlong(S.route.line, S.route.cum, d.along)[0], type: d.kind === 'weight' ? 'weight' : d.kind === 'notrucks' ? 'notrucks' : 'clearance', t: Date.now(), auto: true });
       LS.set('avoids', S.avoids); S.rerouting = true; S.lastReroute = Date.now(); S.rerouteCount++; plan(true).finally(() => S.rerouting = false); }
@@ -625,7 +627,7 @@ $('#vPreview').onclick = () => { saveVoice(); say('In one mile, take exit 13A to
 
 // ---------- HOS helper ----------
 function hosSet(s, auto) { const last = S.events.at(-1); if (last?.s === s) return;
-  const before = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70 }); if (['off', 'sb'].includes(last?.s) && s === 'drive' && Date.now() - last.t >= 30 * 60e3 && before.driveUsed > 2 * H && before.breakLeft > 0) { profile.p.stats.breaks++; award(POINTS.breakTaken, 'HOS break before it was due'); }
+  const before = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70, ...(S.hosOpts?.() || {}) }); if (['off', 'sb'].includes(last?.s) && s === 'drive' && Date.now() - last.t >= 30 * 60e3 && before.driveUsed > 2 * H && before.breakLeft > 0) { profile.p.stats.breaks++; award(POINTS.breakTaken, 'HOS break before it was due'); }
   S.events.push({ t: Date.now(), s, auto: !!auto }); S.events = S.events.filter(e => e.t > Date.now() - 8 * 24 * H); LS.set('hos', S.events); hosRender(); if (auto) toast(`Duty status → ${labelDuty(s)} (auto)`); }
 const labelDuty = s => ({ off: 'Off duty', sb: 'Sleeper', on: 'On duty', drive: 'Driving' }[s]);
 $$('[data-duty]').forEach(b => b.onclick = () => hosSet(b.dataset.duty));
@@ -634,9 +636,9 @@ function hosAuto(mph) { if (!$('#autoDrive').checked || !S.nav) return; const cu
   if (mph > 5) { S.stoppedSince = null; if (cur !== 'drive') hosSet('drive', true); } else if (cur === 'drive') { S.stoppedSince ??= Date.now(); if (Date.now() - S.stoppedSince > 5 * 60e3) hosSet('on', true); } }
 const hm = ms => { const m = Math.max(0, Math.floor(ms / 60e3)); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
 function hosRender() {
-  const h = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70 }); S.hos = h;
+  const h = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70, ...(S.hosOpts?.() || {}) }); S.hos = h;
   $('#hCycle').textContent = hm(h.cycleLeft); $('#hCycleLbl').textContent = `Left on ${S.truck.cycle || 70}‑hour / ${+S.truck.cycle === 60 ? 7 : 8}‑day cycle (34‑h restart resets)`;
-  $('#hDrive').textContent = hm(h.driveLeft); $('#hWin').textContent = hm(h.windowLeft); $('#hBreak').textContent = hm(h.breakLeft); $('#dockHos').textContent = hm(Math.min(h.driveLeft, h.breakLeft));
+  $('#hDrive').textContent = hm(h.driveLeft); $('#hWin').textContent = hm(h.windowLeft); $('#hBreak').textContent = h.breakLeft === Infinity ? 'exempt' : hm(h.breakLeft); $('#dockHos').textContent = hm(Math.min(h.driveLeft, h.breakLeft));
   $$('[data-duty]').forEach(b => b.classList.toggle('on', b.dataset.duty === h.status));
   $('#hosWarn').innerHTML = h.warnings.map(w => `<div class="alert ${/soon|under/i.test(w) ? 'warn' : ''}">${w}</div>`).join('');
   $$('#alerts .hosA').forEach(e => e.remove());
@@ -644,7 +646,7 @@ function hosRender() {
   for (const w of h.warnings) if (!S.warned[w] && h.status === 'drive') { S.warned[w] = true; say('Hours of service: ' + w, 'hos'); mascot.say(`⏱ ${w}. Time to find a spot to rest.`, 'worried', 9000); }
   $('#hosLog').innerHTML = S.events.slice(-20).reverse().map(e => `<li>${new Date(e.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} — ${labelDuty(e.s)}${e.auto ? ' (auto)' : ''}</li>`).join('');
 }
-setInterval(hosRender, 30e3); hosRender();
+setInterval(hosRender, 30e3); hosRender(); S.renderHos = hosRender;
 
 // ---------- Load / trip ----------
 const lf = $('#loadForm'); const load = LS.get('load', {}); for (const [k, v] of Object.entries(load)) if (lf.elements[k]) lf.elements[k].value = v;
@@ -707,7 +709,10 @@ S.startGPS = startGPS; locGate(startGPS); // explain why before the browser's lo
 makeBackend().then(async b => { backend = b; S.backend = b; const u = await b.session().catch(() => null); if (u) profile.p.uid = u.id;
   const bb = S.pos ? [S.pos.lon - 3, S.pos.lat - 3, S.pos.lon + 3, S.pos.lat + 3] : null; S.reports = await b.listReports(bb).catch(() => []); S.reports.forEach(r => { if (u && r.user_id === u.id) r.mine = true; }); drawReports(); S.backendReady = true;
   b.subscribe?.((ev, r) => { if (!r) return; const i = S.reports.findIndex(x => x.id === r.id); if (r.mine = !!(S.auth?.user && r.user_id === S.auth.user.id), i >= 0) S.reports[i] = { ...S.reports[i], ...r, mine: S.reports[i].mine || r.mine }; else S.reports.push(r); drawReports(); }); });
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+// Service worker updates never swap mid-drive: a new version waits until navigation is off, then activates (no reload; next launch uses it).
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').then(reg => {
+  const tryActivate = () => { if (reg.waiting && !S.nav) reg.waiting.postMessage('skipWaiting'); };
+  reg.addEventListener('updatefound', () => reg.installing?.addEventListener('statechange', tryActivate)); setInterval(tryActivate, 60e3); setInterval(() => { if (!S.nav) reg.update().catch(() => {}); }, 30 * 60e3); tryActivate(); }).catch(() => {});
 window.addEventListener('offline', () => toast('Offline — current route keeps working; rerouting & search need signal', 5000));
 document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && S.nav && !wakeLock) try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} });
 if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Ace 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }

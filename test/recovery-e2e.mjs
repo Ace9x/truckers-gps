@@ -1,0 +1,20 @@
+// Nav-session recovery: a crash/reload mid-drive resumes the same route and navigation; moving locks lists and typing; route shows HOS-aware ETA + router settings.
+import { chromium } from 'playwright';
+const BASE = process.env.BASE || 'http://localhost:8841/'; let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fail++; };
+const b = await chromium.launch(), c = await b.newContext({ viewport: { width: 390, height: 844 }, geolocation: { latitude: 40.7357, longitude: -74.1724 }, permissions: ['geolocation'] });
+await c.addInitScript(() => { localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_aceTour', '"done"'); });
+const p = await c.newPage(), T = (f, a) => p.evaluate(f, a); await p.goto(BASE + '?rrtest=1'); await p.waitForFunction(() => window.TruckNav?.ready, null, { timeout: 30000 });
+await T(() => { localStorage.setItem('tn_load', JSON.stringify({ deliveryTime: new Date(Date.now() + 3 * 3600e3).toISOString() })); });
+await T(() => TruckNav.setDest({ lat: 40.7, lon: -74.15, name: 'Dock 4' })); await p.waitForFunction(() => TruckNav.route && !document.querySelector('#goBtn').disabled, null, { timeout: 60000 }); await p.waitForTimeout(1500);
+const sheet = await T(() => ({ eta: document.querySelector('#hosEta')?.textContent || '', used: document.querySelector('#rpUsed')?.textContent || '' }));
+ok(/Arrive with HOS breaks/.test(sheet.eta) && /Makes your .* appointment/.test(sheet.eta), 'route sheet: ETA with HOS breaks + appointment check: ' + sheet.eta.slice(0, 120));
+ok(/4\.11 m high · 36\.29 t · 21\.34 m long · 2\.59 m wide · 5 axles/.test(sheet.used), 'shows metric truck settings sent to the router: ' + sheet.used);
+const len = await T(() => TruckNav.route.length); await T(() => TruckNav.startNav());
+for (let k = 0; k < 8; k++) await T(k => { const L = TruckNav.route.line, i = Math.min(L.length - 1, k * 2); TruckNav.onFix({ lon: L[i][0], lat: L[i][1], speed: 20, heading: null, acc: 5, t: Date.now() + k * 1000 }); }, k);
+await p.waitForTimeout(600);
+const lock = await T(() => { document.querySelector('#routePanel')?.classList.remove('hidden'); const vis = getComputedStyle(document.querySelector('#routePanel')).display !== 'none'; document.querySelector('#routePanel')?.classList.add('hidden'); return { moving: document.body.classList.contains('moving'), vis }; });
+ok(lock.moving && !lock.vis, 'while moving, list panels cannot open (one-tap/voice only)');
+await p.reload(); await p.waitForFunction(() => window.TruckNav?.ready, null, { timeout: 30000 }); await p.waitForTimeout(1500);
+const r = await T(() => ({ nav: TruckNav.nav, resumed: TruckNav.resumed, len: TruckNav.route?.length }));
+ok(r.nav && r.resumed && Math.abs(r.len - len) < 1, 'after a reload mid-drive the same navigation resumes automatically');
+await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASS'); process.exit(fail ? 1 : 0);

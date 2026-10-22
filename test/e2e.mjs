@@ -117,7 +117,7 @@ const la2 = await T(async () => { TruckNav.off.reset(); TruckNav.dangerSpoken = 
   // call the alert routine via a nav tick on route
   TruckNav.hint = 0; const i0 = Math.max(1, r.cum.findIndex(c => c >= d.along - 250)); TruckNav.onFix({ lon: r.line[i0][0], lat: r.line[i0][1], speed: 10, acc: 5, t: Date.now() + 1000 });
   await new Promise(res => setTimeout(res, 6000)); const out = { said: TruckNav.spokenLog.filter(t => /clearance/i.test(t)), rerouted: TruckNav.rerouteCount > before, len: TruckNav.route.length }; TruckNav.endNav(); return out; });
-ok(la2.said.some(t => /Low clearance 11 foot \d+ (just ahead|in half a mile)\. Your truck is 13 foot 6\. Rerouting/.test(t)) && la2.rerouted && la2.len > 3000, `danger announced + rerouted around it (${(la2.len / 1609).toFixed(1)} mi): ${JSON.stringify(la2.said[0])}`);
+ok(la2.said.some(t => /Low clearance 11 foot \d+ (just ahead|in a quarter mile|in half a mile)\. Your truck is 13 foot 6\. Rerouting/.test(t)) && la2.rerouted && la2.len > 3000, `danger announced + rerouted around it (${(la2.len / 1609).toFixed(1)} mi): ${JSON.stringify(la2.said[0])}`);
 await T(() => { TruckNav.avoids.length = 0; localStorage.setItem('tn_avoids', '[]'); TruckNav.setTruck({ heightFt: 13, heightIn: 6 }); });
 // Garage
 await page.click('#meBtn'); await page.evaluate(() => { document.querySelector('#funBox').open = true; }); await page.waitForSelector('#garage button');

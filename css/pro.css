@@ -388,3 +388,9 @@ body.moving input[type=search],body.moving input[type=text],body.moving #stopQ,b
   body.print-receipt .trc-paper{background:#fff!important;color:#000!important;box-shadow:none;border:1px solid #000}body.print-receipt .trc-btns,body.print-receipt .trc-tear{display:none}
   body.print-receipt .trc-big>div{background:#fff;border-color:#000}body.print-receipt .trc-odo input{border:0;background:#fff;color:#000}body.print-receipt .trc-meta b,body.print-receipt .trc-id b{color:#000}}
 .hz-pin.held{opacity:.55;filter:grayscale(.6)}
+#hosEta{padding:12px 16px;border-radius:12px;background:#ffffff0a;font-family:var(--font)}#hosEta[hidden]{display:none}
+#hosEta .he-row{display:flex;justify-content:space-between;align-items:baseline;font:600 14px var(--font)}#hosEta .he-row b{font:800 18px var(--font);font-variant-numeric:tabular-nums}
+#hosEta .he-sub{font-size:12px;color:var(--mut);margin-top:2px}#hosEta .he-appt{margin-top:8px;font:700 14px var(--font)}#hosEta .ok{color:var(--rr-ok)}#hosEta .late{color:var(--rr-bad)}
+#rpUsed{margin-top:4px!important;font-size:12px}
+/* One-tap / voice only while moving (49 CFR 392.80/392.82): no lists or forms over the map */
+body.moving.st-nav .panel{display:none!important}

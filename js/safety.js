@@ -35,6 +35,7 @@ export function dangersAhead(edges, tags, truck) {
     if (L && L < truck.lengthM) push(e, 'length', 'stop', `Length limit ${Math.round(L / FT)} feet ahead. Your rig is ${Math.round(truck.lengthM / FT)} feet. Rerouting.`, `Length limit ${Math.round(L / FT)} ft`);
     if (truck.hazmat && (t.hazmat === 'no' || t['hazmat:water'] === 'no' || (e.tunnel && /^[BCDE]$/.test(t['hazmat:adr_tunnel_cat'] || t.tunnel_category || '')))) push(e, 'hazmat', 'stop', 'Hazmat restriction ahead. Rerouting.', 'No hazmat');
     if (t.hgv === 'no') push(e, 'notrucks', 'stop', 'No trucks road ahead. Rerouting.', 'No trucks');
+    const pk = parkwayBan(e.names || [], t); if (pk) push(e, 'parkway', 'stop', `Trucks are banned on the ${pk}. Rerouting.`, `No trucks: ${pk.replace(/ Parkway$/, ' Pkwy')}`);
     if (e.tunnel) push(e, 'tunnel', h ? 'warn' : 'info', `Tunnel ahead${h ? ', clearance ' + ftIn(h) : ''}.`, `Tunnel${h ? ' ' + ftInShort(h) : ''}`);
     const down = Math.abs(e.max_downward_grade || 0), up = e.max_upward_grade || 0, len = e.length || 0, incl = parseFloat(t.incline);
     if ((down >= 6 && len > 400) || (incl <= -6)) push(e, 'grade', 'warn', `Steep downgrade ahead, about ${Math.round(Math.max(down, -incl || 0))} percent. Gear down, check your brakes.`, `Downgrade ${Math.round(Math.max(down, -incl || 0))}%`);
@@ -78,3 +79,8 @@ export function wzdxToZones(feed, now = Date.now()) {
   }
   return out;
 }
+
+// NY/CT parkway commercial-vehicle bans (NYS VTL §1630 / NYC DOT, CT DOT): name-based, because OSM hgv tags are incomplete. Garden State Pkwy (NJ) allows trucks south of exit 105, so it is not listed.
+export const BANNED_PARKWAYS = ['Belt', 'Grand Central', 'Hutchinson River', 'Henry Hudson', 'Cross Island', 'Jackie Robinson', 'Interborough', 'Bronx River', 'Saw Mill River', 'Sprain Brook', 'Taconic State', 'Taconic', 'Southern State', 'Northern State', 'Meadowbrook State', 'Meadowbrook', 'Wantagh State', 'Wantagh', 'Sagtikos State', 'Sagtikos', 'Sunken Meadow State', 'Loop', 'Ocean', 'Laurelton', 'Shore', 'Leif Ericson', 'Mosholu', 'Pelham', 'Pelham Parkway', 'Palisades Interstate', 'Bear Mountain State', 'Merritt'];
+const PK_RE = new RegExp(`\\b(${BANNED_PARKWAYS.map(x => x.replace(/ /g, '\\s+')).join('|')})\\s+(State\\s+)?(Parkway|Pkwy)\\b`, 'i');
+export function parkwayBan(names, tags = {}) { for (const n of [...names, tags.name || '']) { const m = PK_RE.exec(n || ''); if (m && !/Garden State/i.test(n)) return n.replace(/\bPkwy\b/i, 'Parkway'); } return null; }

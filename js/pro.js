@@ -185,7 +185,7 @@ function routeTraffic() { if (!map?.getLayer('route')) return;
 if (map) { map.on('styledata', () => { routeTraffic.styled = false; routeTraffic.key = null; }); setInterval(routeTraffic, 1500); }
 
 // ---- Round 2: restriction rail (spec §1) ----
-const RAIL_ICON = { height: '↕', weight: '⚖', length: '↔', hazmat: '☣', notrucks: '⛔', weigh: '⚖' };
+const RAIL_ICON = { parkway: '⛔', height: '↕', weight: '⚖', length: '↔', hazmat: '☣', notrucks: '⛔', weigh: '⚖' };
 function rail() { let el = $('#restrictRail'); if (!el) { el = document.createElement('div'); el.id = 'restrictRail'; el.setAttribute('aria-label', 'Upcoming restrictions'); document.body.appendChild(el); }
   const items = S.nav ? railItems({ dangers: S.dangers || [], pois: S.pois || [], along: S.along || 0 }) : [];
   const html = items.map(x => `<div class="rr-chip k-${x.kind} s-${x.sev || 'info'}" role="note" title="${x.label}"><span class="ic">${x.kind === 'weigh' ? 'SCALE' : RAIL_ICON[x.kind]}</span><b>${x.value || ''}</b><i>${distLabel(x.dist, S.truck?.units)}</i></div>`).join('');
@@ -284,3 +284,31 @@ function routeSheet() { const panel = $('#routePanel'); if (!panel) return;
 setInterval(routeSheet, 500);
 // Lock out text entry while moving above 5 mph (app_polish_ideas §2 / NHTSA): blur any focused field.
 setInterval(() => { if (document.body.classList.contains('moving')) { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== 'checkbox') a.blur(); } }, 500);
+
+// ---- HOS options: adverse conditions + short-haul (exact engine in hos.js); label stays "planning aid, not an ELD" ----
+S.hosOpts = () => LS.get('hosOpts', {});
+function hosOptsUI() { const hp = $('#hosPanel'); if (!hp || $('#hosOpts')) return; const d = document.createElement('div'); d.id = 'hosOpts';
+  const o = S.hosOpts(); d.innerHTML = `<label class="chk"><input type="checkbox" id="hoAdverse" ${o.adverse ? 'checked' : ''}> Adverse driving conditions today (+2h to the 11 and 14)</label>
+    <label class="chk"><input type="checkbox" id="hoShort" ${o.shortHaul ? 'checked' : ''}> Short-haul (within 150 air-miles, back within 14h): no 30-min break</label>
+    <p class="small muted">Split sleeper (7/3, 8/2 …) is detected automatically from Sleeper and Off periods. Planning aid — not an ELD.</p>`;
+  (hp.querySelector('.warnnote') || hp.firstChild).after(d);
+  const save = () => { LS.set('hosOpts', { adverse: $('#hoAdverse').checked, shortHaul: $('#hoShort').checked }); S.renderHos?.(); };
+  $('#hoAdverse').onchange = save; $('#hoShort').onchange = save; }
+setInterval(hosOptsUI, 1000);
+
+// ---- ETA with required HOS breaks + "make my appointment?" (deep_dive #38/#39); router settings shown (#1) ----
+import { planBreaks } from './hos.js';
+import { truckCosting } from './logic.js';
+const hmS = s => `${Math.floor(s / 3600)}h ${String(Math.round(s % 3600 / 60)).padStart(2, '0')}m`;
+function hosEta() { const rp = $('#routePanel'); if (!rp || !S.route) return; let el = $('#hosEta');
+  if (!el) { el = document.createElement('div'); el.id = 'hosEta'; ($('#tfOnce') || $('#alts'))?.before(el); }
+  const st = S.hos; if (!st) { el.hidden = true; return; } el.hidden = false;
+  const p = planBreaks(S.route.time || 0, st), arr = Date.now() + p.totalSec * 1000, appt = LS.get('load', {})?.deliveryTime ? Date.parse(LS.get('load', {}).deliveryTime) : null;
+  const tm = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + (new Date(t).toDateString() !== new Date().toDateString() ? ' ' + new Date(t).toLocaleDateString([], { weekday: 'short' }) : '');
+  const br = p.breaks.length ? p.breaks.map(b => b.kind === '10h' ? '10-hr rest' : '30-min break').join(' + ') : 'no break needed';
+  let ap = ''; if (appt && !isNaN(appt)) { const spare = (appt - arr) / 1000; ap = spare >= 0 ? `<div class="he-appt ok">✓ Makes your ${tm(appt)} appointment · ${hmS(spare)} spare</div>` : `<div class="he-appt late">✕ Misses your ${tm(appt)} appointment by ${hmS(-spare)} — call the receiver</div>`; }
+  const html = `<div class="he-row"><span>Arrive with HOS breaks</span><b>${tm(arr)}</b></div><div class="he-sub">${br} · planning aid, not an ELD</div>${ap}`;
+  if (el.innerHTML !== html) el.innerHTML = html;
+  const c = truckCosting(S.truck || {}); let ts = $('#rpUsed'); if (!ts) { ts = document.createElement('div'); ts.id = 'rpUsed'; ts.className = 'small muted'; $('#rpTruck')?.after(ts); }
+  const tx = `Router uses ${c.height} m high · ${c.weight} t · ${c.length} m long · ${c.width} m wide · ${c.axle_count} axles${c.hazmat ? ' · hazmat' : ''}`; if (ts.textContent !== tx) ts.textContent = tx; }
+setInterval(hosEta, 1000);
