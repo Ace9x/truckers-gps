@@ -206,10 +206,10 @@ let trip = null, wasNav = false;
 function viaOf(r) { const n = []; for (const m of r?.maneuvers || []) for (const s of m.street_names || []) if (/^(I|US|NJ|NY|PA|CT)\b|Turnpike|Parkway|Expressway|Highway/.test(s) && !n.includes(s)) n.push(s); return n.slice(0, 3).join(' → ') || 'local roads'; }
 function tripWatch() {
   if (S.nav && !wasNav) trip = { start: S.tripStart || Date.now(), dest: S.dest?.name || 'Destination', reports0: (S.hz?.list || []).filter(r => r.mine).length };
-  if (S.nav && trip) { trip.via = viaOf(S.route); trip.ifta = { ...(S.ifta || {}) }; trip.stops = (S.stops || []).map(s => s.name || s.label || 'Stop'); trip.miles = S.tripMiles || 0; trip.arrived = !!S.arrived; trip.tolls = S.tolls?.miles || 0; }
-  if (!S.nav && wasNav && trip) { const t = trip; trip = null; if ((t.miles || 0) >= 0.1 || t.arrived) showReceipt(t); }
+  if (S.nav && trip) { trip.via = viaOf(S.route); trip.ifta = { ...(S.ifta || {}) }; trip.stops = (S.stops || []).map(s => s.name || s.label || 'Stop'); trip.miles = S.tripMiles || 0; trip.arrived = trip.arrived || !!S.arrived; trip.tolls = S.tolls?.miles || 0; }
+  if (!S.nav && wasNav && trip) { const t = trip; trip = null; t.arrived = t.arrived || !!S.arrived; t.miles = Math.max(t.miles || 0, S.tripMiles || 0); if ((t.miles || 0) >= 0.1 || t.arrived) showReceipt(t); }
   wasNav = !!S.nav; }
-setInterval(tripWatch, 1000);
+setInterval(tripWatch, 250);
 const esc2 = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function showReceipt(t, end = Date.now()) {
   const r = receipt({ start: t.start, end, drivenMi: t.miles, plannedByState: t.ifta, via: t.via, stops: t.stops, dest: t.dest, reports: Math.max(0, (S.hz?.list || []).filter(x => x.mine).length - (t.reports0 || 0)), tolls: t.tolls });
@@ -224,6 +224,11 @@ function showReceipt(t, end = Date.now()) {
       <div class="trc-meta"><span>Toll miles <b>${r.tolls}</b></span><span>Reports you made <b>${r.reports}</b></span></div>
       <div class="trc-tear"></div><div class="trc-btns"><button id="trcCsv">Download CSV</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
     document.body.appendChild(el);
+    // Calm arrival moment (app_polish_ideas §10): one short buzz, stats count up over 600 ms, gentle HOS reminder. No confetti.
+    if (t.arrived) try { navigator.vibrate?.(30); } catch {}
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) el.querySelectorAll('.trc-big b').forEach(b => { const fin = b.textContent, n = parseFloat(fin); if (!(n > 0) || /h/.test(fin)) return; const dec = /\./.test(fin) ? 1 : 0, t0 = performance.now();
+      const step = now => { const k = Math.min(1, (now - t0) / 600); b.textContent = (n * (1 - Math.pow(1 - k, 3))).toFixed(dec); if (k < 1) requestAnimationFrame(step); else b.textContent = fin; }; requestAnimationFrame(step); });
+    if (t.arrived) el.querySelector('.trc-meta').insertAdjacentHTML('afterend', '<p class="trc-hos">Log your hours — update your duty status in the HOS clock.</p>');
     $('#trcCsv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([`trip,${new Date(r.start).toISOString()},${new Date(r.end).toISOString()},${r.miles}\n${r.csv}\n`], { type: 'text/csv' })); a.download = `rigroute-trip-${new Date(r.start).toISOString().slice(0, 10)}.csv`; a.click(); };
     $('#trcDone').onclick = () => el.remove(); };
   // Safety: never pop a sheet while the truck is moving — wait until parked (<3 mph)
@@ -253,3 +258,5 @@ function routeSheet() { const panel = $('#routePanel'); if (!panel) return;
       t.onclick = () => { sb.dataset.open = '1'; sb.classList.remove('collapsed'); $('#stopQ')?.focus(); }; } }
   const demo = $('#demoBtn'); if (demo) demo.classList.add('textlink'); }
 setInterval(routeSheet, 500);
+// Lock out text entry while moving above 5 mph (app_polish_ideas §2 / NHTSA): blur any focused field.
+setInterval(() => { if (document.body.classList.contains('moving')) { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== 'checkbox') a.blur(); } }, 500);

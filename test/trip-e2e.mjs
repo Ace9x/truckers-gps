@@ -1,0 +1,23 @@
+// Real trip end to end: real Valhalla route, simulated GPS along it to arrival, then parked -> receipt with real miles/state split; freshness labels on live data.
+import { chromium } from 'playwright';
+const BASE = process.env.BASE || 'http://localhost:8841/'; let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fail++; };
+const b = await chromium.launch(), c = await b.newContext({ viewport: { width: 390, height: 844 }, geolocation: { latitude: 40.7357, longitude: -74.1724 }, permissions: ['geolocation'] });
+await c.addInitScript(() => { localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_aceTour', '"done"'); navigator.vibrate = p => ((window.__vib ||= []).push(p), true); });
+const p = await c.newPage(), T = (f, a) => p.evaluate(f, a); const errs = []; p.on('pageerror', e => errs.push(e.message));
+await p.goto(BASE + '?rrtest=1'); await p.waitForFunction(() => window.TruckNav?.ready, null, { timeout: 30000 }); await p.waitForTimeout(2000);
+await T(() => TruckNav.setDest({ lat: 40.7000, lon: -74.1500, name: 'Port Newark test dock' })); await p.waitForFunction(() => TruckNav.route && !document.querySelector('#goBtn').disabled, null, { timeout: 60000 });
+const routeMi = await T(() => TruckNav.route.length / 1609.344);
+await T(() => TruckNav.startNav()); const N = 60;
+for (let k = 0; k <= N; k++) { await T(([k, N]) => { const L = TruckNav.route.line, i = Math.min(L.length - 1, Math.round(k / N * (L.length - 1))); TruckNav.onFix({ lon: L[i][0], lat: L[i][1], speed: k === N ? 0 : 15, heading: null, acc: 5, t: Date.now() + k * 1000 }); }, [k, N]); await p.waitForTimeout(60); }
+await p.waitForFunction(() => TruckNav.arrived || !TruckNav.nav, null, { timeout: 15000 }).catch(() => {});
+ok(await T(() => TruckNav.arrived), 'arrival detected at the end of a real route');
+if (await T(() => TruckNav.nav)) await T(() => TruckNav.endNav());
+await p.waitForSelector('#tripReceipt', { timeout: 10000 }).catch(() => {});
+const r = await T(() => ({ shown: !!document.querySelector('#tripReceipt'), r: TruckNav.lastReceipt, text: document.querySelector('#tripReceipt')?.innerText || '', vib: window.__vib || [] }));
+ok(r.shown && r.r && r.r.miles > 0 && Math.abs(r.r.miles - routeMi) / routeMi < 0.35, `receipt shows driven miles ${r.r?.miles} for a ${routeMi.toFixed(1)} mi route`);
+ok(r.r && r.r.states.length >= 1 && r.r.states.every(s => s.mi > 0), 'miles by state from the real route: ' + JSON.stringify(r.r?.states));
+ok(/Arrived/.test(r.text) && !/undefined|NaN|Invalid Date/.test(r.text), 'receipt text clean, marked Arrived');
+ok(r.vib.some(v => v === 30), 'single short arrival buzz');
+await p.click('#trcDone'); ok(!(await T(() => !!document.querySelector('#tripReceipt'))), 'Done closes the receipt');
+ok(!errs.length, 'no page errors ' + errs.slice(0, 2).join(' | '));
+await b.close(); console.log(fail ? fail + ' FAILED' : 'ALL PASS'); process.exit(fail ? 1 : 0);

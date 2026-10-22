@@ -1,5 +1,5 @@
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
-  hosStatus, H, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
+  hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
@@ -112,9 +112,9 @@ $('#followBtn').onclick = () => setFollow(true);
 function camera(jump) {
   if (!S.pos || !S.follow) return;
   const o = { center: [S.pos.lon, S.pos.lat] };
-  if (S.nav) Object.assign(o, { zoom: Math.max(14, 17 - (S.pos.speed || 0) / 12), pitch: 55, bearing: S.pos.heading ?? map.getBearing(), padding: { top: window.innerHeight * 0.45, bottom: 40 } });
+  if (S.nav) Object.assign(o, { zoom: Math.max(14, 17 - (S.pos.speed || 0) / 12), pitch: 55, bearing: (S.camBearing = smoothBearing(S.camBearing ?? map.getBearing(), S.pos.heading ?? null)), padding: { top: window.innerHeight * 0.45, bottom: 40 } });
   else Object.assign(o, { padding: { top: 0, bottom: 0 } });
-  jump ? map.jumpTo(o) : map.easeTo({ ...o, duration: 900, easing: t => t });
+  jump ? map.jumpTo(o) : map.easeTo({ ...o, duration: 1000, easing: t => t }); // linear 1 s ease per fix ≈ continuous follow
 }
 
 // ---------- GPS (high accuracy while moving, low-power when parked) ----------
@@ -295,7 +295,7 @@ function dangerAlerts() {
     const tier = ahead <= 0.5 * MI ? 'half' : ahead <= 2 * MI ? 'two' : null; if (!tier || a[tier] || (d.sev === 'info' && tier === 'two')) continue;
     a[tier] = true; if (tier === 'half') a.two = true;
     const where = tier === 'half' ? (ahead < 300 ? 'just ahead' : 'in half a mile') : 'in two miles';
-    say(d.text.replace(' ahead', ' ' + where), 'danger'); alertBanner(`${DICON[d.kind] || '⚠'} ${d.short} · ${fmtDist(ahead, U())}`);
+    say(d.text.replace(' ahead', ' ' + where), 'danger'); alertBanner(`${DICON[d.kind] || '⚠'} ${d.short} · ${fmtDist(ahead, U())}`); if (['height', 'weight', 'length'].includes(d.kind)) try { navigator.vibrate?.([200, 100, 200]); } catch {} // low bridge / limit: voice + haptic, no flashing
     if (d.sev === 'stop' && !S.rerouting && Date.now() - S.lastReroute > 15000) { S.avoids.push({ lat: pointAlong(S.route.line, S.route.cum, d.along)[1], lon: pointAlong(S.route.line, S.route.cum, d.along)[0], type: d.kind === 'weight' ? 'weight' : d.kind === 'notrucks' ? 'notrucks' : 'clearance', t: Date.now(), auto: true });
       LS.set('avoids', S.avoids); S.rerouting = true; S.lastReroute = Date.now(); S.rerouteCount++; plan(true).finally(() => S.rerouting = false); }
   }

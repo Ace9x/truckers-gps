@@ -189,3 +189,6 @@ test('freshness labels: just now / min ago, stale after threshold', () => { cons
 test('trip receipt scales planned state split to driven miles', () => {
   const r = receipt({ start: 0, end: 125 * 60e3, drivenMi: 50, plannedByState: { NY: 30, NJ: 70 } });
   assert.equal(r.dur, '2h 05m'); assert.deepEqual(r.states, [{ st: 'NJ', mi: 35 }, { st: 'NY', mi: 15 }]); assert.equal(r.avgMph, 24); assert.match(r.csv, /NJ,35/); });
+import { smoothBearing } from '../js/logic.js';
+test('camera bearing turns gradually along the shortest arc', () => {
+  assert.equal(smoothBearing(null, 90), 90); const b = smoothBearing(350, 10); assert.ok(b > 350 || b < 10, 'wraps through north'); assert.ok(Math.abs(smoothBearing(0, 180) - 25) < 1e-9 || Math.abs(smoothBearing(0, 180) - 335) < 1e-9, 'max 25° per fix'); assert.equal(smoothBearing(45, null), 45); });

@@ -347,3 +347,6 @@ export function sunAltitude(lat, lon, date = new Date()) { const rad = Math.PI /
   return Math.asin(Math.sin(lat * rad) * Math.sin(dec) + Math.cos(lat * rad) * Math.cos(dec) * Math.cos(ha)) / rad; }
 // Day when the sun is above civil-twilight-ish -4°; hysteresis band so the map doesn't flip at dusk.
 export const isDaylight = (lat, lon, date = new Date(), wasDay = null) => { const a = sunAltitude(lat, lon, date); return wasDay == null ? a > -4 : wasDay ? a > -5 : a > -3; };
+// Camera bearing smoothing (app_polish_ideas §3: gradual rotation, never snaps). Shortest-arc EMA; returns degrees 0..360.
+export function smoothBearing(prev, next, alpha = 0.35, maxStep = 25) { if (next == null || isNaN(next)) return prev; if (prev == null || isNaN(prev)) return ((next % 360) + 360) % 360;
+  let d = ((next - prev + 540) % 360) - 180; d = Math.max(-maxStep, Math.min(maxStep, d * alpha)); return (((prev + d) % 360) + 360) % 360; }
