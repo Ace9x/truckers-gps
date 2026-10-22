@@ -183,3 +183,9 @@ test('restriction rail: nearest 3 restrictions/scales ahead with values', () => 
   const it = railItems({ along: 1000, dangers: [{ kind: 'height', sev: 'warn', along: 20000, short: `Tight clearance 13'8"` }, { kind: 'weight', sev: 'stop', along: 5000, short: 'Weight limit 40k lb' }, { kind: 'curve', along: 3000 }, { kind: 'height', along: 500, short: `Low bridge 11'0"` }],
     pois: [{ kind: 'weigh', along: 80000, name: 'I-95 scale' }, { kind: 'fuel', along: 2000 }] });
   assert.deepEqual(it.map(x => x.kind), ['weight', 'height', 'weigh']); assert.equal(it[0].value, '40k'); assert.equal(it[1].value, `13'8"`); assert.equal(distLabel(it[0].dist), '2 mi'); });
+import { freshness, receipt } from '../js/fresh.js';
+test('freshness labels: just now / min ago, stale after threshold', () => { const n = 1e12;
+  assert.deepEqual(freshness(n - 20e3, n), { text: 'just now', stale: false }); assert.deepEqual(freshness(n - 12 * 60e3, n, 10), { text: '12 min ago', stale: true }); assert.equal(freshness(0, n).stale, true); });
+test('trip receipt scales planned state split to driven miles', () => {
+  const r = receipt({ start: 0, end: 125 * 60e3, drivenMi: 50, plannedByState: { NY: 30, NJ: 70 } });
+  assert.equal(r.dur, '2h 05m'); assert.deepEqual(r.states, [{ st: 'NJ', mi: 35 }, { st: 'NY', mi: 15 }]); assert.equal(r.avgMph, 24); assert.match(r.csv, /NJ,35/); });

@@ -47,4 +47,4 @@ test('route line gradient by congestion: ascending stops, colours only on slow p
   assert.equal(routeGradient([], 1000), null);
   const g = routeGradient([{ start: 200, end: 400, level: 'heavy' }, { start: 390, end: 600, level: 'jam' }], 1000); const st = g.slice(3);
   for (let i = 2; i < st.length; i += 2) assert.ok(st[i] > st[i - 2], 'strictly ascending');
-  assert.ok(st.includes('#e53935') && st.includes('#7f0000') && st[1] === '#2e8bff'); });
+  assert.ok(st.includes('#e53935') && st.includes('#7f0000') && st[1] === '#38bdf8'); });

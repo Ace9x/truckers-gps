@@ -138,7 +138,7 @@ export function init(S, h) {
   fetch('data/eia-diesel.json', { cache: 'no-cache' }).then(r => r.json()).then(j => { S.eia = j; if (S.route) bestPrice(false); }).catch(() => {});
   const routeState = () => { const e = Object.entries(S.ifta || {}).sort((a, b) => b[1] - a[1])[0]; return e?.[0] || 'US'; };
   S.prices = () => latestPrices(S.reports || []);
-  S.priceFor = p => { const lp = S.prices()[p.id]; if (lp) return `<div class="price small">💲 $${lp.price.toFixed(3)} diesel · <i>driver-reported ${ageText(lp.t)}</i></div>`;
+  S.priceFor = p => { const lp = S.prices()[p.id]; if (lp) return `<div class="price small">💲 $${lp.price.toFixed(3)} diesel · <i>driver-reported</i> ${S.ageHTML ? S.ageHTML(lp.t, 360) : ageText(lp.t)}</div>`;
     const b = S.eia && eiaFor(routeState(), S.eia); return b ? `<div class="price small muted">💲 no driver price yet · area avg $${b.price.toFixed(3)} (EIA ${esc(b.area)}, week of ${esc(b.week)})</div>` : ''; };
   S.reportPrice = async id => { if (S.lockedOut?.()) return; const v = parseFloat(prompt('Diesel price per gallon at this station (e.g. 5.79)') || ''); if (!(v > 1 && v < 15)) { toast('Price not saved'); return; }
     const p = S.pois.find(x => String(x.id) === String(id)); const r = { id: crypto.randomUUID?.() || String(Math.random()).slice(2), type: 'fuel_price', poi: id, price: Math.round(v * 1000) / 1000, lat: p?.lat, lon: p?.lon, t: Date.now(), up: 0, down: 0, mine: true };

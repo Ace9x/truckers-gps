@@ -4,6 +4,7 @@ import { ICONS } from './iconset.js';
 import { HZ } from './hazlogic.js';
 import { railItems, distLabel } from './rail.js';
 import { routeGradient } from './trafficlogic.js';
+import { freshness, ageHTML, receipt } from './fresh.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
@@ -36,7 +37,7 @@ const sp = $('#splash'); if (sp) sp.innerHTML = `<div class="splashLogo">${LOGO}
 
 // ---------- Map style tuned for trucking ----------
 const map = S?.map;
-const DARK = { background: '#0f141b', water: '#0a2033', waterway: '#0a2033', building: '#151b24', landuse_park: '#122019', landcover_wood: '#122019', landuse_residential: '#121820',
+const DARK = { background: '#0f141a', water: '#0a2033', waterway: '#0a2033', building: '#151b24', landuse_park: '#122019', landcover_wood: '#122019', landuse_residential: '#121820',
   highway_minor: '#252d38', highway_major_inner: '#3a4452', highway_major_casing: '#0f141b', highway_major_subtle: '#3a4452', highway_motorway_inner: '#6b5434', highway_motorway_casing: '#0f141b', highway_motorway_subtle: '#4a3b26', highway_path: '#1c232c' };
 function tuneStyle() {
   if (!map?.getStyle()) return; const dark = (S.effTheme ? S.effTheme() : S.truck?.theme || 'night') !== 'day';
@@ -44,7 +45,8 @@ function tuneStyle() {
     if (dark) { const c = DARK[l.id]; if (c) map.setPaintProperty(l.id, l.type === 'background' ? 'background-color' : l.type === 'fill' ? 'fill-color' : 'line-color', c);
       if (l.id === 'highway_motorway_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.4], ['zoom'], 5, 1, 9, 1.6, 14, 5, 18, 16]);
       if (l.id === 'highway_major_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.3], ['zoom'], 8, 1, 14, 5, 18, 16]);
-      if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', /motorway/.test(l.id) ? '#c9a46e' : '#8f9aa8'); map.setPaintProperty(l.id, 'text-halo-color', '#0f141b'); map.setPaintProperty(l.id, 'text-halo-width', 1.5); } }
+      if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', /motorway/.test(l.id) ? '#c9a46e' : '#a3a9b3'); map.setPaintProperty(l.id, 'text-halo-color', '#0f141a'); map.setPaintProperty(l.id, 'text-halo-width', 1.5); } }
+    else if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', '#000'); map.setPaintProperty(l.id, 'text-halo-color', '#fff'); map.setPaintProperty(l.id, 'text-halo-width', 2); }
     else if (/^road_motorway$|^bridge_motorway$|^tunnel_motorway$/.test(l.id)) map.setPaintProperty(l.id, 'line-color', '#f4a53a');
     if (l.id === 'route-casing') map.setPaintProperty(l.id, 'line-color', dark ? '#0b3d91' : '#0d47a1');
   } catch {} }
@@ -174,10 +176,10 @@ setInterval(() => { state(); placeChip(); }, 1000); state();
 // The route line itself carries congestion colour via line-gradient (source has lineMetrics) instead of a second overlay line.
 function routeTraffic() { if (!map?.getLayer('route')) return;
   const W = ['interpolate', ['exponential', 1.5], ['zoom'], 8, 4, 14, 8, 18, 14], WC = ['interpolate', ['exponential', 1.5], ['zoom'], 8, 6, 14, 12, 18, 20];
-  if (!routeTraffic.styled) { try { map.setPaintProperty('route', 'line-width', W); map.setPaintProperty('route-casing', 'line-width', WC); map.setPaintProperty('route-casing', 'line-color', '#0b2e59'); map.setPaintProperty('route', 'line-color', '#2e8bff'); if (map.getLayer('done')) map.setPaintProperty('done', 'line-opacity', 0.4); routeTraffic.styled = true; } catch {} }
+  if (!routeTraffic.styled) { try { map.setPaintProperty('route', 'line-width', W); map.setPaintProperty('route-casing', 'line-width', WC); map.setPaintProperty('route-casing', 'line-color', '#0b2e59'); map.setPaintProperty('route', 'line-color', '#38bdf8'); if (map.getLayer('done')) map.setPaintProperty('done', 'line-opacity', 0.4); routeTraffic.styled = true; } catch {} }
   const T = S.traffic, r = S.route, g = r && T?.cur ? routeGradient(T.cur.slowdowns, r.length) : null, key = g ? JSON.stringify(g) : '';
   if (key === routeTraffic.key) return; routeTraffic.key = key;
-  try { map.setPaintProperty('route', 'line-gradient', g || ['interpolate', ['linear'], ['line-progress'], 0, '#2e8bff', 1, '#2e8bff']);
+  try { map.setPaintProperty('route', 'line-gradient', g || ['interpolate', ['linear'], ['line-progress'], 0, '#38bdf8', 1, '#38bdf8']);
     if (map.getLayer('tfRoute')) map.setLayoutProperty('tfRoute', 'visibility', 'none'); document.body.dataset.routeTraffic = g ? 'on' : 'off'; } catch (e) { console.warn('route gradient', e); } }
 if (map) { map.on('styledata', () => { routeTraffic.styled = false; routeTraffic.key = null; }); setInterval(routeTraffic, 1500); }
 
@@ -188,3 +190,42 @@ function rail() { let el = $('#restrictRail'); if (!el) { el = document.createEl
   const html = items.map(x => `<div class="rr-chip k-${x.kind} s-${x.sev || 'info'}" role="note" title="${x.label}"><span class="ic">${x.kind === 'weigh' ? 'SCALE' : RAIL_ICON[x.kind]}</span><b>${x.value || ''}</b><i>${distLabel(x.dist, S.truck?.units)}</i></div>`).join('');
   if (el.innerHTML !== html) el.innerHTML = html; el.hidden = !items.length; }
 setInterval(rail, 1000);
+
+// ---- Freshness labels on live items (nav_ux_principles addendum; Onfleet "locations lag without saying so") ----
+function newestTraffic() { let t = 0; for (const l of S.traffic?.links || []) if (l.t > t) t = l.t; return t; }
+function newestReport() { let t = 0; for (const r of S.hz?.list || []) { const x = r.lastUp || r.t; if (x > t) t = x; } return t; }
+function stamp(el, t, staleMin) { if (!el || el.hidden) return; let a = el.querySelector(':scope > .age.pro-age');
+  if (!t) { a?.remove(); return; } if (!a) { a = document.createElement('span'); a.className = 'age pro-age'; a.style.marginLeft = '6px'; el.appendChild(a); }
+  a.dataset.t = t; a.dataset.stale = staleMin; }
+function freshTick() { stamp($('#tfLegend'), newestTraffic(), 15); stamp($('#hzLive'), newestReport(), 60);
+  for (const a of document.querySelectorAll('.age[data-t]')) { const f = freshness(+a.dataset.t, Date.now(), +a.dataset.stale || 10); if (a.textContent !== f.text) a.textContent = f.text; a.classList.toggle('stale', f.stale); a.title = f.stale ? 'Older data — may be out of date' : 'Fresh live data'; } }
+setInterval(freshTick, 5000); S.ageHTML = ageHTML;
+
+// ---- End-of-trip receipt (addendum "trust receipts": miles by state, route taken, stops — auditable). Shown only once parked. ----
+let trip = null, wasNav = false;
+function viaOf(r) { const n = []; for (const m of r?.maneuvers || []) for (const s of m.street_names || []) if (/^(I|US|NJ|NY|PA|CT)\b|Turnpike|Parkway|Expressway|Highway/.test(s) && !n.includes(s)) n.push(s); return n.slice(0, 3).join(' → ') || 'local roads'; }
+function tripWatch() {
+  if (S.nav && !wasNav) trip = { start: S.tripStart || Date.now(), dest: S.dest?.name || 'Destination', reports0: (S.hz?.list || []).filter(r => r.mine).length };
+  if (S.nav && trip) { trip.via = viaOf(S.route); trip.ifta = { ...(S.ifta || {}) }; trip.stops = (S.stops || []).map(s => s.name || s.label || 'Stop'); trip.miles = S.tripMiles || 0; trip.arrived = !!S.arrived; trip.tolls = S.tolls?.miles || 0; }
+  if (!S.nav && wasNav && trip) { const t = trip; trip = null; if ((t.miles || 0) >= 0.1 || t.arrived) showReceipt(t); }
+  wasNav = !!S.nav; }
+setInterval(tripWatch, 1000);
+const esc2 = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function showReceipt(t, end = Date.now()) {
+  const r = receipt({ start: t.start, end, drivenMi: t.miles, plannedByState: t.ifta, via: t.via, stops: t.stops, dest: t.dest, reports: Math.max(0, (S.hz?.list || []).filter(x => x.mine).length - (t.reports0 || 0)), tolls: t.tolls });
+  S.lastReceipt = r; const max = Math.max(1, ...r.states.map(s => s.mi)), fmt = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const show = () => { $('#tripReceipt')?.remove(); const el = document.createElement('section'); el.id = 'tripReceipt'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Trip receipt');
+    el.innerHTML = `<div class="trc-paper"><header><span class="trc-tag">TRIP RECEIPT</span><span class="trc-st ${t.arrived ? 'ok' : ''}">${t.arrived ? '✓ Arrived' : 'Trip ended'}</span></header>
+      <div class="trc-dest">${esc2(r.dest)}</div><div class="trc-time">${new Date(r.start).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${fmt(r.start)} – ${fmt(r.end)}</div>
+      <div class="trc-big"><div><b>${r.miles.toFixed(1)}</b><i>miles</i></div><div><b>${r.dur}</b><i>drive time</i></div><div><b>${r.avgMph}</b><i>avg mph</i></div></div>
+      <h4>Miles by state <small>IFTA estimate</small></h4>${r.states.length ? r.states.map(s => `<div class="trc-bar"><span>${esc2(s.st)}</span><i style="--w:${Math.round(s.mi / max * 100)}%"></i><b>${s.mi.toFixed(1)}</b></div>`).join('') : '<p class="trc-none">State split unavailable for this trip</p>'}
+      <h4>Route taken</h4><p class="trc-via">${esc2(r.via)}</p>
+      ${r.stops.length ? `<h4>Stops</h4><ol class="trc-stops">${r.stops.map(s => `<li>${esc2(s)}</li>`).join('')}</ol>` : ''}
+      <div class="trc-meta"><span>Toll miles <b>${r.tolls}</b></span><span>Reports you made <b>${r.reports}</b></span></div>
+      <div class="trc-tear"></div><div class="trc-btns"><button id="trcCsv">Download CSV</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
+    document.body.appendChild(el);
+    $('#trcCsv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([`trip,${new Date(r.start).toISOString()},${new Date(r.end).toISOString()},${r.miles}\n${r.csv}\n`], { type: 'text/csv' })); a.download = `rigroute-trip-${new Date(r.start).toISOString().slice(0, 10)}.csv`; a.click(); };
+    $('#trcDone').onclick = () => el.remove(); };
+  // Safety: never pop a sheet while the truck is moving — wait until parked (<3 mph)
+  const wait = () => ((S.speed ?? S.pos?.speed ?? 0) * 2.237 < 3 ? show() : setTimeout(wait, 3000)); wait(); }
+S.showReceipt = showReceipt;

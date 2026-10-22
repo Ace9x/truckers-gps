@@ -243,3 +243,60 @@ html body #hzBanner .hzb-btns button[data-v=up]{background:var(--ok,#2e7d32);bor
 /* Drive mode (offline.js #drive, at speed) already has its own 4-button bar: never show two Report/Mute rows */
 body.driving #navStack{display:none!important}
 #acGoogle[hidden]{display:none!important}
+
+/* ---- Color psychology (research/color_psychology.md, RigRoute section) ----
+   Night: #0F141A background, #A3A9B3 secondary text (7.8:1). Route #38BDF8. One yellow Go per screen (#FACC15, 12.1:1 with near-black).
+   Road-sign semantics: yellow = caution (with a triangle), red #FF6B6B = stop/prohibited (with an icon), green #4ADE80 = clear. Never colour alone (WCAG 1.4.1). */
+:root{--rr-night:#0f141a;--rr-mut:#a3a9b3;--rr-route:#38bdf8;--rr-go:#facc15;--rr-go-ink:#111318;--rr-ok:#4ade80;--rr-warn:#facc15;--rr-bad:#ff6b6b}
+html[data-theme=dark] body{--bg:var(--rr-night);--mut:var(--rr-mut);background:var(--rr-night)}
+html[data-theme=dark] #map{background:var(--rr-night)}
+/* The Go button: biggest, only yellow-filled control */
+html body #goBtn{min-height:60px;width:100%;background:var(--rr-go);color:var(--rr-go-ink);border:0;border-radius:var(--r3,14px);font:800 19px var(--font);letter-spacing:.01em;box-shadow:0 6px 18px #facc1540;display:flex;align-items:center;justify-content:center;gap:10px}
+html body #goBtn svg{stroke:var(--rr-go-ink)}
+html body #goBtn:disabled{background:#3a3f47;color:#9aa0a8;box-shadow:none}
+/* Road-sign warnings */
+#restrictRail .s-warn{background:var(--rr-warn)!important;border-color:#111!important;color:#111}
+#restrictRail .s-warn::before{content:"▲";font-size:9px;line-height:1;margin-bottom:-1px}
+#restrictRail .s-stop{background:#fff!important;border:4px solid var(--rr-bad)!important;color:#111}
+#restrictRail .s-stop::before{content:"⛔";font-size:9px;line-height:1}
+html body #hzBanner{border-left-color:var(--rr-warn)}html body #hzBanner .hzb-top>b{background:var(--rr-warn);color:#111}
+html body #hzBanner.red{border-left-color:var(--rr-bad)}html body #hzBanner.red .hzb-top>b{background:var(--rr-bad);color:#111}
+html body #hzBanner .hzb-btns button[data-v=up]{background:#232a33;border:1px solid #3a424d;color:#fff}
+html body #hzBanner .hzb-btns button[data-v=up]::before{content:"✓ ";color:var(--rr-ok)}html body #hzBanner .hzb-btns button[data-v=down]::before{content:"✕ ";color:var(--rr-bad)}
+/* High-contrast daylight mode for sun glare */
+html[data-theme=light] body{--panel:#fff;--txt:#000;--mut:#2b2f36;--line:#000}
+html[data-theme=light] .panel,html[data-theme=light] #hzBanner,html[data-theme=light] #tfLegend,html[data-theme=light] #hzLive,html[data-theme=light] #speedBox,html[data-theme=light] #searchBtn,html[data-theme=light] #acctChips>*{background:#fff!important;color:#000!important;border:2px solid #000!important}
+html[data-theme=light] #hzBanner .hzb-btns button{background:#fff!important;color:#000!important;border:2px solid #000!important}
+/* Freshness labels: grey and clock-marked once stale */
+.age{display:inline-flex;align-items:center;gap:3px;font:600 11px var(--font);color:var(--rr-ok);font-variant-numeric:tabular-nums;white-space:nowrap}
+.age::before{content:"●";font-size:8px}.age.stale{color:var(--rr-mut)}.age.stale::before{content:"◷";font-size:11px}
+
+/* ---- Trip receipt: a bold, auditable "printed ticket" in RigRoute orange (parked only) ---- */
+#tripReceipt{position:fixed;inset:0;z-index:60;background:#0f141acc;backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;padding:12px 12px calc(12px + var(--safe-b));overflow:auto;animation:trcIn .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes trcIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+#tripReceipt .trc-paper{width:100%;max-width:440px;background:#161c24;color:#f4f6f8;border-radius:18px 18px 10px 10px;border-top:8px solid var(--brand,#ff9500);box-shadow:0 20px 60px #000a;padding:18px 18px 14px;font-family:var(--font);position:relative}
+#tripReceipt header{display:flex;justify-content:space-between;align-items:center}
+.trc-tag{font:800 12px var(--font);letter-spacing:.22em;color:var(--brand,#ff9500)}
+.trc-st{font:700 12px var(--font);padding:4px 10px;border-radius:999px;background:#2a313b;color:var(--rr-mut)}.trc-st.ok{background:#4ade8022;color:var(--rr-ok)}
+.trc-dest{font:800 24px/1.15 var(--font);margin-top:10px;letter-spacing:-.01em}.trc-time{color:var(--rr-mut);font:500 13px var(--font);margin-top:2px}
+.trc-big{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;margin:16px 0 6px}
+.trc-big>div{background:#0f141a;border-radius:12px;padding:10px 10px 8px;border:1px solid #262e38}
+.trc-big b{display:block;font:800 26px/1 var(--font);font-variant-numeric:tabular-nums}.trc-big>div:first-child b{color:var(--brand,#ff9500);font-size:34px}
+.trc-big i{font:600 11px var(--font);font-style:normal;color:var(--rr-mut);text-transform:uppercase;letter-spacing:.08em}
+#tripReceipt h4{font:800 11px var(--font);letter-spacing:.16em;text-transform:uppercase;color:var(--rr-mut);margin:14px 0 6px}#tripReceipt h4 small{letter-spacing:0;text-transform:none;font-weight:500;opacity:.8}
+.trc-bar{display:grid;grid-template-columns:34px 1fr 52px;align-items:center;gap:8px;margin:5px 0;font:700 14px var(--font);font-variant-numeric:tabular-nums}
+.trc-bar i{height:12px;border-radius:6px;background:#262e38;position:relative;overflow:hidden}.trc-bar i::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:linear-gradient(90deg,var(--brand,#ff9500),#ffc04d);border-radius:6px}
+.trc-bar b{text-align:right}
+.trc-via{font:600 15px var(--font);margin:0}.trc-stops{margin:0;padding-left:20px;font:500 14px var(--font)}.trc-none{color:var(--rr-mut);margin:0;font-size:13px}
+.trc-meta{display:flex;gap:16px;margin-top:12px;color:var(--rr-mut);font:500 13px var(--font)}.trc-meta b{color:#fff}
+.trc-tear{margin:16px -18px 12px;height:12px;background:radial-gradient(circle at 6px 0,#0f141a 5px,transparent 6px) repeat-x;background-size:12px 12px;border-top:1px dashed #3a424d}
+.trc-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.trc-btns button{height:56px;border-radius:12px;font:800 16px var(--font);border:1px solid #3a424d;background:#232a33;color:#fff}
+.trc-btns .trc-done{background:var(--brand,#ff9500);border-color:transparent;color:#111}
+html[data-theme=light] #tripReceipt .trc-paper{background:#fff;color:#000;border:2px solid #000;border-top:8px solid var(--brand,#ff9500)}
+html[data-theme=light] .trc-big>div{background:#f4f4f4;border-color:#000}html[data-theme=light] .trc-meta b{color:#000}
+/* Corner v2: legend chip and live-reports pill stack as a tidy left column above the speed circle, so freshness labels are never clipped */
+html body #tfLegend.min{max-width:calc(100vw - 110px)!important;overflow:visible}
+html body #hzLive{left:12px!important;bottom:calc(270px + var(--safe-b))!important}
+/* Hazard alerts are a driving feature: only while navigating (no surprise banners while browsing) */
+body:not(.nav) #hzBanner{display:none!important}
