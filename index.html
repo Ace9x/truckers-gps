@@ -21,7 +21,10 @@
 <link rel="stylesheet" href="css/pro.css">
 </head>
 <body>
-<div id="splash"><div class="splashLogo">🚛</div><h1>RigRoute GPS</h1><p>Truck‑safe navigation for drivers</p></div>
+<div id="splash" role="progressbar" aria-label="Loading RigRoute" aria-valuemin="0" aria-valuemax="100"><div class="splashLogo">🚛</div><h1>RigRoute GPS</h1><p>Truck‑safe navigation for drivers</p><div class="splashBar"><i></i></div></div>
+<script>/* Splash is never a blocker: hard 2.5 s cap, independent of module loading (a failed CDN/module or stale cache once left it stuck). */
+(function(){var t0=Date.now();function bye(){var s=document.getElementById('splash');if(!s||s.dataset.bye)return;s.dataset.bye=1;s.classList.add('gone');setTimeout(function(){s.remove()},450)}
+window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
 <div id="map" aria-label="Map"></div>
 
 <div id="banner" class="hidden" role="status" aria-live="polite">

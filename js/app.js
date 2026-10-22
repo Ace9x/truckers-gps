@@ -711,7 +711,7 @@ window.addEventListener('offline', () => toast('Offline — current route keeps 
 document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && S.nav && !wakeLock) try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} });
 if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Ace 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }
 else setTimeout(() => mascot.say(TIPS[Math.floor(Math.random() * TIPS.length)], 'calm', 6000), 4000);
-setTimeout(() => $('#splash')?.classList.add('gone'), 900); setTimeout(() => $('#splash')?.remove(), 1600);
+(window.__rrSplashDone || (() => $('#splash')?.remove()))(); // app ready: dismiss now (inline script caps it at 2.5 s anyway)
 import('./hazards.js').then(m => m.init(S, { $, map, say, toast, report, openPanel, closePanels, esc })).catch(e => console.error('hazards', e));
 import('./traffic.js').then(m => { m.init(S, { $, map, say, toast, esc, LS }); S.trafficReady = true; }).catch(e => console.error('traffic', e));
 const H_ = { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, alertBanner, mascot, fmtDist, fmtDur, U, MI, report, types: () => REPORT_TYPES };

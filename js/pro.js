@@ -33,7 +33,7 @@ function laneState() { const l = $('#lanes'); document.body.classList.toggle('la
 
 // ---------- Splash / brand ----------
 export const LOGO = `<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="22" fill="#161b22"/><rect x="1.5" y="1.5" width="93" height="93" rx="20.5" fill="none" stroke="#2b333f" stroke-width="3"/><path d="M30 78 L44 18 H52 L66 78" fill="none" stroke="#3a4350" stroke-width="5" stroke-linecap="round"/><path d="M48 26v8M48 44v8M48 62v8" stroke="#3a4350" stroke-width="3" stroke-linecap="round"/><path d="M48 22 L70 70 L48 59 L26 70 Z" fill="#ff9500" stroke="#161b22" stroke-width="3" stroke-linejoin="round"/></svg>`;
-const sp = $('#splash'); if (sp) sp.innerHTML = `<div class="splashLogo">${LOGO}</div><h1>RigRoute <em>GPS</em></h1><p>Truck-safe navigation</p>`;
+const sp = $('#splash'); if (sp) sp.innerHTML = `<div class="splashLogo">${LOGO}</div><h1>RigRoute <em>GPS</em></h1><p>Truck-safe navigation</p><div class="splashBar"><i></i></div>`;
 
 // ---------- Map style tuned for trucking ----------
 const map = S?.map;

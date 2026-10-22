@@ -347,3 +347,9 @@ html body #rpTruck .muted{flex:none;color:var(--acc,#38bdf8);font-weight:700}
 html body #alts .alt .rc-tf{color:#fff}
 #tfBox{font-size:12px}
 html body #dock button{white-space:nowrap;min-width:0}html body #dock button span,html body #dock button{overflow:hidden;text-overflow:ellipsis}
+/* Splash progress: fills over the 2.5 s cap, ease-out; splash fades 400 ms */
+#splash .splashBar{width:160px;height:4px;border-radius:2px;background:#ffffff1a;overflow:hidden;margin-top:16px}
+#splash .splashBar i{display:block;height:100%;width:0;background:var(--brand,#ff9500);animation:splashFill 2.5s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes splashFill{to{width:100%}}
+html body #splash{transition:opacity .4s ease-out}html body #splash.gone{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#splash .splashBar i{animation:none;width:100%}}
