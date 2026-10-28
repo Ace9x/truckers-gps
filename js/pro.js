@@ -212,7 +212,7 @@ function tripWatch() {
   if (!S.nav && wasNav && trip) { const t = trip; trip = null; t.arrived = t.arrived || !!S.arrived; t.miles = Math.max(t.miles || 0, S.tripMiles || 0); if ((t.miles || 0) >= 0.1 || t.arrived) showReceipt(t); }
   wasNav = !!S.nav; }
 setInterval(tripWatch, 250);
-const esc2 = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc2 = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function showReceipt(t, end = Date.now()) {
   const tk = S.truck || {}; const r = t.saved || receipt({ id: t.id, unit: tk.unit || '', odoStart: tk.odometer ?? null, start: t.start, end, drivenMi: t.miles, plannedByState: t.ifta, via: t.via, stops: t.stops, dest: t.dest, reports: Math.max(0, (S.hz?.list || []).filter(x => x.mine).length - (t.reports0 || 0)), tolls: t.tolls });
   S.lastReceipt = r; if (!t.saved) saveTrip(r); const max = Math.max(1, ...r.states.map(s => s.mi)), fmt = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

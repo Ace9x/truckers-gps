@@ -3,7 +3,7 @@
 import * as cloud from './cloud.js';
 import { parkingNow, hosParking, fmtH, credAlerts, CREDS, expiry } from './jobslogic.js';
 import { settlement, stopsOf } from './freightlogic.js';
-let S; const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let S; const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => localStorage.setItem('tn_' + k, JSON.stringify(v)) };
 const signedIn = () => S.auth?.user?.method === 'supabase', toast = m => S.toast?.(m);
 const PK = { open: ['Open', 'Plenty of spots'], some: ['Some', 'A few spots left'], full: ['Full', 'Lot is full'] };

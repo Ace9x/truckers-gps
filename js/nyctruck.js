@@ -9,7 +9,7 @@ function layer(on) { const map = S.map; if (!map?.getStyle()) return;
   if (on && ix && !map.getSource('nycTruck')) { map.addSource('nycTruck', { type: 'geojson', data: geo() });
     map.addLayer({ id: 'nycTruck', type: 'line', source: 'nycTruck', minzoom: 11, layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': ['match', ['get', 't'], 'T', '#ff9500', 'X', '#a78bfa', '#38bdf8'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1, 15, 3, 18, 6], 'line-opacity': 0.75 } }, map.getLayer('route-casing') ? 'route-casing' : undefined);
-    map.on('click', 'nycTruck', e => { const f = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${f.n || 'Truck route'}</b><br><span style="color:#333">NYC ${f.t === 'T' ? 'Through' : f.t === 'X' ? 'Limited Local' : 'Local'} truck route</span>`).addTo(map); }); }
+    map.on('click', 'nycTruck', e => { const f = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${String(f.n || 'Truck route').replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';')}</b><br><span style="color:#333">NYC ${f.t === 'T' ? 'Through' : f.t === 'X' ? 'Limited Local' : 'Local'} truck route</span>`).addTo(map); }); }
   if (map.getLayer('nycTruck')) map.setLayoutProperty('nycTruck', 'visibility', on ? 'visible' : 'none'); }
 function ui() { const lp = $('#layersPanel'); if (!lp || $('#nycTruckChk')) return; const anchor = lp.querySelector('[data-layer="fuelAll"]')?.closest('label');
   const l = document.createElement('label'); l.className = 'chk'; l.innerHTML = `<input type="checkbox" id="nycTruckChk"> NYC truck routes <small class="muted">(orange Through, blue Local)</small>`; (anchor || lp.lastChild).after(l);

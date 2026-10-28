@@ -28,7 +28,7 @@ await pick(1, 'Newark Liberty International Airport', /Newark/i);
 const apptPast = await d.evaluate(() => { const t = new Date(Date.now() - 3 * 3600e3), f = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/New_York', dateStyle: 'short', timeStyle: 'short' }).format(t); return f.replace(' ', 'T'); });
 await d.fill('[data-bi="0"] [data-bt]', apptPast); await d.dispatchEvent('[data-bi="0"] [data-bt]', 'change');
 await d.check('#bReefer'); await d.fill('#bFree', '0'); await d.fill('#bDetR', '60'); await d.screenshot({ path: SH + '/dispatch-new-load.png', fullPage: true });
-await d.click('#bSend'); await d.waitForFunction(r => document.querySelector('#bMsg').textContent.includes('Sent ' + r), REF, { timeout: 15000 }); ok(true, 'multi-stop reefer load sent');
+await d.click('#bSend'); await d.waitForFunction(r => document.querySelector('#bMsg').textContent.includes('Sent ' + r), REF, { timeout: 15000 }).catch(async e => { console.log('bMsg:', await d.textContent('#bMsg')); throw e; }); ok(true, 'multi-stop reefer load sent');
 const { data: L } = await X.from('loads').select('*').eq('ref', REF).single(); ok(L.stops.length === 4 && L.reefer?.setpoint === 34 && L.stops[0].notes?.includes('Gate 3'), '4 stops + reefer + facility notes stored on the server');
 const { data: L2 } = await X.from('loads').insert({ driver: users.driver.id, ref: REF + '-B', pickup_address: 'Port Newark', pickup_lat: 40.69, pickup_lng: -74.15, dropoff_address: 'Hunts Point', dropoff_lat: 40.81, dropoff_lng: -73.87, pickup_at: new Date(Date.now() + 5 * 3600e3).toISOString(), rate_usd: 400 }).select().single();
 await d.evaluate(() => RRB.refresh()); await d.waitForTimeout(800);

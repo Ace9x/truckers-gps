@@ -6,6 +6,7 @@ import { cumulative, decodePolyline } from './logic.js';
 import { LEVELS, level, segKey, aggregate, routeTraffic, jamText, rerouteDecision, ageText, wazeLink, gmapsLink, appleLink, parseNycDot, freshLinks, linkObs, traceRequest, parseTrace, parseHere, parseTomTom, MPH, MI } from './trafficlogic.js';
 import { RELAYS } from './hazards.js';
 
+import { KEYS } from './keys.js';
 export const TKIND = 7534, TTAG = 'rigroute-tf-v1';
 const NYC = 'https://data.cityofnewyork.us/resource/i4gi-tjb9.json';
 const NYC_BOX = [-74.30, 40.48, -73.65, 40.95];
@@ -13,7 +14,7 @@ const inBox = (p, b) => p.lon >= b[0] && p.lon <= b[2] && p.lat >= b[1] && p.lat
 const empty = { type: 'FeatureCollection', features: [] };
 
 export function init(S, { $, map, say, toast, esc, LS }) {
-  const T = { feeds: {}, crowd: [], links: [], status: {}, keys: { tomtom: LS.get('tomtomKey', ''), here: LS.get('hereKey', '') }, thresholdMin: LS.get('trafficRerouteMin', 5) };
+  const T = { feeds: {}, crowd: [], links: [], status: {}, keys: { tomtom: LS.get('tomtomKey', '') || KEYS.tomtom || '', here: LS.get('hereKey', '') }, thresholdMin: LS.get('trafficRerouteMin', 5) };
   S.traffic = T;
   // ---------- styles ----------
   const css = document.createElement('style'); css.textContent = `
@@ -42,9 +43,20 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       paint: { 'line-color': ['match', ['get', 'level'], 'free', LEVELS[0].color, 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': W(1) } }, before);
     if (!map.getLayer('tfRoute')) map.addLayer({ id: 'tfRoute', type: 'line', source: 'tfRoute', layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': ['match', ['get', 'level'], 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 8, 3, 12, 6, 16, 10] } }, map.getLayer('done') ? 'done' : undefined);
-    if (T.keys.tomtom && !map.getSource('ttflow')) { map.addSource('ttflow', { type: 'raster', tileSize: 256, attribution: 'Traffic © TomTom', tiles: [`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${encodeURIComponent(T.keys.tomtom)}`] });
-      map.addLayer({ id: 'ttflow', type: 'raster', source: 'ttflow', minzoom: 8, paint: { 'raster-opacity': 0.8 } }, before); }
+    ttLayers(before);
   }
+  // TomTom flow + incidents raster tiles (toggle). On tile errors (bad key / wrong domain / quota) we drop them and fall back to NYC DOT + crowd + Waze panel.
+  function ttLayers(before) { const on = T.keys.tomtom && LS.get('tomtomOn', true) && T.status.tomtom !== 'failed';
+    for (const [id, kind, op] of [['ttflow', 'flow/relative0', 0.8], ['ttinc', 'incidents/s3', 1]]) {
+      if (on && !map.getSource(id)) { map.addSource(id, { type: 'raster', tileSize: 256, attribution: 'Traffic © TomTom', tiles: [`https://api.tomtom.com/traffic/map/4/tile/${kind}/{z}/{x}/{y}.png?key=${encodeURIComponent(T.keys.tomtom)}`] });
+        map.addLayer({ id, type: 'raster', source: id, minzoom: 6, paint: { 'raster-opacity': op } }, before || (map.getLayer('route-casing') ? 'route-casing' : undefined)); }
+      if (!on && map.getLayer(id)) { map.removeLayer(id); map.removeSource(id); } }
+    if (on && !T.status.tomtom) T.status.tomtom = 'loading'; }
+  let ttErr = 0; map.on('error', e => { if (!/^tt(flow|inc)$/.test(e.sourceId || '')) return; if (++ttErr < 4) return; T.status.tomtom = 'failed'; ttLayers();
+    toast?.('TomTom traffic unavailable — showing NYC DOT + driver speeds. Tap 🚦 Waze for the live map.'); renderLegend?.(); });
+  map.on('sourcedata', e => { if (/^tt(flow|inc)$/.test(e.sourceId || '') && e.tile && T.status.tomtom !== 'failed') T.status.tomtom = 'ok'; });
+  T.setTomTom = on => { LS.set('tomtomOn', !!on); if (on && T.status.tomtom === 'failed') { T.status.tomtom = null; ttErr = 0; } ttLayers(); renderLegend?.(); };
+  T.hasTomTom = () => !!T.keys.tomtom;
   map.on('style.load', layers); if (map.isStyleLoaded()) layers(); else map.once('load', layers);
   map.on('click', 'tf', e => { const p = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${esc(p.name || 'Road')}</b><br><span style="color:#333">${Math.round(p.mph)} mph now (normal ~${Math.round(p.ff)}) · ${level(p.ratio).label}<br><i>Source: ${esc(p.src)} · ${ageText(Date.now() - p.t)}</i></span>`).addTo(map); });
 
@@ -52,7 +64,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   async function fetchNyc() { if (T.feeds.nyc && Date.now() - T.feeds.nyc.fetched < 120e3) return;
     try { const r = await fetch(`${NYC}?$limit=3000&$where=data_as_of>'${new Date(Date.now() - 6 * 3600e3 - 4 * 3600e3).toISOString().slice(0, 19)}'&$order=data_as_of DESC`, { signal: AbortSignal.timeout(25000) });
       const rows = await r.json(); const seen = new Set(), latest = rows.filter(x => !seen.has(x.link_id) && seen.add(x.link_id));
-      const all = parseNycDot(latest), links = freshLinks(all); T.feeds.nyc = { links, fetched: Date.now(), t: Math.max(0, ...links.map(l => l.t)) }; T.status.nyc = links.length ? `${links.length} links` : all.length ? 'stale (hidden)' : 'no data'; }
+      const all = parseNycDot(latest), links = freshLinks(all); T.feeds.nyc = { links, fetched: Date.now(), t: links.length ? Math.max(...links.map(l => l.t).filter(Number.isFinite)) : null }; T.status.nyc = links.length ? `${links.length} links` : all.length ? 'stale (hidden)' : 'no data'; }
     catch (e) { T.status.nyc = 'unavailable'; } }
   async function fetchHere(b) { if (!T.keys.here) return; try {
       const j = await (await fetch(`https://data.traffic.hereapi.com/v7/flow?in=bbox:${b.map(x => x.toFixed(4)).join(',')}&locationReferencing=shape&apiKey=${encodeURIComponent(T.keys.here)}`, { signal: AbortSignal.timeout(20000) })).json();
@@ -129,9 +141,10 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   T.refresh = refresh;
   const slice = (r, a, b) => { const out = []; for (let i = 0; i < r.line.length; i++) if (r.cum[i] >= a && r.cum[i] <= b) out.push(r.line[i]); if (out.length < 2) { const i = r.cum.findIndex(c => c >= a); out.splice(0, out.length, r.line[Math.max(0, i - 1)], r.line[Math.max(1, i)]); } return out; };
   function srcLine(tr) { if (!tr || !tr.sources.length) return 'No live traffic data for this route area — ETA uses normal speeds.';
-    return `Live: ${tr.sources.join(' + ')} · ${ageText(Date.now() - tr.newest)} · covers ${Math.round(tr.coverage * 100)}% of route`; }
+    return `Live: ${tr.sources.join(' + ')}${tr.newest > 1.6e12 ? ' · ' + ageText(Date.now() - tr.newest) : ''} · covers ${Math.round(tr.coverage * 100)}% of route`; }
   function renderLegend() { const tr = T.cur, n = T.links.length;
-    legend.innerHTML = `Traffic${LEVELS.map(l => `<i style="background:${l.color}"></i>`).join('')} · ${n ? `${n} roads` : 'no data here'}${T.feeds.nyc ? ` · NYC DOT ${ageText(Date.now() - T.feeds.nyc.t)}` : ''}${T.status.crowd ? ' · drivers live' : ''}${T.keys.tomtom ? ' · TomTom' : ''}${T.keys.here ? ' · HERE' : ''}`;
+    legend.innerHTML = `Traffic${LEVELS.map(l => `<i style="background:${l.color}"></i>`).join('')} · ${n ? `${n} roads` : 'no data here'}${T.feeds.nyc ? (T.feeds.nyc.t > 1.6e12 && T.feeds.nyc.t <= Date.now() + 6e5 ? ` · NYC DOT ${ageText(Date.now() - T.feeds.nyc.t)}` : ` · NYC DOT: ${esc(T.status.nyc || 'no data')}`) : ''}${T.status.crowd ? ' · drivers live' : ''}${T.keys.tomtom ? ` · <button class="tt-tog" data-tt aria-pressed="${LS.get('tomtomOn', true)}">TomTom ${T.status.tomtom === 'failed' ? '⚠ unavailable' : LS.get('tomtomOn', true) ? 'on' : 'off'}</button>` : ''}${T.keys.here ? ' · HERE' : ''}`;
+    legend.querySelector('[data-tt]')?.addEventListener('click', () => T.setTomTom(!LS.get('tomtomOn', true)));
     legend.style.display = S.layers?.traffic === false ? 'none' : ''; }
   // Route options: Traffic row per alternative + second-opinion links
   function renderPanel() { const box = $('#alts'); if (!box || !S.routes?.length) return;

@@ -2,7 +2,7 @@
 // live board (late first) with stop timestamps, detention, reefer temps, documents/POD and messages.
 import * as cloud from './cloud.js';
 import { stopsOf, nextIdx, detention, isLate, boardSort, tempStatus, optimize, routeLen, move, STAGE_LABEL } from './freightlogic.js';
-const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const TZ = 'America/New_York', dt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '', hm = t => t ? new Date(t).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) : '';
 const nyParts = d => Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(d).map(x => [x.type, x.value]));
 const nyOff = d => { const q = nyParts(d); return Date.UTC(+q.year, q.month - 1, +q.day, +q.hour, +q.minute, +q.second) - (d.getTime() - d.getMilliseconds()); };
@@ -10,7 +10,7 @@ export const fromNY = s => { if (!s) return null; const g = Date.parse(s + ':00Z
 const mi = m => (m / 1609.34).toFixed(1);
 let book = [], loads = [], events = [], draft = [], me = null;
 const blank = kind => ({ kind, address: '', lat: null, lng: null, appt: null, _appt: '' });
-async function photon(q) { const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lat=40.75&lon=-73.95&lang=en`); const j = await r.json();
+export async function photon(q) { const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lat=40.75&lon=-73.95&lang=en`); const j = await r.json();
   return j.features.map(f => { const p = f.properties; return { address: [p.name, p.housenumber && p.street ? p.housenumber + ' ' + p.street : p.street, p.city || p.county, p.state, p.postcode].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', '), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] }; }); }
 function drawDraft() { const from = draft[0], len = draft.length > 1 && draft.every(s => s.lat != null) ? routeLen(draft) : null;
   $('#bStops').innerHTML = draft.map((s, i) => `<div class="b-stop" data-bi="${i}"><select data-bk><option value="pickup" ${s.kind === 'pickup' ? 'selected' : ''}>Pickup</option><option value="drop" ${s.kind === 'drop' ? 'selected' : ''}>Drop</option></select>

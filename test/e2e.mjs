@@ -177,6 +177,7 @@ ok(ot && ot.done > 50, `route map saved for offline: ${ot?.done}/${ot?.total} ti
 // Demo drive + HOS + load persistence + manifest
 await T(() => { TruckNav.pos = { lon: TruckNav.route.line[0][0], lat: TruckNav.route.line[0][1], t: Date.now() }; }); await page.click('#dock button[data-panel=routePanel]'); await page.click('#demoBtn'); await page.waitForTimeout(6000);
 ok(await T(() => TruckNav.along > 200 && TruckNav.nav), 'demo drive moves the truck along the route'); await shot('06-demo-drive'); await T(() => TruckNav.endNav());
+if (await page.$('#tripReceipt')) { ok(true, 'trip receipt shown after ending trip'); await page.click('#trcDone'); }
 await page.click('#dock button[data-panel=hosPanel]'); await page.click('[data-duty=drive]'); ok(await T(() => TruckNav.hos.status === 'drive'), 'HOS clock running'); await shot('08-hos'); await closeP();
 await page.click('#dock button[data-panel=truckPanel]'); await page.selectOption('[name=theme]', 'dim'); await page.waitForTimeout(1500); ok(await T(() => document.body.classList.contains('dim')), 'dim night mode'); await shot('09-truck-profile-dim'); await closeP(); await shot('15-dim-map');
 await page.click('#dock button[data-panel=loadPanel]'); await page.fill('[name=bol]', 'BOL-TEST'); await page.reload(); await page.waitForFunction(() => window.TruckNav?.ready);

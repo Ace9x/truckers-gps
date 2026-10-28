@@ -8,17 +8,20 @@ export function validateLoad(l) { const e = [];
   (l?.stops || []).forEach((s, i) => { if (!okStop(s)) e.push('stops[' + i + ']'); });
   if (l?.rate && !(l.rate.amount >= 0)) e.push('rate.amount'); if (l?.weight_lb != null && !(l.weight_lb > 0)) e.push('weight_lb');
   if (l?.hazmat?.is && !l.hazmat.class) e.push('hazmat.class'); return e; }
+// Delivered only with proof of delivery: photo + signature (images) + receiver name
+export const podOk = p => !!p && /^data:image\//.test(p.photo || '') && /^data:image\//.test(p.signature || '') && String(p.name || '').trim().length > 0;
 // Fold an ordered message log into per-load state (both sides use this, so they always agree)
 export function fold(msgs) { const loads = {}; for (const m of [...msgs].sort((a, b) => a.t - b.t)) {
     if (m.type === 'load' && !validateLoad(m.load).length) loads[m.load.id] = { ...(loads[m.load.id] || { history: [] }), load: m.load, state: loads[m.load.id]?.state || 'offered', updated: m.t };
     const L = loads[m.loadId]; if (!L) continue;
     if (m.type === 'response') { L.state = m.action === 'accept' ? 'accepted' : m.action === 'decline' ? 'declined' : 'countered'; L.counter = m.counter || null; L.reason = m.reason || ''; }
     if (m.type === 'counter_reply') L.state = m.accept ? 'accepted' : 'declined';
-    if (m.type === 'status') { L.state = m.status; if (m.pod) L.pod = m.pod; }
+    if (m.type === 'status') { if (m.status === 'delivered' && !podOk(m.pod)) { L.podMissing = true; continue; } L.state = m.status; if (m.pod) L.pod = m.pod; }
+    if (m.type === 'msg' && typeof m.text === 'string') { (L.msgs ||= []).push({ text: m.text.slice(0, 500), t: m.t, from: m.from || '' }); continue; }
     if (m.type === 'cancel') L.state = 'cancelled';
     if (['response', 'status', 'cancel', 'counter_reply'].includes(m.type)) { L.history.push({ type: m.type, t: m.t, action: m.action, status: m.status, lat: m.lat, lon: m.lon }); L.updated = m.t; } }
   return loads; }
-export function nextStatus(cur) { const i = STATUSES.indexOf(cur); return cur === 'accepted' ? STATUSES[0] : i >= 0 && i < STATUSES.length - 1 ? STATUSES[i + 1] : null; }
+export function nextStatus(cur) { if (cur === 'arrived_drop') return null; /* delivery goes through the POD sheet */ const i = STATUSES.indexOf(cur); return cur === 'accepted' ? STATUSES[0] : i >= 0 && i < STATUSES.length - 1 ? STATUSES[i + 1] : null; }
 export const routeStops = l => [{ ...l.pickup, kind: 'pickup' }, ...(l.stops || []).map(s => ({ ...s, kind: 'stop' })), { ...l.drop, kind: 'drop' }];
 
 // ---- Pairing: dispatcher shows a short code (and QR); driver types/scans it within 15 min.

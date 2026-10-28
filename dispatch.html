@@ -1,81 +1,39 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RigRoute Dispatch</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://esm.sh ; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; worker-src 'self' blob:; child-src blob:; frame-src https://embed.waze.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>RigRoute Dispatch</title>
 <style>body{font:15px system-ui;background:#111;color:#eee;margin:0;padding:16px;max-width:980px}h1{font-size:20px}section{background:#1c1c1c;border-radius:12px;padding:12px;margin:10px 0}input,textarea,select,button{font:inherit;padding:8px;border-radius:8px;border:1px solid #444;background:#222;color:#eee}button{background:#ff6d00;color:#111;font-weight:700;border:0;cursor:pointer}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid label{display:flex;flex-direction:column;font-size:12px;color:#aaa}.code{font:700 34px ui-monospace,monospace;letter-spacing:3px;color:#ff9e40}.log{font:12px ui-monospace,monospace;white-space:pre-wrap;max-height:260px;overflow:auto}.drv{border:1px solid #333;border-radius:10px;padding:8px;margin:6px 0}.pod{max-width:200px;border-radius:8px}.b-stop{display:grid;grid-template-columns:90px 1fr 190px 24px 34px 34px 34px 34px;gap:4px;align-items:center;margin:4px 0}.b-ac{position:relative}.b-ac input{width:100%;box-sizing:border-box}.b-sug{position:absolute;z-index:5;left:0;right:0;background:#222;border:1px solid #444;border-radius:8px}.b-sug button{display:block;width:100%;text-align:left;background:none;color:#eee;font-weight:400;padding:8px;border-radius:0}.b-sug button:hover{background:#333}
 .b-stop button{padding:6px;background:#333;color:#eee}.ghost{background:#333!important;color:#eee!important}.b-card{background:#1c1c1c;border:1px solid #333;border-radius:12px;padding:10px;margin:8px 0}.b-card.late{border-color:#ff6b6b;box-shadow:0 0 0 1px #ff6b6b}.b-card.st-delivered{opacity:.7}
 .b-pill{display:inline-block;background:#333;border-radius:999px;padding:2px 8px;font-size:12px}.b-pill.late,.late{color:#ff6b6b;font-weight:700}.b-rate{float:right;font-weight:700}.b-stops{margin:6px 0;padding-left:18px;font-size:13px}.b-stops li.done{opacity:.6}.b-stops li.cur{color:#ffb340}.b-stops button{padding:2px 6px;margin-left:4px;background:#333;color:#eee}
 .b-docs{display:flex;gap:6px;flex-wrap:wrap}.b-docs figure{margin:0;width:120px}.b-docs img{width:120px;height:90px;object-fit:cover;border-radius:8px}.b-docs img.sig{height:40px;object-fit:contain;background:#fff}.b-docs figcaption{font-size:11px;color:#aaa}
 .b-msgs{display:flex;flex-direction:column;gap:3px;margin:6px 0}.b-m{background:#2a2a2a;border-radius:10px;padding:4px 8px;align-self:flex-start;font-size:13px}.b-m.me{align-self:flex-end;background:#0b4f6c}.b-m small{color:#aaa}.row{display:flex;gap:6px}.row input{flex:1}.b-bk{border-bottom:1px solid #333;padding:6px 0}.b-bk button{float:right;padding:2px 8px;background:#333;color:#eee}.muted{color:#888}.b-alert{background:#ff9500;color:#111;font-weight:700;border-radius:10px;padding:8px 12px;margin:6px 0}.b-soon{color:#facc15}.small{font-size:12px}details summary{cursor:pointer;margin:8px 0;color:#bbb}.chk{display:inline-flex;gap:6px;align-items:center}
-@media(max-width:700px){.b-stop{grid-template-columns:1fr 1fr 1fr 1fr}.b-ac,.b-stop input[type=datetime-local]{grid-column:1/-1}}</style></head><body>
+@media(max-width:700px){.b-stop{grid-template-columns:1fr 1fr 1fr 1fr}.b-ac,.b-stop input[type=datetime-local]{grid-column:1/-1}}.late{color:#F87171;font-weight:600}.eta-ok{color:#4ADE80}.eta-warn{color:#FBBF24}.eta-late{color:#F87171;font-weight:600}.pod.sig{background:#fff;max-height:60px}.small{font-size:12px;color:#aaa;margin-top:4px}
+</style></head><body>
 <h1>📋 RigRoute Dispatch — test console <small style="color:#888">(Dispatch API v1, free encrypted relay transport)</small></h1>
 <section id="sbSec"><h3>☁️ RigRoute server dispatch <small style="color:#888">(dispatcher account; driver signs in to RigRoute with their email)</small></h3>
 <div id="sbAuth"><input id="sbEmail" type="email" placeholder="Dispatcher email"> <input id="sbPass" type="password" placeholder="Password"> <button id="sbIn">Sign in</button> <button id="sbUp">Create dispatcher account</button> <span id="sbMsg"></span></div>
 <div id="sbMain" hidden><p>Signed in as <b id="sbWho"></b> <button id="sbOut">Sign out</button></p>
-<h3>New load</h3><div class="grid"><label>Driver email or @username<input id="bDriver"></label><label>Ref / PO<input id="bRef" value="PO-55821"></label>
-<label>Commodity<input id="bComm" value="Fresh produce"></label><label>Weight lb<input id="bWt" type="number" value="38000"></label><label>Rate $<input id="bRate" type="number" value="850"></label><label>Notes<input id="bNotes" value="Check in at gate 3."></label>
+<h3>New load</h3><div class="grid"><label>Driver email or @username<input id="bDriver"></label><label>Ref / PO<input id="bRef" placeholder="e.g. PO-12345"></label>
+<label>Commodity<input id="bComm" placeholder="e.g. Fresh produce"></label><label>Weight lb<input id="bWt" type="number" placeholder="e.g. 38000"></label><label>Rate $<input id="bRate" type="number" placeholder="e.g. 850"></label><label>Notes<input id="bNotes" placeholder="optional"></label>
 <label>Detention free min<input id="bFree" type="number" value="120"></label><label>Detention $/hr<input id="bDetR" type="number" value="50"></label></div>
 <label class="chk"><input type="checkbox" id="bReefer"> Reefer load</label><span id="bReeferF" hidden> set °F <input id="bSet" type="number" value="34" style="width:70px"> min <input id="bMin" type="number" value="32" style="width:70px"> max <input id="bMax" type="number" value="36" style="width:70px"></span>
 <h4>Stops <small class="muted">(appointments in New York time)</small></h4><div id="bStops"></div><p><button id="bAdd" class="ghost">+ Add stop</button> <button id="bOpt" class="ghost">Optimize order</button> <span id="bLen" class="muted"></span></p>
 <button id="bSend">Send load to driver</button> <span id="bMsg"></span>
 <details><summary>★ Address book</summary><div id="bBook"></div></details>
 <h3>Live board <small class="muted" id="bCount"></small></h3><div class="row"><input id="bSearch" placeholder="Search ref / PO / address"><button id="bNotify" class="ghost">🔔 Enable alerts</button></div><div id="bAlerts" class="b-alert" hidden role="status"></div><div id="bBoard"></div></div></section>
-<details class="legacy"><summary>Relay pairing console (code / QR, no account)</summary>
-<section><label>Dispatcher name <input id="dName" value="Rocapulco Freight"></label> <button id="newCode">Show pairing code</button> <span id="relays" style="color:#888"></span>
-<div id="codeBox" hidden><p>Driver: open RigRoute → 📋 Loads → enter code, or scan:</p><div class="code" id="code"></div><img id="qr" width="150" height="150" style="background:#fff"><p id="codeExp" style="color:#888"></p></div></section>
+<details class="legacy" open><summary>Quick pair (no account): code / QR over encrypted relays</summary>
+<section><label>Dispatcher name <input id="dName" placeholder="Your company name"></label> <button id="newCode">Show pairing code</button> <div id="relays" class="small"></div>
+<div id="codeBox" hidden><p>Driver: open RigRoute → 📋 Loads → enter code, or scan:</p><div class="code" id="code"></div><img id="qr" width="150" height="150" style="background:#fff" alt="Pairing QR"><p id="codeExp" style="color:#888"></p></div></section>
 <section><h3>Drivers</h3><div id="drivers">None paired yet.</div></section>
-<section><h3>Send a load</h3><label>To driver <select id="to"></select></label>
-<div class="grid"><label>Load ID<input id="lid"></label><label>Ref / PO<input id="ref" value="PO-55821"></label>
-<label>Pickup name<input id="pName" value="Hunts Point Produce Market"></label><label>Pickup address<input id="pAddr" value="355 Food Center Dr, Bronx, NY 10474"></label>
-<label>Pickup lat,lon<input id="pLL" value="40.8085,-73.8740"></label><label>Pickup window (start,end · New York time)<input id="pWin" type="text"></label>
-<label>Drop name<input id="dNameS" value="Port Newark Terminal"></label><label>Drop address<input id="dAddr" value="1 Export St, Newark, NJ 07114"></label>
-<label>Drop lat,lon<input id="dLL" value="40.6930,-74.1520"></label><label>Drop window (start,end · New York time)<input id="dWin"></label>
-<label>Rate $<input id="rate" type="number" value="850"></label><label>Commodity<input id="comm" value="Fresh produce (reefer)"></label>
-<label>Weight lb<input id="wt" type="number" value="38000"></label><label>Equipment<input id="eq" value="53' reefer"></label>
-<label>Hazmat class (blank = none)<input id="hz"></label><label>UN number<input id="un"></label>
-<label>BOL refs (comma)<input id="bol" value="BOL-77812"></label><label>Notes<input id="notes" value="Check in at gate 3. Keep reefer at 34°F."></label></div>
-<button id="send" style="margin-top:8px">Send load</button> <span id="sendMsg"></span></section>
+<section><h3>Send a load</h3><label>To driver * <select id="to"></select></label>
+<div class="grid"><label>Load ID<input id="lid" readonly></label><label>Ref / PO<input id="ref" placeholder="e.g. PO-12345"></label>
+<label>Pickup name<input id="pName" placeholder="Shipper name"></label><label>Pickup address *<div class="b-ac"><input id="pAddr" placeholder="Start typing an address" autocomplete="off"><div class="b-sug" hidden></div></div></label>
+<label>Pickup location<input id="pLL" readonly placeholder="Pick an address from the list"></label><label>Pickup window (New York time)<input id="pWin" placeholder="2026-10-29T08:00,2026-10-29T10:00"></label>
+<label>Drop name<input id="dNameS" placeholder="Receiver name"></label><label>Drop address *<div class="b-ac"><input id="dAddr" placeholder="Start typing an address" autocomplete="off"><div class="b-sug" hidden></div></div></label>
+<label>Drop location<input id="dLL" readonly placeholder="Pick an address from the list"></label><label>Drop window (New York time)<input id="dWin" placeholder="2026-10-29T14:00,2026-10-29T16:00"></label>
+<label>Rate $ *<input id="rate" type="number" min="1" placeholder="e.g. 850"></label><label>Commodity<input id="comm" placeholder="e.g. Dry goods"></label>
+<label>Weight lb<input id="wt" type="number" min="1" placeholder="e.g. 38000"></label><label>Equipment<select id="eq"><option value="">Choose…</option><option>53' dry van</option><option>53' reefer</option><option>26' box truck</option><option>Flatbed</option><option>Sprinter van</option></select></label>
+<label>Hazmat class (blank = none)<input id="hz" placeholder="e.g. 3"></label><label>UN number<input id="un" placeholder="e.g. UN1203"></label>
+<label>BOL refs (comma)<input id="bol" placeholder="optional"></label><label>Notes<input id="notes" placeholder="optional"></label></div>
+<button id="send" style="margin-top:8px" disabled>Send load</button> <span id="sendMsg" class="muted">Fill the fields marked *</span></section>
 <section><h3>Loads & updates</h3><div id="loads"></div></section><details><summary>Debug log</summary><div class="log" id="log"></div></details></details>
-<script type="module">
-import { DispatcherConsole, STATUS_LABEL } from './js/dispatch.js'; import { bus, hex, unhex, newSecret, uid } from './js/link.js';
-const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let k = localStorage.getItem('rr_disp_key'); if (!k) { k = hex(newSecret()); localStorage.setItem('rr_disp_key', k); }
-const D = new DispatcherConsole(unhex(k), $('#dName').value); window.RRD = D;
-// Time windows are entered/shown in America/New_York (not UTC)
-const TZ = 'America/New_York', nyParts = d => Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(d).map(x => [x.type, x.value]));
-const nyOffset = d => { const q = nyParts(d); return Date.UTC(+q.year, q.month - 1, +q.day, +q.hour, +q.minute, +q.second) - (d.getTime() - d.getMilliseconds()); };
-const nyLocal = d => { const q = nyParts(d); return `${q.year}-${q.month}-${q.day}T${q.hour}:${q.minute}`; };
-const fromNY = s => { const g = Date.parse(s + ':00Z'); let t = g - nyOffset(new Date(g)); return new Date(g - nyOffset(new Date(t))); };
-const iso = h => { const d = new Date(Date.now() + h * 3600e3); d.setMinutes(0, 0, 0); return nyLocal(d); };
-$('#pWin').value = iso(2) + ',' + iso(4); $('#dWin').value = iso(6) + ',' + iso(8); $('#lid').value = 'L-' + uid().slice(0, 6).toUpperCase();
-setInterval(() => $('#relays').textContent = bus().openCount + ' relays connected', 1000);
-$('#newCode').onclick = async () => { D.name = $('#dName').value; const { code, expires } = await D.newCode(p => log('paired with ' + (p.driver?.name || 'driver')));
-  $('#codeBox').hidden = false; $('#code').textContent = code; $('#codeExp').textContent = 'Expires ' + new Date(expires).toLocaleTimeString() + ' · one driver per code';
-  const url = new URL('./?pair=' + code, location.href).href; import('https://esm.sh/qrcode@1.5.4').then(q => q.toDataURL(url, { margin: 1 })).then(u => $('#qr').src = u).catch(() => $('#qr').remove()); };
-const ll = s => s.split(',').map(Number), win = s => { const [a, b] = s.split(','); return a ? { start: fromNY(a.trim()).toISOString(), end: b ? fromNY(b.trim()).toISOString() : null, tz: TZ } : null; };
-$('#send').onclick = async () => { try { const [pl, pn] = ll($('#pLL').value), [dl, dn] = ll($('#dLL').value);
-  const load = { id: $('#lid').value, ref: $('#ref').value, pickup: { name: $('#pName').value, address: $('#pAddr').value, lat: pl, lon: pn, window: win($('#pWin').value) },
-    drop: { name: $('#dNameS').value, address: $('#dAddr').value, lat: dl, lon: dn, window: win($('#dWin').value) }, rate: { amount: +$('#rate').value, currency: 'USD', per: 'flat' },
-    commodity: $('#comm').value, weight_lb: +$('#wt').value || null, equipment: $('#eq').value, hazmat: $('#hz').value ? { is: true, class: $('#hz').value, un: $('#un').value } : { is: false },
-    bol: $('#bol').value.split(',').map(s => s.trim()).filter(Boolean), notes: $('#notes').value };
-  await D.sendLoad($('#to').value, load); $('#sendMsg').textContent = '✅ sent ' + load.id; $('#lid').value = 'L-' + uid().slice(0, 6).toUpperCase(); } catch (e) { $('#sendMsg').textContent = '⚠ ' + e.message; } };
-const log = s => $('#log').textContent = new Date().toLocaleTimeString() + ' ' + s + '\n' + $('#log').textContent;
-const seen = new Set();
-function render() { const sel = $('#to').value; $('#to').innerHTML = D.drivers.map(p => `<option value="${p.session}">${esc(p.driver?.name || 'Driver')} (${p.driverPk.slice(0, 8)})</option>`).join(''); if (sel) $('#to').value = sel;
-  $('#drivers').innerHTML = D.drivers.map(p => `<div class="drv" data-driver="${p.driverPk}"><b>${esc(p.driver?.name || 'Driver')}</b> ${p.unpaired ? '(disconnected)' : ''} · location sharing: <b data-sharing>${p.sharing ? 'ON' : 'off'}</b>
-    ${p.last ? `<br><span data-loc>📍 ${p.last.lat}, ${p.last.lon} · ${new Date(p.last.t).toLocaleTimeString()}</span> <a target="_blank" href="https://www.openstreetmap.org/?mlat=${p.last.lat}&mlon=${p.last.lon}#map=14/${p.last.lat}/${p.last.lon}">map</a>` : ''}</div>`).join('') || 'None paired yet.';
-  $('#loads').innerHTML = D.drivers.flatMap(p => Object.values(D.loads(p.session)).map(L => `<div class="drv" data-load="${esc(L.load.id)}"><b>${esc(L.load.id)}</b> → ${esc(p.driver?.name)} · <b data-state="${L.state}">${esc(STATUS_LABEL[L.state] || L.state)}</b>${L.counter ? ' · counter $' + L.counter.amount + ` <button data-cr="${p.session}|${L.load.id}|1">Accept counter</button> <button data-cr="${p.session}|${L.load.id}|0">Reject</button>` : ''}${L.reason ? ' · ' + esc(L.reason) : ''}
-    <div style="font-size:12px;color:#aaa">${L.history.map(h => new Date(h.t).toLocaleTimeString() + ' ' + (h.status ? STATUS_LABEL[h.status] : h.action || h.type)).join(' → ')}</div>${L.pod ? `<img class="pod" src="${L.pod.photo}" alt="POD">` : ''}</div>`)).join('');
-  document.querySelectorAll('[data-cr]').forEach(b => b.onclick = () => { const [s, id, a] = b.dataset.cr.split('|'); D.send(s, { type: 'counter_reply', loadId: id, accept: a === '1' }); });
-  for (const p of D.drivers) for (const m of D.logs[p.session] || []) if (!seen.has(m.id)) { seen.add(m.id); log(`${m.type}${m.action ? ' ' + m.action : ''}${m.status ? ' ' + m.status : ''}${m.loadId ? ' ' + m.loadId : ''}${m.load ? ' ' + m.load.id : ''}`); } }
-D.onChange(render); render();
-import * as cloud from './js/cloud.js';
-(async () => { const c = await cloud.sb(); if (!c) { $('#sbSec').hidden = true; return; }
-  const show = async () => { const id = await cloud.uid(); $('#sbAuth').hidden = !!id; $('#sbMain').hidden = !id; if (!id) return; const { data: u } = await c.auth.getUser(); const role = await cloud.myRole();
-    $('#sbWho').textContent = u.user.email + ' (' + role + ')'; if (role !== 'dispatcher' && role !== 'admin') $('#bMsg').textContent = '⚠ This account is a ' + role + ' account — sign up a separate dispatcher account to send loads.'; draw(); };
-  const draw = async () => { if (!window.RRB) (await import('./js/board.js')).start(); else window.RRB.refresh(); };
-  const cred = () => ({ email: $('#sbEmail').value.trim(), password: $('#sbPass').value });
-  $('#sbIn').onclick = async () => { const { error } = await c.auth.signInWithPassword(cred()); $('#sbMsg').textContent = error ? '⚠ ' + error.message : ''; show(); };
-  $('#sbUp').onclick = async () => { const { data, error } = await c.auth.signUp({ ...cred(), options: { data: { role: 'dispatcher', display_name: $('#dName').value }, emailRedirectTo: location.href } }); $('#sbMsg').textContent = error ? '⚠ ' + error.message : data.session ? '' : '✅ Check your email to confirm, then sign in.'; show(); };
-  $('#sbOut').onclick = async () => { await c.auth.signOut(); show(); };
-  c.auth.onAuthStateChange(() => setTimeout(show, 0)); await show();
-})();
-</script></body></html>
+<script type="module" src="js/dispatch-page.js"></script></body></html>

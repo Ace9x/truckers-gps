@@ -17,7 +17,9 @@ const STYLES = { night: 'https://tiles.openfreemap.org/styles/dark', dim: 'https
 const MI = 1609.344;
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// popup buttons: delegated handlers (no inline JS, CSP-safe)
+document.addEventListener('click', e => { const b = e.target.closest('[data-rprice],[data-amen]'); if (!b) return; if (b.dataset.rprice) S.reportPrice(b.dataset.rprice); else S.confirmAmenity(b.dataset.amen, b.dataset.ak, b.dataset.av === '1'); });
 const empty = { type: 'FeatureCollection', features: [] };
 const line = coords => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} });
 
@@ -289,7 +291,7 @@ async function analyzeRoute(r) {
 S.analyzeRoute = analyzeRoute;
 const DICON = { parkway: '🚫', height: '⛔', weight: '⚖️', length: '📏', hazmat: '☣️', notrucks: '🚫', tunnel: '🚇', grade: '⛰️', curve: '↪️' };
 function renderDangers() { const d = S.dangers || [], base = S.nav ? S.along : 0;
-  $('#dangerList').innerHTML = d.length ? d.filter(x => x.along >= base).slice(0, 25).map(x => `<li class="${x.sev}">${DICON[x.kind] || '⚠'} ${esc(x.short)} · in ${fmtDist(x.along - base, U())}</li>`).join('') : `<li>No mapped clearance/weight/grade dangers found on this route${S.routeEdges ? '' : ' (road data server busy — curves only)'}.</li>`; }
+  $('#dangerList').innerHTML = d.length ? d.filter(x => x.along >= base).slice(0, 25).map(x => `<li class="${esc(x.sev)}">${DICON[x.kind] || '⚠'} ${esc(x.short)} · in ${fmtDist(x.along - base, U())}</li>`).join('') : `<li>No mapped clearance/weight/grade dangers found on this route${S.routeEdges ? '' : ' (road data server busy — curves only)'}.</li>`; }
 function dangerAlerts() {
   for (const d of S.dangers || []) { const ahead = d.along - S.along; if (ahead < 0 || ahead > 2.1 * MI) continue; if (d.kind === 'curve' && (S.pos.speed || 0) < 13) continue;
     const a = (S.dangerSpoken[d.kind + d.along] ||= {});
@@ -478,7 +480,7 @@ async function loadPois(quiet) {
   if (S.nav && !S.showerSaid && S.pois.some(p => p.amen?.showers)) { S.showerSaid = true; nextAmenity('showers'); }
 }
 $('#poiBtn').onclick = () => loadPois();
-function amenConfirmHTML(p) { if (!['stop', 'rest', 'parking', 'fuel'].includes(p.kind)) return ''; return `${p.kind !== 'fuel' ? `<div class="pk" data-pk="${esc(p.id)}" data-pkname="${esc(p.name)}" data-pkll="${p.lat},${p.lon}"></div>` : ''}${p.kind === 'fuel' || p.kind === 'stop' ? `<div class="vote"><button onclick="TruckNav.reportPrice('${esc(p.id)}')">💲 Report diesel price</button></div>` : ''}<div class="vote">${['showers', 'restrooms', 'food'].map(k => `<button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',true)">👍 ${k}</button><button onclick="TruckNav.confirmAmenity('${esc(p.id)}','${k}',false)">👎</button>`).join('')}</div>`; }
+function amenConfirmHTML(p) { if (!['stop', 'rest', 'parking', 'fuel'].includes(p.kind)) return ''; return `${p.kind !== 'fuel' ? `<div class="pk" data-pk="${esc(p.id)}" data-pkname="${esc(p.name)}" data-pkll="${p.lat},${p.lon}"></div>` : ''}${p.kind === 'fuel' || p.kind === 'stop' ? `<div class="vote"><button data-rprice="${esc(p.id)}">💲 Report diesel price</button></div>` : ''}<div class="vote">${['showers', 'restrooms', 'food'].map(k => `<button data-amen="${esc(p.id)}" data-ak="${k}" data-av="1">👍 ${k}</button><button data-amen="${esc(p.id)}" data-ak="${k}" data-av="0">👎</button>`).join('')}</div>`; }
 S.refreshPois = () => { if (S.route && S.lastPoiRaw) showPois(S.lastPoiRaw, S.lastPoiNote); };
 S.confirmAmenity = async (id, key, val) => { const c = LS.get('amenConf', {}); (c[id] ||= {})[key] = val; LS.set('amenConf', c); const p = S.pois.find(x => String(x.id) === String(id));
   try { await backend.addReport({ id: crypto.randomUUID?.() || String(Math.random()).slice(2), type: 'amenity', poi: id, key, val, lat: p?.lat, lon: p?.lon, t: Date.now(), up: 0, down: 0, mine: true }); } catch {}
@@ -529,7 +531,7 @@ function drawReports() {
   rptMarkers.forEach(m => m.remove());
   rptMarkers = S.reports.filter(r => reportVisible(r) && !(r.mine && REPORT_TYPES[r.type]?.avoid)).map(r => { const t = REPORT_TYPES[r.type]; if (!t) return null;
     const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = t.icon;
-    const html = document.createElement('div'); html.innerHTML = `<b style="color:#111">${t.label}</b><br><span style="color:#333">${new Date(r.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · 👍 ${r.up || 0} · 👎 ${r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
+    const html = document.createElement('div'); html.innerHTML = `<b style="color:#111">${t.label}</b><br><span style="color:#333">${new Date(r.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · 👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
     html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Sign in (👤) to flag reports'); } });
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
     return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
@@ -562,7 +564,7 @@ async function renderMe() {
   $$('[data-av]').forEach(b => b.onclick = () => { p.avatar = b.dataset.av; profile.save(backend); renderMe(); });
   $$('[data-md]').forEach(b => b.onclick = () => { p.mood = b.dataset.md; profile.save(backend); renderMe(); renderDock(); });
   const lb = await backend.leaderboard(weekKey(), p).catch(() => []);
-  $('#leader').innerHTML = lb.map(x => `<li>${esc(x.name)}${x.you ? ' (you)' : ''} — ${x.points} pts</li>`).join('') || '<li class="muted">No points yet this week</li>';
+  $('#leader').innerHTML = lb.map(x => `<li>${esc(x.name)}${x.you ? ' (you)' : ''} — ${+x.points || 0} pts</li>`).join('') || '<li class="muted">No points yet this week</li>';
   $('#leaderNote').textContent = backend.name === 'local' ? 'Shared leaderboard and community confirmations go live once accounts are connected to the server. Right now points are kept on this phone.' : 'Live weekly leaderboard.';
   renderGarage(); $('#mascotOn').checked = mascot.enabled; renderAcct(); renderVoiceUI();
 }

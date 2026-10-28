@@ -29,11 +29,17 @@ const A3 = await app('A3'); await A3.click('#acctBtn'); await A3.click('[data-t=
 ok(await wait(A3, (pk) => TruckNav.auth.user?.name === 'Anthony', null, 40), 'third device: restored with recovery code'); await A3.context().close(); await A2.context().close();
 // ---------- 2. dispatch
 const Dp = await (await browser.newContext({ viewport: { width: 1100, height: 1400 } })).newPage(); Dp.on('pageerror', e => console.log('DISP PAGE ERROR', e.message));
-await Dp.goto(BASE + 'dispatch.html'); await Dp.waitForFunction(() => window.RRD); await Dp.click('#newCode'); await Dp.waitForSelector('#code:not(:empty)'); const code = await Dp.textContent('#code');
+await Dp.goto(BASE + 'dispatch.html'); await Dp.waitForFunction(() => window.RRD); await Dp.click('#newCode'); ok(await Dp.$eval('#codeBox', e => e.hidden), 'pairing code needs a company name first'); await Dp.fill('#dName', 'Rocapulco Freight'); await Dp.click('#newCode'); await Dp.waitForSelector('#code:not(:empty)'); const code = await Dp.textContent('#code');
 await Dp.waitForTimeout(1500); await shot(Dp, '05-dispatcher-code');
-await A.click('#loadsBtn'); await A.fill('#pairCode', code); await A.click('#pairGo');
+await A.click('#loadsBtn'); await A.fill('#pairUnit', '42'); await A.fill('#pairCode', code); await A.click('#pairGo');
 ok(await wait(A, () => TruckNav.dispatch.pairings.length === 1, null, 60), `driver paired with dispatcher using code ${code}`);
 ok(await wait(Dp, () => RRD.drivers.length === 1 && RRD.drivers[0].driver.name === 'Anthony', null, 20), 'dispatcher sees paired driver "Anthony"');
+ok(await Dp.evaluate(() => ['#ref', '#pAddr', '#pLL', '#rate', '#comm', '#bol', '#notes', '#pWin'].every(i => !document.querySelector(i).value)), 'relay form has placeholders, no sample load values');
+ok(await wait(Dp, () => /Anthony · Unit 42/.test(document.querySelector('#drivers').textContent), null, 20), 'dispatcher shows driver as "Anthony · Unit 42", not an id'); console.log('drivers:', await Dp.textContent('#drivers'), '| msg:', await Dp.textContent('#sendMsg'));
+ok(await Dp.isDisabled('#send') && /Needed: driver/.test(await Dp.textContent('#sendMsg')), 'Send blocked until required fields are filled');
+await Dp.selectOption('#to', { index: 1 }); await Dp.fill('#rate', '850'); await Dp.fill('#pAddr', '355 Food Center Dr, Bronx, NY'); ok(await Dp.isDisabled('#send'), 'typed address without a picked match still blocks Send');
+await Dp.evaluate(() => { const set = (i, v) => { const e = document.querySelector(i); e.value = v; }; set('#pLL', '40.80850,-73.87400'); set('#dAddr', '1 Export St, Newark, NJ'); set('#dLL', '40.69300,-74.15200'); set('#dWin', '2099-01-01T08:00,2099-01-01T10:00'); document.querySelector('#rate').dispatchEvent(new Event('input')); });
+ok(!(await Dp.isDisabled('#send')), 'Send enabled once driver, both addresses+locations and rate are set');
 const LID = await Dp.inputValue('#lid'); await Dp.click('#send'); ok(await wait(Dp, () => /sent/.test(document.querySelector('#sendMsg').textContent), null, 20), 'dispatcher sent load ' + LID);
 ok(await wait(A, l => !!document.querySelector(`[data-load="${l}"] [data-act="accept"]`), LID, 40), 'driver Loads inbox shows the offer'); await shot(A, '06-driver-load-offer');
 await A.click(`[data-load="${LID}"] [data-act="accept"]`); ok(await wait(Dp, l => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === 'accepted', LID, 40), 'dispatcher sees ACCEPTED');
@@ -41,12 +47,22 @@ await A.click(`[data-load="${LID}"] [data-act="nav"]`);
 ok(await wait(A, () => TruckNav.nav && TruckNav.stops?.[0]?.name?.startsWith('Pickup') && /Deliver/.test(TruckNav.dest?.name), null, 90), 'one-tap Navigate: multi-stop truck route pickup -> delivery, navigation started');
 await A.waitForTimeout(1500); await shot(A, '07-driver-navigating');
 ok(await wait(Dp, l => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === 'en_route_pickup', LID, 40), 'dispatcher sees "En route to pickup" (auto on Navigate)');
-await A.evaluate(() => { document.querySelector('#endBtn')?.click(); }); await A.click('#loadsBtn');
+await A.evaluate(() => { document.querySelector('#endBtn')?.click(); document.querySelector('#trcDone')?.click(); }); await A.click('#loadsBtn');
+await A.check('#shareLoc'); ok(await wait(Dp, () => RRD.drivers[0].sharing && RRD.drivers[0].last?.lat, null, 40), 'driver opted in to live location -> dispatcher sees position');
+ok(await wait(Dp, l => !!document.querySelector(`[data-load="${l}"] [data-eta]`), LID, 20), 'dispatcher sees (en route) an ETA estimate for the load');
+
 for (const s of ['arrived_pickup', 'loaded', 'en_route_drop', 'arrived_drop']) { await A.click(`[data-load="${LID}"] [data-s="${s}"]`);
   ok(await wait(Dp, ([l, s]) => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === s, [LID, s], 40), 'dispatcher sees status ' + s); }
 await A.check('#shareLoc'); ok(await wait(Dp, () => RRD.drivers[0].sharing && RRD.drivers[0].last?.lat, null, 40), 'driver opted in to live location -> dispatcher sees position');
-await A.setInputFiles(`[data-load="${LID}"] [data-act="pod"]`, 'icons/icon-192.png');
-ok(await wait(Dp, l => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === 'delivered' && document.querySelector(`[data-load="${l}"] img.pod`), LID, 40), 'delivered + POD photo visible to dispatcher');
+await Dp.fill(`[data-load="${LID}"] [data-mi]`, 'Gate 3 please'); await Dp.click(`[data-load="${LID}"] [data-ms]`);
+ok(await wait(A, () => /Gate 3 please/.test(document.querySelector('#loadsPanel, body').textContent), null, 30), 'driver receives dispatcher message');
+ok(!(await A.$(`[data-load="${LID}"] [data-s="delivered"]`)), 'no one-tap Delivered: proof of delivery required');
+await A.click(`[data-load="${LID}"] [data-act="podsheet"]`); ok(await A.isDisabled('#fxPodGo'), 'POD sheet blocks submit until photo, signature, name');
+await A.setInputFiles('#fxPodPhoto', 'icons/icon-192.png'); await A.fill('#fxPodName', 'R. Alvarez'); if (await A.$('#fxPodPcs')) await A.fill('#fxPodPcs', '12');
+{ const b = await A.$eval('#fxPodSig', c => { const r = c.getBoundingClientRect(); return [r.x, r.y]; }); await A.mouse.move(b[0] + 20, b[1] + 40); await A.mouse.down(); for (let k = 0; k < 15; k++) await A.mouse.move(b[0] + 20 + k * 8, b[1] + 40 + (k % 3) * 6); await A.mouse.up(); }
+await A.waitForFunction(() => !document.querySelector('#fxPodGo').disabled, null, { timeout: 10000 }); await A.click('#fxPodGo');
+ok(await wait(Dp, l => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === 'delivered' && document.querySelector(`[data-load="${l}"] img.pod`), LID, 40), 'delivered + POD photo visible to dispatcher'); ok(/R\. Alvarez/.test(await Dp.textContent(`[data-load="${LID}"]`)) && !!(await Dp.$(`[data-load="${LID}"] img.sig`)), 'dispatcher sees signature + receiver name');
+ok(/relays connected/.test(await Dp.textContent('#relays')) && (await Dp.$$('[data-relay]')).length > 0, 'per-relay health shown');
 await shot(A, '08-driver-delivered'); await shot(Dp, '09-dispatcher-timeline');
 // ---------- 3. friends + pass prediction
 const B = await app('B', { latitude: 40.75, longitude: -74.05 }); ok(await signUp(B, EMAIL_B, 'Mike'), 'second driver Mike signs up');

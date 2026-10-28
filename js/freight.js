@@ -2,7 +2,7 @@
 // reefer temp log, documents (BOL / lumper / scale) and dispatcher messages — all on the RigRoute server (load_events).
 import * as cloud from './cloud.js';
 import { stopsOf, nextIdx, detention, tempStatus, STAGE_LABEL, hav } from './freightlogic.js';
-let S; const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let S; const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const TZ = 'America/New_York', hm = t => t ? new Date(t).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) : '', dt = t => t ? new Date(t).toLocaleString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
 const EXC = ['Closed', 'Refused', 'Not ready / waiting on freight', 'Wrong address', 'Short / damaged freight', 'No dock available'];
 const mins = m => m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`;
@@ -57,8 +57,8 @@ function wire(el, l) { const st = stopsOf(l);
   const sb = el.querySelector('[data-fsend]'); if (sb) sb.onclick = () => { const i = el.querySelector('[data-fmsg]'); send(i.value); i.value = ''; };
   el.querySelectorAll('[data-fq]').forEach(b => b.onclick = () => send(b.dataset.fq)); }
 // Proof of delivery: photo + signature + receiver name + pieces (+ damage) — the server refuses delivery without them.
-export function podSheet(l, idx) { $('#fxPodSheet')?.remove(); const d = document.createElement('section'); d.id = 'fxPodSheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Proof of delivery');
-  d.innerHTML = `<div class="pod-card"><h2>Proof of delivery</h2><p class="small muted">${esc(stopsOf(l)[idx].address)}</p>
+export function podSheet(l, idx, opts = {}) { $('#fxPodSheet')?.remove(); const d = document.createElement('section'); d.id = 'fxPodSheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Proof of delivery');
+  d.innerHTML = `<div class="pod-card"><h2>Proof of delivery</h2><p class="small muted">${esc(opts.address || stopsOf(l)[idx].address)}</p>
     <label class="pod-photo">📷 Photo of delivered freight / signed BOL<input type="file" accept="image/*" capture="environment" id="fxPodPhoto"></label><img id="fxPodPrev" hidden alt="">
     <label>Receiver name<input id="fxPodName" autocomplete="off"></label><label>Pieces delivered<input id="fxPodPcs" type="number" min="0" inputmode="numeric"></label>
     <div class="pod-sig-h">Receiver signature <button class="small-btn" id="fxPodClr" type="button">Clear</button></div><canvas id="fxPodSig" width="600" height="220"></canvas>
@@ -75,6 +75,7 @@ export function podSheet(l, idx) { $('#fxPodSheet')?.remove(); const d = documen
   d.querySelector('#fxPodPhoto').onchange = async e => { const f = e.target.files[0]; if (!f) return; photo = await compress(f); const p = d.querySelector('#fxPodPrev'); p.src = photo; p.hidden = false; check(); };
   d.querySelector('#fxPodGo').onclick = async () => { const x = v(); d.querySelector('#fxPodGo').disabled = true; d.querySelector('#fxPodMsg').textContent = 'Sending…';
     const pod = { name: x.name, pieces: +x.pieces, photo, signature: cv.toDataURL('image/png'), damage: x.dmg ? x.dmgT : null }, ps = S.pos ? { lat: S.pos.lat, lon: S.pos.lon } : null;
+    if (opts.submit) { try { await opts.submit(pod, ps); d.remove(); toast('✅ Delivered — POD sent to dispatch'); } catch (e) { d.querySelector('#fxPodMsg').textContent = '⚠ ' + e.message; d.querySelector('#fxPodGo').disabled = false; } return; }
     try { try { await cloud.stopEvent(l.id, idx, 'depart', ps, pod); } catch (e) { if (!offline(e)) throw e; outbox.push({ op: 'stop', load: l.id, args: [l.id, idx, 'depart', ps, pod], t: Date.now() }); saveOut(); d.remove(); toast('⏳ No signal — POD saved on this phone, sends automatically'); for (const k in sig) delete sig[k]; fill(); return; } d.remove(); toast('✅ Delivered — POD sent to dispatch'); try { navigator.vibrate?.(30); } catch {}
       await S.refreshCloudLoads?.(); await refreshEvents(); fill(); } catch (e) { d.querySelector('#fxPodMsg').textContent = '⚠ ' + e.message; d.querySelector('#fxPodGo').disabled = false; } }; }
 const autoDone = new Set(), detAlerted = new Set();
