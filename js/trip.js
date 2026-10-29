@@ -19,14 +19,69 @@ export function tollSegments(edges) { const runs = []; let cur = null;
 export function edgeAt(edges, along) { let best = null; for (const e of edges) { if (e.along > along + 1) break; if (e.along + (e.length || 0) >= along - 1) best = e; } return best; }
 export function limitAt(edges, along) { return edgeAt(edges, along)?.speed_limit || null; }
 export const kphToMph = k => Math.round(k / 1.609344 / 5) * 5 || Math.round(k / 1.609344);
-// Statutory default limits (mph) when a road has no posted tag: [residential/urban street, other non-limited road, rural interstate/motorway].
-// Summarized from state vehicle codes; always shown as an estimate ("est.").
-export const STATE_DEFAULTS = { AL:[25,55,70],AK:[25,55,65],AZ:[25,55,75],AR:[30,55,75],CA:[25,55,70],CO:[30,55,75],CT:[25,55,65],DE:[25,50,65],DC:[25,25,55],FL:[30,55,70],GA:[30,55,70],HI:[25,45,60],ID:[35,55,75],IL:[30,55,70],IN:[30,55,70],IA:[25,55,70],KS:[30,55,75],KY:[35,55,70],LA:[25,55,70],ME:[25,45,75],MD:[30,50,70],MA:[30,40,65],MI:[25,55,70],MN:[30,55,70],MS:[25,55,70],MO:[25,55,70],MT:[25,70,80],NE:[25,55,75],NV:[25,55,80],NH:[30,55,65],NJ:[25,50,65],NM:[30,55,75],NY:[30,55,65],NC:[35,55,70],ND:[25,55,75],OH:[25,55,70],OK:[25,65,75],OR:[25,55,65],PA:[35,55,70],RI:[25,50,65],SC:[30,55,70],SD:[25,65,80],TN:[30,55,70],TX:[30,60,70],UT:[25,55,80],VT:[25,50,65],VA:[25,55,70],WA:[25,50,70],WV:[25,55,70],WI:[25,55,70],WY:[30,65,80],PR:[25,45,65] };
+// Statutory default limits (mph) when a road has no posted tag: [residential/urban street, other non-limited road, interstate/motorway].
+// Shown only as an estimate ("est."); overspeed alerts are never raised on these. Motorway uses the URBAN interstate value (conservative).
+// Sources: state statutes cited per row; IIHS "Speed limit laws" table (iihs.org, fetched 2026-10-29); Wikipedia "Speed limits in the United States by jurisdiction".
+// "(unverified)" = no statutory default found; value is the common local practice.
+export const STATE_DEFAULTS = {
+  AL: [30, 55, 70], // Ala. Code 32-5A-171 (30 urban, 55 other); IIHS urban interstate 70
+  AK: [25, 55, 55], // 13 AAC 02.275 (25 residential, 55 other); IIHS urban interstate 55
+  AZ: [25, 65, 65], // ARS 28-702.04 (25 business/residence, 65 other); IIHS urban interstate 65
+  AR: [30, 55, 65], // Ark. Code 27-51-201 (30 urban, 55 other); IIHS urban interstate 65
+  CA: [25, 55, 65], // CVC 22352 (25 residence), 22349(b) (55 two-lane); IIHS urban interstate 65
+  CO: [30, 55, 65], // CRS 42-4-1101 (30 residential, 55 open highway); IIHS urban interstate 65
+  CT: [25, 50, 55], // CT OSTA practice (no statutory urban default) 25; 50 rural undivided; IIHS urban interstate 55
+  DE: [25, 50, 55], // 21 Del.C. 4169 (25 urban, 50 two-lane rural); IIHS urban interstate 55
+  DC: [20, 25, 55], // DC DDOT 2020 default 20 local / 25 arterial; IIHS urban interstate 55
+  FL: [30, 55, 65], // Fla. Stat. 316.183 (30 business/residence, 55 other); IIHS urban interstate 65
+  GA: [30, 55, 65], // OCGA 40-6-181 (30 urban, 55 other); IIHS urban interstate 70, Atlanta 65
+  HI: [25, 45, 60], // HRS 291C-102 county limits; IIHS other roads 45, interstate 60
+  ID: [35, 55, 65], // Idaho Code 49-654 (35 urban district); 55 other; Wikipedia urban freeway 65
+  IL: [30, 55, 55], // 625 ILCS 5/11-601 (30 urban district, 55 other); IIHS urban interstate 55
+  IN: [30, 55, 55], // IC 9-21-5-2 (30 urban district, 55 other); IIHS urban interstate 55
+  IA: [25, 55, 65], // Iowa Code 321.285 (25 residence, 55 other); IIHS urban interstate 65
+  KS: [30, 55, 75], // KSA 8-1558 (30 urban district, 55 other); IIHS urban interstate 75
+  KY: [35, 55, 65], // KRS 189.390 (35 business district, 55 other, 65 interstate); IIHS
+  LA: [25, 55, 70], // LRS 32:61 + parish practice 25 urban (unverified statute); 55 other; IIHS urban interstate 70
+  ME: [25, 45, 75], // 29-A MRSA 2074 (25 business/residence, 45 other); IIHS urban interstate 75
+  MD: [30, 50, 70], // Md. Transp. 21-801.1 (30 business/residence, 50 undivided); IIHS urban interstate 70
+  MA: [30, 40, 65], // MGL c.90 s.17 (30 thickly settled, 40 other); IIHS urban interstate 65
+  MI: [25, 55, 70], // MCL 257.627 (25 business/residence, 55 other); IIHS urban interstate 70
+  MN: [30, 55, 65], // Minn. Stat. 169.14 (30 urban district, 55 other); IIHS urban interstate 65
+  MS: [25, 55, 70], // Miss. Code 63-3-501 / municipal practice 25 (unverified); 55 other; IIHS urban interstate 70
+  MO: [25, 55, 60], // RSMo 304.010 municipal practice 25 (unverified); 55 other; IIHS urban interstate 60
+  MT: [25, 65, 65], // MCA 61-8-310 (25 urban district), 61-8-303 (70 day/65 night other); IIHS urban interstate 65
+  NE: [25, 55, 70], // Neb. Rev. Stat. 60-6,186 (25 residence, 55 other); IIHS urban interstate 70
+  NV: [25, 55, 65], // NRS 484B.600 basic rule, local 25 residential (unverified); 55 other; IIHS urban interstate 65
+  NH: [30, 55, 65], // RSA 265:60 (30 urban residence, 55 other); IIHS urban interstate 65
+  NJ: [25, 50, 55], // NJSA 39:4-98 (25 business/residence, 50 other, 55 interstate unposted)
+  NM: [25, 55, 65], // NMSA 66-7-301 (55 other); local 25 residential (unverified); IIHS other ltd 65
+  NY: [30, 55, 55], // NY VTL 1180(b) (55 unless posted incl. expressways), VTL 1643 cities/villages commonly 30; NYC 25 handled separately (VTL 1642)
+  NC: [35, 55, 65], // NCGS 20-141 (35 municipal, 55 other); Wikipedia urban freeways 65
+  ND: [25, 55, 75], // NDCC 39-09-02 (25 urban district, 55 gravel/other); IIHS urban interstate 75
+  OH: [25, 55, 65], // ORC 4511.21 (25 municipal, 55 other, 65 urban freeway)
+  OK: [25, 65, 70], // 47 OS 11-801 (25 urban district); 65 other state roads; IIHS urban interstate 70
+  OR: [25, 55, 55], // ORS 811.111 (25 residence district, 55 other, 55 urban interstate); IIHS
+  PA: [25, 55, 70], // 75 Pa.C.S. 3362 (25 urban/residence, 55 other); IIHS urban interstate 70
+  RI: [25, 50, 55], // RIGL 31-14-2 (25 business/residence, 50 day other); IIHS urban interstate 55
+  SC: [30, 55, 60], // SC Code 56-5-1520 (30 urban, 55 other); Wikipedia urban interstate 60
+  SD: [25, 55, 80], // SDCL 32-25 local practice 25 (unverified); 55 other; IIHS urban interstate 80
+  TN: [30, 55, 70], // TCA 55-8-152 (urban per municipal ordinance, commonly 30 - unverified); 55 other; IIHS urban interstate 70
+  TX: [30, 60, 70], // Tex. Transp. Code 545.352 (30 urban district, 60 non-state rural, 70 state highway)
+  UT: [25, 55, 70], // UCA 41-6a-603 (25 urban district, 55 other); IIHS urban interstate 70
+  VT: [25, 50, 55], // 23 VSA 1081 (50 other); local 25 (unverified); IIHS urban interstate 55
+  VA: [25, 55, 55], // Va. Code 46.2-874 (25 business/residence), 46.2-870 (55 default incl. interstate)
+  WA: [25, 50, 60], // RCW 46.61.400 (25 city streets, 50 county roads, 60 state highways); IIHS urban interstate 60
+  WV: [25, 55, 55], // WV Code 17C-6-1 (25 business/residence, 55 other); IIHS urban interstate 55
+  WI: [25, 55, 55], // Wis. Stat. 346.57(4) (25 urban, 55 other, freeway default 55 without signs)
+  WY: [30, 70, 75], // WS 31-5-301 (30 urban/residential, 70 other paved); IIHS urban interstate 75
+  PR: [25, 45, 55], // PR Law 22-2000 Art. 6.01 (25 residential, 45 rural); 55 expressways (Wikipedia)
+};
 export const inNYC = (lon, lat) => lat > 40.495 && lat < 40.917 && lon > -74.259 && lon < -73.70 && !(lon < -74.05 && lat > 40.65); // 5 boroughs (excludes Hudson/NJ side)
 // Default when untagged. NYC: 25 on every street unless posted (VTL §1642), 50 on untagged expressways.
 export function defaultLimitMph(roadClass, state, pt) { const rc = String(roadClass || ''), nyc = pt && inNYC(pt[0], pt[1]);
   if (nyc) return /motorway/.test(rc) ? 50 : 25;
-  const d = STATE_DEFAULTS[state] || [25, 55, 65];
+  const d = STATE_DEFAULTS[state] || [25, 55, 55];
   if (/motorway/.test(rc)) return d[2]; if (/trunk|primary|secondary/.test(rc)) return d[1]; if (/tertiary/.test(rc)) return Math.min(d[1], 45); return d[0]; }
 // Always returns a limit: {mph, est, src}. Tagged posted value wins; else statutory default for road class + place. Truck max caps both.
 export function limitInfo(edges, along, admins, pt, truckMaxMph) { const e = edgeAt(edges || [], along);

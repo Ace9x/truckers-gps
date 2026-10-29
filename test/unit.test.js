@@ -220,5 +220,5 @@ test('speed limit: exact edge, NYC 25 default, never truck-max 65 on a street', 
   i = limitInfo(e, 200, ad, bc, 65); assert.equal(i.mph, 50); assert.ok(!i.est);
   assert.equal(defaultLimitMph('primary', 'NY', [-73.79, 40.73]), 25); // Queens arterial untagged
   assert.equal(defaultLimitMph('primary', 'NY', [-73.76, 42.65]), 55); // upstate
-  assert.equal(defaultLimitMph('motorway', 'TX', null), 70); assert.equal(limitInfo([], 0, [], null, 65).mph, 25);
+  assert.equal(defaultLimitMph('motorway', 'TX', null), 70); assert.equal(defaultLimitMph('motorway', 'NY', [-73.76, 42.65]), 55); assert.equal(defaultLimitMph('residential', 'VA', null), 25); assert.equal(limitInfo([], 0, [], null, 65).mph, 25);
   assert.equal(Object.keys(STATE_DEFAULTS).length, 52); });
