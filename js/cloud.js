@@ -3,7 +3,11 @@
 let _sb = null, _cfg;
 export async function sb() { if (_sb) return _sb; if (_cfg === undefined) { try { _cfg = (await import('./config.js')).SUPABASE; } catch { _cfg = null; } }
   if (!_cfg?.url || !_cfg?.anonKey) return null; const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.49.4');
-  _sb = createClient(_cfg.url, _cfg.anonKey, { auth: { persistSession: true, storageKey: 'rr-sb-auth' } }); return _sb; }
+  _sb = createClient(_cfg.url, _cfg.anonKey, { auth: { persistSession: true, storageKey: 'rr-sb-auth' } });
+  // no signal: stop realtime retry storms; reconnect (channels rejoin) when back online
+  { const rt = _sb.realtime, conn = rt.connect.bind(rt); rt.connect = () => { if (navigator.onLine) conn(); };
+    addEventListener('offline', () => { try { rt.disconnect(); } catch {} }); addEventListener('online', () => { try { conn(); rt.channels.forEach(ch => { if (ch.state !== 'joined' && ch.state !== 'joining') ch.subscribe?.(); }); } catch {} }); }
+  return _sb; }
 export async function uid() { const c = await sb(); if (!c) return null; const { data } = await c.auth.getSession(); return data.session?.user?.id || null; }
 const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
 

@@ -8,7 +8,7 @@ import { snapToRoute } from './logic.js';
 export { RELAYS } from './link.js';
 import { RELAYS } from './link.js';
 export const KIND = 7533, TAG = 'rigroute-hz-v1';
-const MQTT_URL = 'wss://broker.emqx.io:8084/mqtt', MQTT_LIB = 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
+const MQTT_URL = 'wss://broker.emqx.io:8084/mqtt', MQTT_LIB = new URL('./vendor/mqtt.min.js', import.meta.url).href /* self-hosted mqtt@5.10.1 */;
 const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 
 // Reports filed by automated browsers (e2e tests) are tagged test:1 and only visible to other test browsers.
@@ -20,15 +20,16 @@ export class LiveHazards {
     this.sk = sk; this.me = null; this.list = []; this.byId = new Map(); this.pendingVotes = []; this.seen = new Set(); this.trusted = new Set();
     this.mine = new RateLimiter(); this.theirs = new RateLimiter({ perType: 30e3, windowMs: 600e3, maxInWindow: 10 });
     this.onChange = onChange; this.onStatus = onStatus; this.cells = []; this.relays = []; this.status = 'connecting';
-    this.urls = relays; relays.forEach(u => this._open(u));
-    this._fb = setTimeout(() => { if (!this.relays.some(r => r.open)) this._mqtt(); }, 8000);
+    this.urls = relays; relays.forEach(u => this._open(u)); addEventListener('online', () => { this.urls.forEach(u => { if (!this.relays.some(r => r.url === u)) this._open(u); }); if (this.mq && !this.mq.connected) this.mq.reconnect?.(); });
+    this._fb = setTimeout(() => { if (navigator.onLine && !this.relays.some(r => r.open)) this._mqtt(); }, 8000);
   }
   // ---------- transport ----------
   _open(url) {
+    if (!navigator.onLine) { this._st('offline'); return; } // the 'online' listener reopens
     const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } this.relays.push(r);
     r.ws.onopen = () => { r.open = true; r.open0 = true; this._st('live'); this._req(r); this.outbox?.forEach(m => r.ws.send(m)); };
     r.ws.onmessage = e => { try { const m = JSON.parse(e.data); if (m[0] === 'EVENT') this._event(m[2]); } catch {} };
-    r.ws.onclose = () => { r.open = false; this.relays = this.relays.filter(x => x !== r); if (!this.relays.some(x => x.open) && !this.mq) { this._st('reconnecting'); clearTimeout(this._fb); this._fb = setTimeout(() => { if (!this.relays.some(x => x.open) && !this.mq) this._mqtt(); }, 8000); } this._fails = this._fails || {}; const n = this._fails[url] = r.open0 ? 0 : (this._fails[url] || 0) + 1; setTimeout(() => this._open(url), Math.min(120e3, 4000 * 2 ** Math.min(5, n))); };
+    r.ws.onclose = () => { r.open = false; this.relays = this.relays.filter(x => x !== r); if (!this.relays.some(x => x.open) && !this.mq) { this._st('reconnecting'); clearTimeout(this._fb); this._fb = setTimeout(() => { if (!this.relays.some(x => x.open) && !this.mq) this._mqtt(); }, 8000); } this._fails = this._fails || {}; const n = this._fails[url] = r.open0 ? 0 : (this._fails[url] || 0) + 1; if (navigator.onLine) setTimeout(() => this._open(url), Math.min(120e3, 4000 * 2 ** Math.min(5, n))); };
     r.ws.onerror = () => {};
   }
   _st(s) { this.status = s; this.onStatus(s); }

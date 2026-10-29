@@ -28,7 +28,7 @@ export class Bus {
   get openCount() { return this.rs.filter(r => r.open).length; }
   // every configured relay with its state (down ones included) for health UIs
   get health() { return this.urls.map(url => ({ url, open: this.rs.some(r => r.url === url && r.open), retryAt: this.down[url] || null })); }
-  _open(url) { const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } this.rs.push(r);
+  _open(url) { if (!navigator.onLine) { if (!this._onl) { this._onl = true; addEventListener('online', () => { this._onl = false; if (!this.closed) this.urls.forEach(u => { if (!this.rs.some(r => r.url === u)) this._open(u); }); }); } return; } const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } this.rs.push(r);
     r.ws.onopen = () => { r.open = true; r.wasOpen = true; this.fails[url] = 0; delete this.down[url]; for (const [id, f] of this.subs) this._req(r, id, f.filter); this.waiters.splice(0).forEach(w => w()); };
     r.ws.onmessage = m => { let d; try { d = JSON.parse(m.data); } catch { return; }
       if (d[0] === 'EVENT') { const s = this.subs.get(d[1]); if (!s) return; const ev = d[2], k = d[1] + ev.id; if (this.seen.has(k)) return; this.seen.add(k); s.cb(ev); }

@@ -127,12 +127,12 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   // ---------- crowd speeds over Nostr ----------
   let sk; try { sk = new Uint8Array(JSON.parse(localStorage.getItem('tn_tfsk'))); if (sk.length !== 32) throw 0; } catch { sk = generateSecretKey(); localStorage.setItem('tn_tfsk', JSON.stringify([...sk])); }
   const rel = [], fails = {}; T.cells = []; const seen = new Set();
-  function open(url) { const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } rel.push(r);
+  function open(url) { if (!navigator.onLine) return; const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } rel.push(r);
     r.ws.onopen = () => { r.open = true; r.was = true; T.status.crowd = 'live'; req(r); };
     r.ws.onmessage = e => { try { const m = JSON.parse(e.data); if (m[0] === 'EVENT') ingest(m[2]); } catch {} };
     r.ws.onclose = () => { r.open = false; rel.splice(rel.indexOf(r), 1); const n = fails[url] = r.was ? 0 : (fails[url] || 0) + 1; setTimeout(() => open(url), Math.min(120e3, 5000 * 2 ** Math.min(5, n))); }; r.ws.onerror = () => {}; }
   const req = r => { if (T.cells.length) try { r.ws.send(JSON.stringify(['REQ', 'tf', { kinds: [TKIND], '#g': T.cells, '#t': [TTAG], since: Math.floor(Date.now() / 1000) - 900, limit: 1000 }])); } catch {} };
-  RELAYS.forEach(open); T.relays = rel;
+  RELAYS.forEach(open); T.relays = rel; addEventListener('online', () => RELAYS.forEach(u => { if (!rel.some(r => r.url === u)) open(u); })); // offline: no retry storm, reopen when signal returns
   function ingest(ev) { if (!ev || ev.kind !== TKIND || seen.has(ev.id)) return; seen.add(ev.id); let c; try { c = JSON.parse(ev.content); } catch { return; }
     if (!(c.mph >= 0 && c.mph < 100) || typeof c.k !== 'string') return;
     T.crowd.push({ k: c.k, mph: +c.mph, ff: +c.ff || 50, lat: +c.lat, lon: +c.lon, h: c.h, t: Math.min(ev.created_at * 1000, Date.now()), by: ev.pubkey });
