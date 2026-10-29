@@ -410,6 +410,7 @@ body.moving:not(.passenger) .panel:not(#sosPanel),body.moving:not(.passenger) #t
 .wz-yn{display:grid;grid-template-columns:1fr 1fr;gap:8px}.wz-yn button{height:64px;border-radius:16px;border:1px solid #3a424d;background:#232a33;color:#fff;font:700 16px var(--font)}.wz-yn button.on{border:2px solid var(--brand,#ff9500);background:#ff95001a}
 .wz-nav{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:20px}.wz-nav button,.wz-saved .wz-next{height:56px;border-radius:14px;font:800 17px var(--font);border:0}
 .wz-back{background:#232a33;color:#fff}.wz-back:disabled{opacity:.4}.wz-next{background:var(--rr-go);color:#111;width:100%}
+.wz-sample{margin-top:8px;min-height:48px;padding:0 16px;border-radius:14px;border:1px solid #3a424d;background:#232a33;color:#fff;font:700 15px var(--font)}
 .wz-saved{text-align:center}.wz-check{width:72px;height:72px;margin:8px auto 0;display:block}.wz-check path{stroke-dasharray:40;stroke-dashoffset:40;animation:wzDraw .4s ease-out .1s forwards}@keyframes wzDraw{to{stroke-dashoffset:0}}
 .wz-saved p{color:var(--rr-mut);margin:4px 0 20px}
 @media (prefers-reduced-motion:reduce){.wz-check path{animation:none;stroke-dashoffset:0}}

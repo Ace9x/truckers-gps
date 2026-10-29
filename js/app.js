@@ -153,7 +153,11 @@ function movePuck(lon, lat, heading) { if (!truckMarker._map) { truckMarker.setL
 S.movePuck = movePuck;
 function onFix(f) {
   const prev = S.pos;
-  if (prev && (f.speed == null || !Number.isFinite(f.speed))) { const dt = (f.t - prev.t) / 1000; f.speed = dt > 0 ? haversine([prev.lon, prev.lat], [f.lon, f.lat]) / dt : 0; }
+  // iOS Safari often sends coords.speed = null (or -1) while parked. Deriving speed from raw fix-to-fix jumps turned 20-40 m indoor GPS jitter into
+  // 100+ mph, which tripped the >5 mph motion lock and hid the setup wizard mid-tap ("it freezes"). Subtract both fixes' accuracy radius first.
+  if (Number.isFinite(f.speed) && f.speed < 0) f.speed = null;
+  if (f.speed == null || !Number.isFinite(f.speed)) { if (!prev) f.speed = 0; else { const dt = (f.t - prev.t) / 1000, d = haversine([prev.lon, prev.lat], [f.lon, f.lat]), noise = (f.acc || 50) + (prev.acc || 50);
+    f.speed = dt >= 0.5 ? Math.min(90, Math.max(0, d - noise) / dt) : (prev.speed || 0); } }
   if (f.heading == null && prev) { const d = haversine([prev.lon, prev.lat], [f.lon, f.lat]); f.heading = d > 3 ? bearing([prev.lon, prev.lat], [f.lon, f.lat]) : prev.heading; }
   if (S.nav && prev && (f.acc || 0) <= 30) { const d = haversine([prev.lon, prev.lat], [f.lon, f.lat]); if (d < 500) S.tripMiles += d / MI; }
   S.pos = f; LS.set('lastPos', { ...f });

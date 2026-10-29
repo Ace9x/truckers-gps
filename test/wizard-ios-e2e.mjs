@@ -1,0 +1,25 @@
+// iPhone-style indoor GPS: coords.speed = null, fixes jitter 15-40 m with 65 m accuracy, ~1 Hz. Spanish, real first-run (no webdriver skip).
+import { chromium, devices } from 'playwright';
+const br = await chromium.launch({ args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader'] });
+const ctx = await br.newContext({ ...devices['iPhone 13'], locale:'es-ES' });
+await ctx.addInitScript(() => { Object.defineProperty(Navigator.prototype,'webdriver',{get:()=>false}); localStorage.setItem('tn_locWhySeen','1');
+  let k=0; const fix = () => { k++; const j = (k%2?1:-1)*0.0003; return { coords:{ latitude:40.83+j, longitude:-73.91+j/2, accuracy:65, speed:null, heading:null, altitude:null, altitudeAccuracy:null }, timestamp: Date.now() }; };
+  const g = { watchPosition(ok){ const id=setInterval(()=>ok(fix()),1000); return id; }, clearWatch(id){ clearInterval(id); }, getCurrentPosition(ok){ setTimeout(()=>ok(fix()),50); } };
+  Object.defineProperty(Navigator.prototype,'geolocation',{get:()=>g}); });
+const p = await ctx.newPage(); p.on('pageerror', e => console.log('ERR', e.message));
+let failed = 0; const ok = (c,m)=>{ if(!c) failed++; console.log((c?'ok ':'FAIL ')+m); };
+await p.goto(process.env.BASE||'http://localhost:8841/'); await p.waitForSelector('#langFirst',{timeout:20000});
+await p.tap('#langFirst [data-l="es"]'); await p.waitForSelector('#tSkip'); await p.tap('#tSkip'); await p.waitForTimeout(4000);
+console.log('mph', await p.textContent('#speed'), 'moving', await p.evaluate(()=>document.body.classList.contains('moving')));
+console.log('open', await p.evaluate(()=>{ try { TruckNav.truckWizard(); return !!document.querySelector('#truckWiz'); } catch(e){ return e.stack; } })); await p.waitForSelector('#truckWiz [data-vtype="car"]');
+await p.tap('[data-vtype="car"]',{timeout:5000}).then(()=>p.tap('#truckWiz .wz-next',{timeout:5000})).catch(e=>ok(false,'step 1 tap: '+e.message.split('\n')[0]));
+await p.waitForTimeout(3000);
+const vis = await p.evaluate(()=>{ const w=document.querySelector('#truckWiz'); return w && getComputedStyle(w).display!=='none'; }); ok(vis, 'voice step visible while parked with jittery GPS');
+const txt = (await p.textContent('#truckWiz')||'').replace(/\s+/g,' '); console.log(txt);
+ok(!/Spoken directions|Voice on|Silent|Hear a sample|Save car/.test(txt), 'voice step fully in Spanish');
+for (const s of ['[data-vo="0"]','[data-vprev]','[data-vo="1"]']) await p.tap(s,{timeout:4000}).then(()=>ok(true,'tap '+s),e=>ok(false,'tap '+s));
+await p.screenshot({path: process.env.SHOT||'/tmp/wz-voice-es.png'});
+await p.tap('#truckWiz .wz-next',{timeout:4000}).catch(()=>{}); await p.waitForTimeout(500);
+ok(/Perfil guardado|guardado/i.test(await p.textContent('#truckWiz').catch(()=>'')||''), 'save works (profile saved screen, Spanish)');
+await p.screenshot({path:'/tmp/wz-saved-es.png'});
+await br.close(); process.exit(failed?1:0);
