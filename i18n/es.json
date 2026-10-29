@@ -978,5 +978,15 @@
 "Turn off Ace": "Apagar a Ace",
 "Your call": "Tú decides",
 "unconfirmed": "sin confirmar",
-"{0} min ago": "hace {0} min"
+"{0} min ago": "hace {0} min",
+"RigRoute needs your location": "RigRoute necesita tu ubicación",
+"Turn-by-turn for your truck": "Cada vuelta para tu camión",
+"routes avoid low bridges, weight limits and no-truck roads from where you are": "las rutas evitan puentes bajos, límites de peso y calles sin camiones desde donde estás",
+"Hazards near you": "Peligros cerca de ti",
+"alerts for reports on the road ahead": "avisos de reportes en la calle adelante",
+"Stays on your phone": "Se queda en tu teléfono",
+"your position is not stored on our servers. It is shared only if you turn on friend sharing or anonymous traffic speeds": "no guardamos tu ubicación en nuestros servidores. Solo se comparte si prendes compartir con amigos o la velocidad anónima",
+"Routing requests go to Valhalla (OpenStreetMap)": "Las rutas se piden a Valhalla (OpenStreetMap)",
+"Continue": "Continuar",
+"Not now": "Ahora no"
 }

@@ -972,5 +972,15 @@
 "Turn off Ace",
 "Your call",
 "unconfirmed",
-"{0} min ago"
+"{0} min ago",
+"RigRoute needs your location",
+"Turn-by-turn for your truck",
+"routes avoid low bridges, weight limits and no-truck roads from where you are",
+"Hazards near you",
+"alerts for reports on the road ahead",
+"Stays on your phone",
+"your position is not stored on our servers. It is shared only if you turn on friend sharing or anonymous traffic speeds",
+"Routing requests go to Valhalla (OpenStreetMap)",
+"Continue",
+"Not now"
 ]

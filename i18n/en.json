@@ -252,5 +252,11 @@
 "🕑 {0}: {1} min drive time left (driver-reported, not an ELD)": "🕑 {0}: {1} min of driving left (from the driver's phone, not a legal logbook)",
 "{0} mi longer than car route (truck restrictions)": "{0} mi longer than a car (truck rules)",
 "Downgrade {0}%": "Steep downhill {0}%",
-"Upgrade {0}%": "Steep uphill {0}%"
+"Upgrade {0}%": "Steep uphill {0}%",
+"RigRoute needs your location": "RigRoute needs to know where you are",
+"Turn-by-turn for your truck": "Every turn, for your truck",
+"routes avoid low bridges, weight limits and no-truck roads from where you are": "routes start where you are and keep away from low bridges, weight limits, and no-truck roads",
+"alerts for reports on the road ahead": "warnings about problems on the road ahead",
+"your position is not stored on our servers. It is shared only if you turn on friend sharing or anonymous traffic speeds": "we do not keep where you are on our computers. We share it only if you turn on sharing with friends or sharing your speed with no name",
+"Routing requests go to Valhalla (OpenStreetMap)": "We ask Valhalla (OpenStreetMap) for the route"
 }

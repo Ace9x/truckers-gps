@@ -979,5 +979,15 @@
 "Turn off Ace": "أوقف Ace",
 "Your call": "القرار لك",
 "unconfirmed": "غير مؤكد",
-"{0} min ago": "قبل {0} دقيقة"
+"{0} min ago": "قبل {0} دقيقة",
+"RigRoute needs your location": "يحتاج RigRoute إلى موقعك",
+"Turn-by-turn for your truck": "توجيه خطوة بخطوة لشاحنتك",
+"routes avoid low bridges, weight limits and no-truck roads from where you are": "الطرق تتجنب الجسور المنخفضة وحدود الوزن والطرق الممنوعة على الشاحنات من مكانك",
+"Hazards near you": "مخاطر بالقرب منك",
+"alerts for reports on the road ahead": "تنبيهات للبلاغات على الطريق أمامك",
+"Stays on your phone": "يبقى على هاتفك",
+"your position is not stored on our servers. It is shared only if you turn on friend sharing or anonymous traffic speeds": "لا نحفظ موقعك على خوادمنا. لا تتم مشاركته إلا إذا شغّلت المشاركة مع الأصدقاء أو السرعة المجهولة",
+"Routing requests go to Valhalla (OpenStreetMap)": "تُرسل طلبات الطرق إلى Valhalla (OpenStreetMap)",
+"Continue": "متابعة",
+"Not now": "ليس الآن"
 }
