@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "ਰਸਤੇ ਹੁਣ {h} ਤੋਂ ਨੀਵੇਂ ਪੁਲਾਂ ਤੇ {w}k lb ਤੋਂ ਘੱਟ ਹੱਦ ਤੋਂ ਬਚਦੇ ਹਨ।",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "ਰਸਤੇ ਹੁਣ {h} ਤੋਂ ਨੀਵੇਂ ਪੁਲਾਂ ਤੇ {w}k lb ਤੋਂ ਘੱਟ ਹੱਦ ਤੋਂ, ਅਤੇ ਖ਼ਤਰਨਾਕ ਮਾਲ ਲਈ ਮਨਾਹੀ ਵਾਲੀਆਂ ਸੜਕਾਂ ਤੋਂ ਬਚਦੇ ਹਨ।",
 "Routes use normal roads for cars.": "ਰਸਤੇ ਕਾਰਾਂ ਲਈ ਆਮ ਸੜਕਾਂ ਵਰਤਦੇ ਹਨ।",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "ਅੱਧੇ ਮੀਲ ਬਾਅਦ ਟਰੱਕ ਰਸਤੇ ਲਈ ਸੱਜੇ ਰਹੋ। ਅੱਗੇ ਨੀਵਾਂ ਪੁਲ: 12 ਫੁੱਟ 6।"
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "ਅੱਧੇ ਮੀਲ ਬਾਅਦ ਟਰੱਕ ਰਸਤੇ ਲਈ ਸੱਜੇ ਰਹੋ। ਅੱਗੇ ਨੀਵਾਂ ਪੁਲ: 12 ਫੁੱਟ 6।",
+"live reports: reconnecting": "ਲਾਈਵ ਰਿਪੋਰਟਾਂ: ਮੁੜ ਜੁੜ ਰਿਹਾ ਹੈ",
+"live reports: offline": "ਲਾਈਵ ਰਿਪੋਰਟਾਂ: ਆਫ਼ਲਾਈਨ",
+"live reports: live (mqtt)": "ਲਾਈਵ ਰਿਪੋਰਟਾਂ: ਚਾਲੂ (mqtt)"
 }

@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "مسیرها اکنون از پل‌های کمتر از {h} و محدودیت‌های کمتر از {w}k lb دوری می‌کنند.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "مسیرها اکنون از پل‌های کمتر از {h} و محدودیت‌های کمتر از {w}k lb، و جاده‌های ممنوع برای بار خطرناک دوری می‌کنند.",
 "Routes use normal roads for cars.": "مسیرها برای خودرو از جاده‌های معمولی می‌روند.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "نیم مایل دیگر، برای مسیر کامیون سمت راست بمانید. پل کوتاه جلوتر: ۱۲ فوت و ۶."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "نیم مایل دیگر، برای مسیر کامیون سمت راست بمانید. پل کوتاه جلوتر: ۱۲ فوت و ۶.",
+"live reports: reconnecting": "گزارش زنده: اتصال دوباره",
+"live reports: offline": "گزارش زنده: آفلاین",
+"live reports: live (mqtt)": "گزارش زنده: روشن (mqtt)"
 }

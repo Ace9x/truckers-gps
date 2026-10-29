@@ -1017,5 +1017,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Routen meiden jetzt Brücken unter {h} und Grenzen unter {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Routen meiden jetzt Brücken unter {h} und Grenzen unter {w}k lb, dazu Straßen ohne Gefahrgut-Erlaubnis.",
 "Routes use normal roads for cars.": "Routen nutzen normale Straßen für Autos.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "In einer halben Meile rechts halten für die Lkw-Route. Niedrige Brücke voraus: 12 Fuß 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "In einer halben Meile rechts halten für die Lkw-Route. Niedrige Brücke voraus: 12 Fuß 6.",
+"live reports: reconnecting": "Live-Meldungen: verbinde neu",
+"live reports: offline": "Live-Meldungen: offline",
+"live reports: live (mqtt)": "Live-Meldungen: live (mqtt)"
 }

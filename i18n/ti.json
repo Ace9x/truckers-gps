@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "መንገድታት ሕጂ ካብ {h} ዝተሓቱ ድልድላትን ካብ {w}k lb ዝወሓዱ ደረታትን የርሕቓ።",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "መንገድታት ሕጂ ካብ {h} ዝተሓቱ ድልድላት፣ ካብ {w}k lb ዝወሓዱ ደረታትን ንሓደገኛ ነገራት ዝተኸልከሉ መንገድታትን የርሕቓ።",
 "Routes use normal roads for cars.": "መንገድታት ንመካይን ንቡር መንገዲ ይጥቀማ።",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "ድሕሪ ፍርቂ ማይል ንመንገዲ ጽዕነት ብየማን ጽናሕ። ቅድሜኻ ትሑት ድልድል፦ 12 ጫማ 6።"
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "ድሕሪ ፍርቂ ማይል ንመንገዲ ጽዕነት ብየማን ጽናሕ። ቅድሜኻ ትሑት ድልድል፦ 12 ጫማ 6።",
+"live reports: reconnecting": "ቀጥታ ጸብጻባት: ዳግማይ ይራኸብ",
+"live reports: offline": "ቀጥታ ጸብጻባት: ብዘይ ኢንተርነት",
+"live reports: live (mqtt)": "ቀጥታ ጸብጻባት: ቀጥታ (mqtt)"
 }

@@ -1017,5 +1017,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "现在路线会避开低于 {h} 的桥和低于 {w}k lb 的限重。",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "现在路线会避开低于 {h} 的桥和低于 {w}k lb 的限重，以及禁止危险品的道路。",
 "Routes use normal roads for cars.": "路线按小汽车走普通道路。",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "半英里后，靠右走卡车路线。前方低桥：12 英尺 6。"
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "半英里后，靠右走卡车路线。前方低桥：12 英尺 6。",
+"live reports: reconnecting": "实时报告：正在重新连接",
+"live reports: offline": "实时报告：离线",
+"live reports: live (mqtt)": "实时报告：在线 (mqtt)"
 }

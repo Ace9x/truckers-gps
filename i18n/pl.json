@@ -1017,5 +1017,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Trasy omijają teraz mosty poniżej {h} i limity poniżej {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Trasy omijają teraz mosty poniżej {h} i limity poniżej {w}k lb oraz drogi zakazane dla ADR.",
 "Routes use normal roads for cars.": "Trasy używają zwykłych dróg dla aut.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Za pół mili trzymaj się prawej, trasa dla ciężarówek. Niski most przed tobą: 12 stóp 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Za pół mili trzymaj się prawej, trasa dla ciężarówek. Niski most przed tobą: 12 stóp 6.",
+"live reports: reconnecting": "zgłoszenia na żywo: ponowne łączenie",
+"live reports: offline": "zgłoszenia na żywo: offline",
+"live reports: live (mqtt)": "zgłoszenia na żywo: działają (mqtt)"
 }

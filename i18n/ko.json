@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "이제 경로가 {h} 미만 다리와 {w}k lb 미만 제한을 피해요.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "이제 경로가 {h} 미만 다리와 {w}k lb 미만 제한, 그리고 위험물 금지 도로를 피해요.",
 "Routes use normal roads for cars.": "경로가 승용차용 일반 도로를 써요.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "반 마일 앞에서 트럭 경로로 오른쪽을 유지하세요. 앞에 낮은 다리: 12피트 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "반 마일 앞에서 트럭 경로로 오른쪽을 유지하세요. 앞에 낮은 다리: 12피트 6.",
+"live reports: reconnecting": "실시간 신고: 다시 연결 중",
+"live reports: offline": "실시간 신고: 오프라인",
+"live reports: live (mqtt)": "실시간 신고: 연결됨 (mqtt)"
 }

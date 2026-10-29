@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Njia sasa zinaepuka madaraja chini ya {h} na vikomo chini ya {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Njia sasa zinaepuka madaraja chini ya {h} na vikomo chini ya {w}k lb, pamoja na barabara zilizokatazwa kwa mzigo hatari.",
 "Routes use normal roads for cars.": "Njia zinatumia barabara za kawaida kwa magari.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Baada ya nusu maili, kaa kulia kwa njia ya malori. Daraja fupi mbele: futi 12 na 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Baada ya nusu maili, kaa kulia kwa njia ya malori. Daraja fupi mbele: futi 12 na 6.",
+"live reports: reconnecting": "ripoti za moja kwa moja: inaunganisha tena",
+"live reports: offline": "ripoti za moja kwa moja: nje ya mtandao",
+"live reports: live (mqtt)": "ripoti za moja kwa moja: hai (mqtt)"
 }

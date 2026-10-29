@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Wout yo kounye a evite pon ki pi ba pase {h} ak limit ki pi ba pase {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Wout yo kounye a evite pon ki pi ba pase {h} ak limit ki pi ba pase {w}k lb, plis wout ki entèdi pou materyèl danjere.",
 "Routes use normal roads for cars.": "Wout yo pran wout nòmal pou machin.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nan mwatye mil, rete adwat pou wout kamyon an. Pon ba devan: 12 pye 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nan mwatye mil, rete adwat pou wout kamyon an. Pon ba devan: 12 pye 6.",
+"live reports: reconnecting": "rapò an dirèk: ap rekonekte",
+"live reports: offline": "rapò an dirèk: san entènèt",
+"live reports: live (mqtt)": "rapò an dirèk: an dirèk (mqtt)"
 }

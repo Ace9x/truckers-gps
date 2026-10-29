@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "الطرق الآن تتجنب الجسور الأقل من {h} والحدود الأقل من {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "الطرق الآن تتجنب الجسور الأقل من {h} والحدود الأقل من {w}k lb، وأيضًا الطرق الممنوعة على المواد الخطرة.",
 "Routes use normal roads for cars.": "الطرق تستخدم الشوارع العادية للسيارات.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "بعد نصف ميل، الزم اليمين لطريق الشاحنات. جسر منخفض أمامك: 12 قدمًا و6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "بعد نصف ميل، الزم اليمين لطريق الشاحنات. جسر منخفض أمامك: 12 قدمًا و6.",
+"live reports: reconnecting": "البلاغات: إعادة الاتصال",
+"live reports: offline": "البلاغات: بدون إنترنت",
+"live reports: live (mqtt)": "البلاغات: مباشرة (mqtt)"
 }

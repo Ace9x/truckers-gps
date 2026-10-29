@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "রাস্তা এখন {h}-এর নিচের সেতু ও {w}k lb-এর কম সীমা এড়িয়ে চলে।",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "রাস্তা এখন {h}-এর নিচের সেতু ও {w}k lb-এর কম সীমা, আর বিপজ্জনক মালের নিষিদ্ধ রাস্তা এড়িয়ে চলে।",
 "Routes use normal roads for cars.": "রাস্তা গাড়ির জন্য সাধারণ পথ ব্যবহার করে।",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "আধা মাইল পরে ট্রাক রুটের জন্য ডানে থাকুন। সামনে নিচু সেতু: ১২ ফুট ৬।"
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "আধা মাইল পরে ট্রাক রুটের জন্য ডানে থাকুন। সামনে নিচু সেতু: ১২ ফুট ৬।",
+"live reports: reconnecting": "লাইভ রিপোর্ট: আবার যুক্ত হচ্ছে",
+"live reports: offline": "লাইভ রিপোর্ট: অফলাইন",
+"live reports: live (mqtt)": "লাইভ রিপোর্ট: চালু (mqtt)"
 }

@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Ụzọ ugbu a na-ezere akwa mmiri dị ala karịa {h} na oke dị n'okpuru {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Ụzọ ugbu a na-ezere akwa mmiri dị ala karịa {h}, oke dị n'okpuru {w}k lb, na okporo ụzọ a machibidoro ihe ize ndụ.",
 "Routes use normal roads for cars.": "Ụzọ na-eji okporo ụzọ nkịtị maka ụgbọala.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "N'ọkara maịl, nọrọ n'aka nri maka ụzọ gwongworo. Akwa mmiri dị ala n'ihu: ụkwụ 12 na 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "N'ọkara maịl, nọrọ n'aka nri maka ụzọ gwongworo. Akwa mmiri dị ala n'ihu: ụkwụ 12 na 6.",
+"live reports: reconnecting": "akụkọ ugbu a: na-ejikọ ọzọ",
+"live reports: offline": "akụkọ ugbu a: na-enweghị ịntanetị",
+"live reports: live (mqtt)": "akụkọ ugbu a: na-arụ ọrụ (mqtt)"
 }

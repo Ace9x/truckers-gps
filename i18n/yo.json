@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Àwọn ọ̀nà ń yẹra fún afárá tó kéré sí {h} àti òpin tó kéré sí {w}k lb báyìí.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Àwọn ọ̀nà ń yẹra fún afárá tó kéré sí {h}, òpin tó kéré sí {w}k lb àti ọ̀nà tí a kà léèwọ̀ fún ẹrù eléwu báyìí.",
 "Routes use normal roads for cars.": "Àwọn ọ̀nà ń lo ọ̀nà lásán fún mọ́tò.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Ní ìdajì máìlì, dúró sí ọ̀tún fún ọ̀nà tirela. Afárá kúkúrú níwájú: ẹsẹ̀ bàtà 12 àti 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Ní ìdajì máìlì, dúró sí ọ̀tún fún ọ̀nà tirela. Afárá kúkúrú níwájú: ẹsẹ̀ bàtà 12 àti 6.",
+"live reports: reconnecting": "ìròyìn lọ́wọ́lọ́wọ́: ń tún so pọ̀",
+"live reports: offline": "ìròyìn lọ́wọ́lọ́wọ́: kò sí lórí ayélujára",
+"live reports: live (mqtt)": "ìròyìn lọ́wọ́lọ́wọ́: ń ṣiṣẹ́ (mqtt)"
 }

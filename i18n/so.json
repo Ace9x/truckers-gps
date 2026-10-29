@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Waddooyinku hadda waxay ka fogaadaan buundooyinka ka hooseeya {h} iyo xadka ka yar {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Waddooyinku hadda waxay ka fogaadaan buundooyinka ka hooseeya {h}, xadka ka yar {w}k lb, iyo waddooyinka alaabta khatarta loo diiday.",
 "Routes use normal roads for cars.": "Waddooyinku waxay baabuurta u isticmaalaan waddooyin caadi ah.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nus mayl kadib, midig ku sii jir waddada gaadiidka. Buundo hoose ayaa hor taal: 12 cagood iyo 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nus mayl kadib, midig ku sii jir waddada gaadiidka. Buundo hoose ayaa hor taal: 12 cagood iyo 6.",
+"live reports: reconnecting": "warbixinada tooska ah: dib u xiriirinaya",
+"live reports: offline": "warbixinada tooska ah: internet la'aan",
+"live reports: live (mqtt)": "warbixinada tooska ah: toos (mqtt)"
 }

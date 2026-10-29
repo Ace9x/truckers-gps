@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Tuyến đường giờ tránh cầu thấp hơn {h} và giới hạn dưới {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Tuyến đường giờ tránh cầu thấp hơn {h} và giới hạn dưới {w}k lb, cùng đường cấm hàng nguy hiểm.",
 "Routes use normal roads for cars.": "Tuyến đường dùng đường thường cho ô tô.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nửa dặm nữa, đi bên phải theo tuyến xe tải. Cầu thấp phía trước: 12 feet 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nửa dặm nữa, đi bên phải theo tuyến xe tải. Cầu thấp phía trước: 12 feet 6.",
+"live reports: reconnecting": "báo cáo trực tiếp: đang kết nối lại",
+"live reports: offline": "báo cáo trực tiếp: ngoại tuyến",
+"live reports: live (mqtt)": "báo cáo trực tiếp: đang chạy (mqtt)"
 }

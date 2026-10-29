@@ -37,7 +37,8 @@ function look(d, k) { let v = own(d, k); if (v != null) return v;
   return null; }
 // proper names, brands, hosts and codes are never translated (and never "missing")
 const KEEP = /^(ACE|Ace|RigRoute( GPS| Dispatch)?|Apple Maps|Google Maps|Waze|OpenFreeMap|OpenStreetMap contributors|Overpass|Photon|Valhalla|USGS The National Map|Map ©|Port Newark|Pilot Travel Center|Whitney Houston Service Area|TomTom|HERE|ElevenLabs|NYC DOT|GPS|SOS|OK|MPH|CDL|TWIC|E-ZPass|PrePass|Drivewyze)$|^(wss:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+$|^([A-Z]{2,3} \{\d\}( · )?)+$/;
-function isDone(k) { if (done.has(k) || KEEP.test(k)) return true;
+const CLOCK = /^(\{\d\}|[\s\d.:,°F\/-]|AM|PM|am|pm|오전|오후|ጥዋት|ከሰዓት)+$/u; // locale-formatted times/temps (Intl output), not app text
+function isDone(k) { if (done.has(k) || KEEP.test(k) || CLOCK.test(k)) return true;
   if (!/\s/.test(k) && words.has(k.replace(TRAIL, '').replace(LEAD, ''))) return true; // one translated word left alone by markup
   if (k.length > 12 && long.some(v => v.includes(k.replace(TRAIL, '')))) return true; // piece of a translated sentence split by markup
   if (k.includes(' · ')) return k.split(' · ').every(p => !/\p{L}{2}/u.test(p) || isDone(p.trim())); const pk = keyOf(k); if (done.has(pk) || KEEP.test(pk)) return true;
@@ -52,7 +53,7 @@ export function t(s, vars) { if (s == null) return s; let out = String(s);
     if (k0.includes(' · ') && look(dict, k0) == null && look(base, k0) == null) return String(s).match(/^\s*/)[0] + k0.split(' · ').map(p => t(p)).join(' · ');
     for (const [k, pre, post] of cands) { const v = look(dict, k); if (v != null) { hit = pre + v + post; break; } }
     if (hit == null) { for (const [k, pre, post] of cands) { const v = base === dict ? null : look(base, k); if (v != null) { hit = pre + v + post; break; } }
-      if (lang !== 'en' && !quiet && /\p{L}{2}/u.test(k0)) I18N.missing.add(keyOf(cands.at(-1)[0])); }
+      if (lang !== 'en' && !quiet && /\p{L}{2}/u.test(k0) && !CLOCK.test(keyOf(cands.at(-1)[0])) && !CLOCK.test(k0)) I18N.missing.add(keyOf(cands.at(-1)[0])); }
     if (hit != null) out = (String(s).match(/^\s*/)[0]) + hit; }
   if (vars) out = out.replace(/\{(\w+)\}/g, (_, n) => vars[n] ?? `{${n}}`); return out; }
 // ---- locale formatting: calls with no locale (or []) use the chosen language

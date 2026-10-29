@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Hanyoyi yanzu suna guje wa gadoji ƙasa da {h} da iyaka ƙasa da {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Hanyoyi yanzu suna guje wa gadoji ƙasa da {h}, iyaka ƙasa da {w}k lb, da hanyoyin da aka hana kaya mai haɗari.",
 "Routes use normal roads for cars.": "Hanyoyi suna bin titunan yau da kullum don motoci.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Bayan rabin mil, tsaya a dama don hanyar manyan motoci. Ƙaramin gada a gaba: ƙafa 12 da 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Bayan rabin mil, tsaya a dama don hanyar manyan motoci. Ƙaramin gada a gaba: ƙafa 12 da 6.",
+"live reports: reconnecting": "rahotanni kai-tsaye: ana sake haɗawa",
+"live reports: offline": "rahotanni kai-tsaye: ba tare da intanet ba",
+"live reports: live (mqtt)": "rahotanni kai-tsaye: suna aiki (mqtt)"
 }

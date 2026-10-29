@@ -1017,5 +1017,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Маршрути тепер оминають мости нижче {h} і обмеження нижче {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Маршрути тепер оминають мости нижче {h} і обмеження нижче {w}k lb, а також дороги, заборонені для небезпечних вантажів.",
 "Routes use normal roads for cars.": "Маршрути йдуть звичайними дорогами для легкових.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Через пів милі тримайтеся правіше, маршрут для вантажівок. Попереду низький міст: 12 футів 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Через пів милі тримайтеся правіше, маршрут для вантажівок. Попереду низький міст: 12 футів 6.",
+"live reports: reconnecting": "звіти наживо: перепідключення",
+"live reports: offline": "звіти наживо: офлайн",
+"live reports: live (mqtt)": "звіти наживо: працюють (mqtt)"
 }

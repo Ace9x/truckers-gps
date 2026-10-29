@@ -1018,5 +1018,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.": "Iniiwasan na ng ruta ang tulay na mas mababa sa {h} at limit na mas mababa sa {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.": "Iniiwasan na ng ruta ang tulay na mas mababa sa {h} at limit na mas mababa sa {w}k lb, pati kalsadang bawal sa hazmat.",
 "Routes use normal roads for cars.": "Gumagamit ang ruta ng normal na kalsada para sa kotse.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Sa kalahating milya, manatili sa kanan para sa ruta ng trak. Mababang tulay sa unahan: 12 talampakan 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Sa kalahating milya, manatili sa kanan para sa ruta ng trak. Mababang tulay sa unahan: 12 talampakan 6.",
+"live reports: reconnecting": "live na ulat: muling kumokonekta",
+"live reports: offline": "live na ulat: offline",
+"live reports: live (mqtt)": "live na ulat: live (mqtt)"
 }

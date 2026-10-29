@@ -1011,5 +1011,8 @@
 "Routes now avoid bridges under {h} and limits under {w}k lb.",
 "Routes now avoid bridges under {h} and limits under {w}k lb, plus hazmat-restricted roads.",
 "Routes use normal roads for cars.",
-"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6."
+"In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.",
+"live reports: reconnecting",
+"live reports: offline",
+"live reports: live (mqtt)"
 ]
