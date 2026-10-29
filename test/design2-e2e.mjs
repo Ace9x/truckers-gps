@@ -31,7 +31,7 @@ ok(await p.evaluate(() => { const d = document.createElement('div'); d.innerHTML
 await p.evaluate(() => { TruckNav.pos = { ...TruckNav.pos, acc: 85 }; }); await p.waitForTimeout(700); ok(await p.evaluate(() => !document.querySelector('#gpsChip').hidden && /GPS weak/.test(document.querySelector('#gpsChip').textContent)), '#14 GPS weak chip at ±85 m');
 await p.evaluate(() => { TruckNav.pos = { ...TruckNav.pos, acc: 8 }; }); await p.waitForTimeout(700); ok(await p.evaluate(() => document.querySelector('#gpsChip').hidden), '#14 chip clears at ±8 m');
 // #8 recenter
-await p.evaluate(() => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); TruckNav.follow = true; }); await p.waitForTimeout(800); const o1 = await cs('#followBtn', 'opacity');
+await p.evaluate(() => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); TruckNav.follow = true; }); await p.waitForFunction(() => getComputedStyle(document.querySelector('#followBtn')).opacity === '0', null, { timeout: 5000 }).catch(() => {}); const o1 = await cs('#followBtn', 'opacity');
 await p.evaluate(() => { TruckNav.follow = false; }); await p.waitForFunction(() => getComputedStyle(document.querySelector('#followBtn')).opacity === '1', null, { timeout: 5000 }).catch(() => {}); const o2 = await cs('#followBtn', 'opacity'); console.log('   follow opacity', o1, o2, await p.evaluate(() => document.body.className)); ok(o1 === '0' && o2 === '1', '#8 recenter button only after the map leaves follow mode');
 // #3, #6, #17 and drive mode while navigating + moving
 await p.evaluate(() => { document.querySelector('#goBtn')?.click(); }); await p.waitForFunction(() => TruckNav.nav, null, { timeout: 15000 }).catch(() => {});
