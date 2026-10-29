@@ -9,6 +9,7 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 13'], geolocation: HUNTS_POINT, permissions: ['geolocation'] });
 const page = await ctx.newPage(); page.on('pageerror', e => { console.log('PAGE ERROR', e.message); fails++; }); page.on('console', m => { if (/Refused to|Content Security Policy/.test(m.text())) { console.log('CSP VIOLATION', m.text().slice(0, 200)); fails++; } });
 const T = (f, a) => page.evaluate(f, a); const shot = n => page.screenshot({ path: `${SHOTS}/${n}.png` });
+const park = async () => { await page.evaluate(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; }); await page.waitForFunction(() => !document.body.classList.contains('moving') && !document.body.classList.contains('mt-locked'), null, { timeout: 5000 }).catch(() => {}); };
 const closeP = () => page.click('.panel:not(.hidden) .close').catch(() => {});
 await page.goto(BASE); await page.waitForFunction(() => window.TruckNav?.ready); await page.waitForFunction(() => TruckNav.pos, null, { timeout: 15000 });
 ok(true, 'app loaded, browser Geolocation fix received'); await page.waitForTimeout(2500); await shot('01-home');
@@ -120,7 +121,7 @@ const la2 = await T(async () => { TruckNav.off.reset(); TruckNav.dangerSpoken = 
 ok(la2.said.some(t => /Low clearance 11 foot \d+ (just ahead|in a quarter mile|in half a mile)\. Your truck is 13 foot 6\. Rerouting/.test(t)) && la2.rerouted && la2.len > 3000, `danger announced + rerouted around it (${(la2.len / 1609).toFixed(1)} mi): ${JSON.stringify(la2.said[0])}`);
 await T(() => { TruckNav.avoids.length = 0; localStorage.setItem('tn_avoids', '[]'); TruckNav.setTruck({ heightFt: 13, heightIn: 6 }); });
 // Garage (parked: speed 0, otherwise the >5 mph multi-tap lock correctly hides panels)
-await T(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; document.querySelector('#trcDone')?.click(); }); await page.waitForTimeout(600);
+await T(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; }); if (await page.waitForSelector('#trcDone', { timeout: 4000 }).catch(() => null)) await page.click('#trcDone'); await page.waitForSelector('#tripReceipt', { state: 'detached', timeout: 4000 }).catch(() => {});
 await page.click('#meBtn'); await page.evaluate(() => { document.querySelector('#funBox').open = true; }); await page.waitForSelector('#garage button');
 const gar = await T(() => { const locked = document.querySelectorAll('#garage button.lock').length; document.querySelector('[data-veh=box]').click(); document.querySelector('[data-col=green]').click(); return { locked, total: document.querySelectorAll('#garage button').length, ride: TruckNav.ride, svg: document.querySelector('.truck-marker svg') ? true : false }; });
 ok(gar.total >= 8 && gar.locked > 0 && gar.ride.type === 'box' && gar.ride.color === 'green' && gar.svg, `garage: ${gar.total} vehicles (${gar.locked} locked by level), picked green box truck as map icon`);
@@ -178,7 +179,7 @@ ok(ot && ot.done > 50, `route map saved for offline: ${ot?.done}/${ot?.total} ti
 // Demo drive + HOS + load persistence + manifest
 await T(() => { TruckNav.pos = { lon: TruckNav.route.line[0][0], lat: TruckNav.route.line[0][1], t: Date.now() }; }); await page.click('#dock button[data-panel=routePanel]'); await page.click('#demoBtn'); await page.waitForTimeout(6000);
 ok(await T(() => TruckNav.along > 200 && TruckNav.nav), 'demo drive moves the truck along the route'); await shot('06-demo-drive'); await T(() => TruckNav.endNav());
-if (await page.$('#tripReceipt')) { ok(true, 'trip receipt shown after ending trip'); await page.click('#trcDone'); }
+await T(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; }); if (await page.waitForSelector('#trcDone', { timeout: 4000 }).catch(() => null)) { ok(true, 'trip receipt shown after ending trip'); await page.click('#trcDone'); await page.waitForSelector('#tripReceipt', { state: 'detached', timeout: 4000 }).catch(() => {}); }
 await page.click('#dock button[data-panel=hosPanel]'); await page.click('[data-duty=drive]'); ok(await T(() => TruckNav.hos.status === 'drive'), 'HOS clock running'); await shot('08-hos'); await closeP();
 await page.click('#dock button[data-panel=truckPanel]'); await page.selectOption('[name=theme]', 'dim'); await page.waitForTimeout(1500); ok(await T(() => document.body.classList.contains('dim')), 'dim night mode'); await shot('09-truck-profile-dim'); await closeP(); await shot('15-dim-map');
 await page.click('#dock button[data-panel=loadPanel]'); await page.fill('[name=bol]', 'BOL-TEST'); await page.reload(); await page.waitForFunction(() => window.TruckNav?.ready);
@@ -241,9 +242,11 @@ await shot('v2-04-sos'); await closeP();
 const ms = await T(async () => { const before = TruckNav.route.length; TruckNav.addStop({ lon: -74.0431, lat: 40.7282, name: 'Jersey City stop' }); await new Promise(r => setTimeout(r, 200)); await TruckNav.plan(); const near = Math.min(...TruckNav.route.line.map(([x, y]) => Math.hypot((x + 74.0431) * 84000, (y - 40.7282) * 111000))); return { before, after: TruckNav.route.length, n: TruckNav.stops.length, near }; });
 ok(ms.n === 1 && ms.near < 300, `multi-stop routing: added stop, route ${(ms.before / 1609).toFixed(1)} → ${(ms.after / 1609).toFixed(1)} mi, passes ${Math.round(ms.near)} m from the stop`);
 await T(() => document.querySelector('#stopsBox').scrollIntoView()); await shot('v2-05-multistop'); await T(() => { TruckNav.stops.length = 0; localStorage.setItem('tn_stops', '[]'); }); await closeP();
-// Parking + weather reports, accessibility
+// Parking + weather reports, accessibility (parked: panels lock above 5 mph)
+await park();
 await T(() => TruckNav.openPanel('reportPanel')); ok(await T(() => ['parking_full', 'parking_open', 'ice', 'wind', 'chains'].every(k => document.querySelector(`[data-rt=${k}]`))), 'driver reports for parking availability (open/few/full), ice, high wind, chain law');
 await shot('v2-06-reports'); await closeP();
+await park();
 await page.click('#dock button[data-panel=truckPanel]'); await page.check('#optBig'); await page.check('#optContrast');
 ok(await T(() => document.body.classList.contains('bigtext') && document.body.classList.contains('contrast')), 'accessibility: large text + high contrast');
 await T(() => document.querySelector('#optMax').scrollIntoView()); await shot('v2-07-accessibility'); await page.uncheck('#optBig'); await page.uncheck('#optContrast'); await closeP();
