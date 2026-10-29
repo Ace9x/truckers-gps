@@ -34,7 +34,7 @@ const loadFromForm = () => { const [pl, pn] = ll($('#pLL').value), [dl, dn] = ll
     drop: { name: v('#dNameS') || null, address: v('#dAddr'), lat: dl, lon: dn, window: win(v('#dWin')) }, rate: { amount: +v('#rate'), currency: 'USD', per: 'flat' },
     vehicle: v('#veh') || null, commodity: v('#comm') || null, weight_lb: +v('#wt') || null, equipment: v('#eq') || null, hazmat: v('#hz') ? { is: true, class: v('#hz'), un: v('#un') } : { is: false },
     bol: v('#bol').split(',').map(s => s.trim()).filter(Boolean), notes: v('#notes') || null }; };
-$('#send').onclick = async () => { if (missing().length) return check(); try { const load = loadFromForm(); await D.sendLoad($('#to').value, load); sentNote = '✅ sent ' + load.id;
+$('#send').onclick = async () => { if (missing().length) return check(); try { const load = loadFromForm(); await D.sendLoad($('#to').value, load); sentNote = '✅ sent ' + load.id + (D.lastPin ? ` · pickup PIN ${D.lastPin} — give it to the shipper only; the driver must enter it to mark Loaded` : '');
   for (const id of ['#ref', '#pName', '#pAddr', '#pLL', '#pWin', '#dNameS', '#dAddr', '#dLL', '#dWin', '#rate', '#comm', '#wt', '#eq', '#veh', '#hz', '#un', '#bol', '#notes']) $(id).value = ''; $('#lid').value = 'L-' + uid().slice(0, 6).toUpperCase(); check(); } catch (e) { $('#sendMsg').textContent = '⚠ ' + e.message; } };
 const log = s => $('#log').textContent = new Date().toLocaleTimeString() + ' ' + s + '\n' + $('#log').textContent;
 const VEH = { car: '🚗 Car', van: '🚐 Cargo Van', reefervan: '🧊 Reefer Van', box: '📦 Box Truck', semi: '🚛 Semi' };

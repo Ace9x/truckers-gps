@@ -9,6 +9,11 @@ export function validateLoad(l) { const e = [];
   if (l?.rate && !(l.rate.amount >= 0)) e.push('rate.amount'); if (l?.weight_lb != null && !(l.weight_lb > 0)) e.push('weight_lb');
   if (l?.hazmat?.is && !l.hazmat.class) e.push('hazmat.class'); return e; }
 // Delivered only with proof of delivery: photo + signature (images) + receiver name
+// Pickup PIN: dispatch gives the 4-digit PIN to the shipper only; the driver gets it from the shipper at the dock and enters it to mark Loaded.
+// The load carries only a salted hash (stops honest mix-ups and impostors using the app; 4 digits is not cryptographic security).
+export const pinHash = (id, pin) => { let h = 0x811c9dc5; for (const ch of 'rr-pin:' + id + ':' + String(pin).trim()) { h ^= ch.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+export const newPin = () => String(globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0');
+export const pinOk = (load, pin) => !load?.pinHash || pinHash(load.id, pin) === load.pinHash;
 export const podOk = p => !!p && /^data:image\//.test(p.photo || '') && /^data:image\//.test(p.signature || '') && String(p.name || '').trim().length > 0;
 // Fold an ordered message log into per-load state (both sides use this, so they always agree)
 export function fold(msgs) { const loads = {}; for (const m of [...msgs].sort((a, b) => a.t - b.t)) {
@@ -16,7 +21,7 @@ export function fold(msgs) { const loads = {}; for (const m of [...msgs].sort((a
     const L = loads[m.loadId]; if (!L) continue;
     if (m.type === 'response') { L.state = m.action === 'accept' ? 'accepted' : m.action === 'decline' ? 'declined' : 'countered'; L.counter = m.counter || null; L.reason = m.reason || ''; }
     if (m.type === 'counter_reply') L.state = m.accept ? 'accepted' : 'declined';
-    if (m.type === 'status') { if (m.status === 'delivered' && !podOk(m.pod)) { L.podMissing = true; continue; } L.state = m.status; if (m.pod) L.pod = m.pod; }
+    if (m.type === 'status') { if (m.status === 'delivered' && !podOk(m.pod)) { L.podMissing = true; continue; } if (m.status === 'loaded' && !pinOk(L.load, m.pin)) { L.pinMissing = true; continue; } if (m.status === 'loaded') L.pinMissing = false; L.state = m.status; if (m.pod) L.pod = m.pod; }
     if (m.type === 'msg' && typeof m.text === 'string') { (L.msgs ||= []).push({ text: m.text.slice(0, 500), t: m.t, from: m.from || '' }); continue; }
     if (m.type === 'cancel') L.state = 'cancelled';
     if (['response', 'status', 'cancel', 'counter_reply'].includes(m.type)) { L.history.push({ type: m.type, t: m.t, action: m.action, status: m.status, lat: m.lat, lon: m.lon }); L.updated = m.t; } }
@@ -60,5 +65,6 @@ export class DispatcherConsole extends Base {
       this.drivers.push(p); this._save(); await this._attach(p); this._emit(); onPaired?.(p); }, Math.floor(Date.now() / 1000) - 5);
     setTimeout(un, PAIR_TTL); return { code, expires: exp }; }
   _onMsg(p, m) { if (m.type === 'location') p.last = m; if (m.type === 'share') p.sharing = m.on; if (m.type === 'unpair') p.unpaired = true; }
-  sendLoad(session, load) { const e = validateLoad(load); if (e.length) throw new Error('Invalid load: ' + e.join(', ')); return this.send(session, { type: 'load', load }); }
+  sendLoad(session, load, { pin = true } = {}) { const e = validateLoad(load); if (e.length) throw new Error('Invalid load: ' + e.join(', ')); let p = null; if (pin && !load.pinHash) { p = newPin(); load = { ...load, pinHash: pinHash(load.id, p) }; const all = JSON.parse(localStorage.getItem('rr_load_pins') || '{}'); all[load.id] = p; localStorage.setItem('rr_load_pins', JSON.stringify(all)); }
+    this.lastPin = p; return this.send(session, { type: 'load', load }); }
 }

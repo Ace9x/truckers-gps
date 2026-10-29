@@ -1,6 +1,6 @@
 // Accounts + Loads (dispatch) + Friends UI. Loaded from app.js; all transport is free (public Nostr relays), encrypted.
 import { makeAuth, deviceKey } from './auth.js';
-import { DriverDispatch, STATUS_LABEL, nextStatus, routeStops } from './dispatch.js';
+import { DriverDispatch, STATUS_LABEL, nextStatus, routeStops, pinOk } from './dispatch.js';
 import { Friends, passPrediction } from './friends.js';
 import { bus } from './link.js';
 import * as cloud from './cloud.js';
@@ -127,7 +127,7 @@ export async function init(S, h) {
       card.querySelectorAll('[data-act]').forEach(b => { const go = async () => { const a = b.dataset.act; try {
         if (a === 'accept') { await dd.respond(L.session, L.load.id, 'accept'); if (!dd.share && confirm('Share your live location with dispatch while you run this load? They see your position and ETA. You can turn it off in Loads.')) { dd.setShare(true); if (S.pos) dd.location(S.pos); } } if (a === 'decline') await dd.respond(L.session, L.load.id, 'decline', { reason: prompt('Reason (optional)') || '' });
         if (a === 'counter') { const v = +prompt('Your counter rate ($)', L.load.rate?.amount || ''); if (v > 0) await dd.respond(L.session, L.load.id, 'counter', { counter: { amount: v, currency: 'USD' } }); }
-        if (a === 'status') await dd.status(L.session, L.load.id, b.dataset.s, S.pos ? { lat: S.pos.lat, lon: S.pos.lon } : {});
+        if (a === 'status') { const ex = S.pos ? { lat: S.pos.lat, lon: S.pos.lon } : {}; if (b.dataset.s === 'loaded' && L.load.pinHash) { const pin = prompt('Enter the 4-digit pickup PIN the shipper gives you'); if (!pinOk(L.load, pin)) { toast('PIN does not match — ask the shipper or call dispatch'); return; } ex.pin = String(pin).trim(); } await dd.status(L.session, L.load.id, b.dataset.s, ex); }
         if (a === 'podsheet') { S.freight.podSheet({ stops: [{ address: L.load.drop.address }] }, 0, { address: L.load.drop.address, submit: async (pod, ps) => { await dd.status(L.session, L.load.id, 'delivered', { pod: { ...pod, at: Date.now() }, ...(ps || {}) }); renderLoads(); } }); }
         if (a === 'rmsg' || a === 'rq') { const i = card.querySelector('[data-rmsgi]'), text = a === 'rq' ? b.dataset.q : i.value.trim(); if (text) { await dd.send(L.session, { type: 'msg', loadId: L.load.id, text, from: 'driver' }); if (i) i.value = ''; renderLoads(); } }
         if (a === 'pod') { const pod = await shrink(b.files[0]); await dd.status(L.session, L.load.id, 'delivered', { pod: { photo: pod, at: Date.now() }, ...(S.pos ? { lat: S.pos.lat, lon: S.pos.lon } : {}) }); toast('Delivered — POD sent'); }
