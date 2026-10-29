@@ -696,8 +696,9 @@ tf.addEventListener('change', renderDT); renderDT(); S.DRIVER_TYPES = DRIVER_TYP
 // Layers
 const LAYERS = { fuelAll: v => map.getLayer('fuelAll') && map.setLayoutProperty('fuelAll', 'visibility', v ? 'visible' : 'none'), wz: v => map.getLayer('wz') && map.setLayoutProperty('wz', 'visibility', v ? 'visible' : 'none'),
   pois: v => $$('.poi-marker').forEach(e => e.style.display = v ? '' : 'none'), reports: v => rptMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'), avoids: v => avoidMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'),
-  car: v => { $('#cmpCar').checked = v; drawRoute(); }, sat: v => setSat(v) };
-S.layers = { fuelAll: true, pois: true, wz: false, reports: true, avoids: true, car: false, sat: false, ...LS.get('layers', {}) };
+  car: v => { $('#cmpCar').checked = v; drawRoute(); }, sat: v => setSat(v),
+  traffic: v => { ['tf', 'tf-casing', 'tfRoute'].forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', v && !(id === 'tf-casing' && S.traffic?.hasTomTom?.()) ? 'visible' : 'none')); S.traffic?.setTomTom?.(v); } };
+S.layers = { fuelAll: true, pois: true, wz: false, reports: true, avoids: true, car: false, sat: false, traffic: true, ...LS.get('layers', {}) };
 function applyLayers() { for (const [k, f] of Object.entries(LAYERS)) { try { f(S.layers[k]); } catch {} } $$('[data-layer]').forEach(c => c.checked = !!S.layers[c.dataset.layer]); }
 $$('[data-layer]').forEach(c => c.onchange = () => { S.layers[c.dataset.layer] = c.checked; LS.set('layers', S.layers); applyLayers(); });
 $('#layersBtn').onclick = () => openPanel('layersPanel'); map.on('idle', () => { if (!S._layersApplied) { S._layersApplied = true; applyLayers(); } }); S.applyLayers = applyLayers;

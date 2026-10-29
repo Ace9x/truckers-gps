@@ -3,10 +3,10 @@ import { haversine, snapToRoute, bearing } from './logic.js';
 import { geohash } from './hazlogic.js';
 export const MPH = 2.23694, MI = 1609.344;
 export const LEVELS = [
-  { id: 'free', min: 0.8, color: '#2e7d32', label: 'Free flow' },
-  { id: 'slow', min: 0.55, color: '#f9a825', label: 'Slow' },
-  { id: 'heavy', min: 0.3, color: '#e53935', label: 'Heavy' },
-  { id: 'jam', min: 0, color: '#7f0000', label: 'Stop-and-go' }];
+  { id: 'free', min: 0.8, color: '#63D668', label: 'Free flow' },
+  { id: 'slow', min: 0.55, color: '#FF974D', label: 'Slow' },
+  { id: 'heavy', min: 0.3, color: '#F23C32', label: 'Heavy' },
+  { id: 'jam', min: 0, color: '#811F1F', label: 'Stop-and-go' }];
 export const level = ratio => LEVELS.find(l => ratio >= l.min) || LEVELS[3];
 // Free-flow reference for feeds that give only current speed (NYC DOT): highway names vs. arterials.
 export const refMph = name => /\b(I-?\d+|BQE|LIE|CBE|BRP|GCP|HRP|FDR|CIP|VWE|SIE|WSE|NJTP|PKWY|PARKWAY|EXPWY|EXPRESSWAY|BRIDGE|BR\b|TUNNEL|TNB|VNB|GWB|RFK|BQE|MDE|HHP|CVE|BE\b|TBB|XBX)/i.test(name || '') ? 50 : 30;

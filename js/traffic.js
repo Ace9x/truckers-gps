@@ -36,28 +36,71 @@ export function init(S, { $, map, say, toast, esc, LS }) {
     const before = map.getLayer('route-casing') ? 'route-casing' : undefined;
     // UX P7 / code C2: casing + exponential width; motorway/trunk only below z12, primary+ from z12, everything matched from z14.
     const clsFilter = ['any', ['in', ['get', 'cls'], ['literal', ['motorway', 'trunk']]], ['all', ['>=', ['zoom'], 12], ['==', ['get', 'cls'], 'primary']], ['>=', ['zoom'], 14]];
-    const W = (k, add = 0) => ['interpolate', ['exponential', 1.5], ['zoom'], 9, 1.5 * k + add, 12, 3 * k + add, 15, 6 * k + add, 18, 14 * k + add]; // zoom must be the top-level interpolate input (no ['+', interpolate, n])
+    const W = (k, add = 0) => ['interpolate', ['exponential', 1.4], ['zoom'], 9, 1.2 * k + add, 12, 2.2 * k + add, 15, 3.4 * k + add, 18, 6 * k + add]; // zoom must be the top-level interpolate input (no ['+', interpolate, n])
     if (!map.getLayer('tf-casing')) map.addLayer({ id: 'tf-casing', type: 'line', source: 'tf', minzoom: 9, filter: clsFilter, layout: { 'line-cap': 'round', 'line-join': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
       paint: { 'line-color': '#000', 'line-opacity': 0.6, 'line-width': W(1, 3) } }, before);
     if (!map.getLayer('tf')) map.addLayer({ id: 'tf', type: 'line', source: 'tf', minzoom: 9, filter: clsFilter, layout: { 'line-cap': 'round', 'line-join': 'round', visibility: S.layers?.traffic === false ? 'none' : 'visible' },
       paint: { 'line-color': ['match', ['get', 'level'], 'free', LEVELS[0].color, 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': W(1) } }, before);
     if (!map.getLayer('tfRoute')) map.addLayer({ id: 'tfRoute', type: 'line', source: 'tfRoute', layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': ['match', ['get', 'level'], 'slow', LEVELS[1].color, 'heavy', LEVELS[2].color, LEVELS[3].color], 'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 8, 3, 12, 6, 16, 10] } }, map.getLayer('done') ? 'done' : undefined);
-    ttLayers(before);
+    ttLayers();
   }
-  // TomTom flow + incidents raster tiles (toggle). On tile errors (bad key / wrong domain / quota) we drop them and fall back to NYC DOT + crowd + Waze panel.
-  function ttLayers(before) { const on = T.keys.tomtom && LS.get('tomtomOn', true) && T.status.tomtom !== 'failed';
-    for (const [id, kind, op] of [['ttflow', 'flow/relative0', 0.8], ['ttinc', 'incidents/s3', 1]]) {
-      if (on && !map.getSource(id)) { map.addSource(id, { type: 'raster', tileSize: 256, attribution: 'Traffic © TomTom', tiles: [`https://api.tomtom.com/traffic/map/4/tile/${kind}/{z}/{x}/{y}.png?key=${encodeURIComponent(T.keys.tomtom)}`] });
-        map.addLayer({ id, type: 'raster', source: id, minzoom: 6, paint: { 'raster-opacity': op } }, before || (map.getLayer('route-casing') ? 'route-casing' : undefined)); }
-      if (!on && map.getLayer(id)) { map.removeLayer(id); map.removeSource(id); } }
-    if (on && !T.status.tomtom) T.status.tomtom = 'loading'; }
+  // TomTom live traffic as VECTOR tiles, styled like Google Maps: thin road-hugging lines (green only on highways/major roads), under labels + route.
+  // Incidents: small round Waze-style icons from z11. On tile errors (bad key / wrong domain / quota) we drop them and fall back to NYC DOT + crowd + Waze panel.
+  const GT = { free: '#63D668', slow: '#FF974D', heavy: '#F23C32', jam: '#811F1F' };
+  const ttUrl = path => `https://api.tomtom.com/traffic/map/4/tile/${path}/{z}/{x}/{y}.pbf?key=${encodeURIComponent(T.keys.tomtom)}`;
+  // above every basemap road (dark style has a water label before the roads), below road/place labels and our route line
+  const trafficBefore = () => { const L = map.getStyle().layers, last = L.reduce((m, l, i) => l.type === 'line' && /highway|road|transport|bridge|tunnel|railway|aeroway/.test(l.id) && !/^(tf|tt|route)/.test(l.id) ? i : m, -1);
+    const sym = L.findIndex((l, i) => i > last && l.type === 'symbol'), rc = L.findIndex(l => l.id === 'route-casing');
+    const pick = [sym, rc > last ? rc : -1].filter(i => i >= 0); return pick.length ? L[Math.min(...pick)].id : undefined; };
+  const INC = { 1: ['#E53935', '💥'], 6: ['#F57C00', '🚗'], 9: ['#F59E0B', '🚧'], 7: ['#8E1B1B', '⛔'], 8: ['#8E1B1B', '⛔'], 3: ['#E53935', '⚠'], 14: ['#E53935', '🚘'], 2: ['#546E7A', '🌫'], 5: ['#4FC3F7', '❄'], 4: ['#42A5F5', '💧'], 11: ['#42A5F5', '🌊'], 10: ['#78909C', '💨'], 0: ['#78909C', '!'] };
+  function incImages() { const dpr = Math.min(3, window.devicePixelRatio || 1), R = 13;
+    for (const [k, [col, g]] of Object.entries(INC)) { const id = 'tti-' + k; if (map.hasImage(id)) continue;
+      const c = document.createElement('canvas'); c.width = c.height = (R * 2 + 4) * dpr; const x = c.getContext('2d'); x.scale(dpr, dpr);
+      x.shadowColor = 'rgba(0,0,0,.35)'; x.shadowBlur = 3; x.shadowOffsetY = 1; x.beginPath(); x.arc(R + 2, R + 2, R, 0, 7); x.fillStyle = '#fff'; x.fill(); x.shadowColor = 'transparent';
+      x.beginPath(); x.arc(R + 2, R + 2, R - 2.2, 0, 7); x.fillStyle = col; x.fill();
+      x.font = `${g === '!' ? '700 15px' : '13px'} system-ui, "Apple Color Emoji", "Noto Color Emoji", sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff'; x.fillText(g, R + 2, R + 3);
+      map.addImage(id, { width: c.width, height: c.height, data: x.getImageData(0, 0, c.width, c.height).data }, { pixelRatio: dpr }); } }
+  // Google-style base: while traffic shows, the light map's yellow/orange highway fills go white/grey so the traffic colours read clearly
+  const roadOrig = {};
+  function muteRoads(on) { if (document.documentElement.dataset.theme !== 'light') on = false;
+    for (const l of map.getStyle().layers) { if (l.type !== 'line' || !/^(road|bridge|tunnel)_(motorway|trunk|primary|secondary)/.test(l.id)) continue;
+      const k = l.id; if (!(k in roadOrig)) roadOrig[k] = map.getPaintProperty(k, 'line-color');
+      map.setPaintProperty(k, 'line-color', on ? (/casing/.test(k) ? '#cfd3d8' : '#ffffff') : roadOrig[k]); } }
+  function ttLayers() { const on = T.keys.tomtom && S.layers?.traffic !== false && LS.get('tomtomOn', true) && T.status.tomtom !== 'failed';
+    for (const id of ['ttinc', 'ttflow', 'ttflow-major']) if (map.getLayer(id) && !on) map.removeLayer(id);
+    for (const id of ['ttinc', 'ttflow']) if (map.getSource(id) && !on) map.removeSource(id);
+    if (!on) { if (T.status.tomtom === 'ok') T.status.tomtom = null; muteRoads(false); return; }
+    const under = trafficBefore(); // under the route line and all labels
+    if (!map.getSource('ttflow')) map.addSource('ttflow', { type: 'vector', tiles: [ttUrl('flow/relative')], minzoom: 0, maxzoom: 22, attribution: 'Traffic © TomTom' });
+    const lvl = ['coalesce', ['get', 'traffic_level'], 1], major = ['in', ['get', 'road_type'], ['literal', ['Motorway', 'International road', 'Major road']]];
+    const color = ['case', ['==', ['get', 'road_closure'], true], GT.jam, ['<', lvl, 0.25], GT.jam, ['<', lvl, 0.5], GT.heavy, ['<', lvl, 0.8], GT.slow, GT.free];
+    const hw = ['in', ['get', 'road_type'], ['literal', ['Motorway', 'International road']]];
+    const width = ['interpolate', ['exponential', 1.4], ['zoom'], 8, ['case', hw, 1.8, 1], 11, ['case', hw, 3, 1.6], 14, ['case', hw, 4.2, 3], 17, ['case', hw, 7, 5.5], 20, ['case', hw, 12, 9]];
+    // Google shows green on highways/major roads only; local streets get a line only when slow or worse
+    const big = ['in', ['get', 'road_type'], ['literal', ['Motorway', 'International road', 'Major road', 'Secondary road']]];
+    const filt = ['all', ['any', big, ['>=', ['zoom'], 12]], ['any', ['<', lvl, 0.8], ['==', ['get', 'road_closure'], true], ['all', major, ['>=', ['zoom'], 9]]]];
+    if (!map.getLayer('ttflow')) map.addLayer({ id: 'ttflow', type: 'line', source: 'ttflow', 'source-layer': 'Traffic flow', minzoom: 7, filter: filt,
+      layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['-', 1, lvl] },
+      paint: { 'line-color': color, 'line-width': width, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.75, 12, 0.92] } }, under);
+    if (!map.getSource('ttinc')) map.addSource('ttinc', { type: 'vector', tiles: [ttUrl('incidents')], minzoom: 0, maxzoom: 22 });
+    incImages();
+    if (!map.getLayer('ttinc')) map.addLayer({ id: 'ttinc', type: 'symbol', source: 'ttinc', 'source-layer': 'Traffic incident POI', minzoom: 11,
+      // Waze-style: accidents, closures, hazards, broken-down cars always; roadworks from z13; jams only when severe (magnitude 3+) from z12
+      filter: ['all', ['!', ['has', 'cluster_id']], ['!=', ['get', 'poi_type'], 'end_poi'], ['let', 'c', ['to-number', ['coalesce', ['get', 'icon_category'], ['get', 'icon_category_0'], 0]], ['any',
+        ['in', ['var', 'c'], ['literal', [1, 3, 7, 8, 14, 2, 4, 5, 10, 11]]], ['all', ['==', ['var', 'c'], 9], ['>=', ['zoom'], 13]], ['all', ['==', ['var', 'c'], 6], ['>=', ['to-number', ['coalesce', ['get', 'magnitude'], 0]], 3], ['>=', ['zoom'], 12]]]]],
+      layout: { 'icon-image': ['concat', 'tti-', ['to-string', ['match', ['coalesce', ['get', 'icon_category'], ['get', 'icon_category_0'], 0], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14], ['coalesce', ['get', 'icon_category'], ['get', 'icon_category_0']], 0]]],
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 11, 0.72, 15, 1], 'icon-allow-overlap': false, 'icon-padding': 6, 'symbol-sort-key': ['-', 10, ['coalesce', ['get', 'magnitude'], 0]] } });
+    if (!T.status.tomtom) T.status.tomtom = 'loading';
+    muteRoads(true);
+    // NYC DOT / crowd overlay: thin and casing-free while TomTom draws the network, so it doesn't double up
+    for (const [id, v] of [['tf-casing', 'none']]) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); }
   let ttErr = 0; map.on('error', e => { if (!/^tt(flow|inc)$/.test(e.sourceId || '')) return; if (++ttErr < 4) return; T.status.tomtom = 'failed'; ttLayers();
     toast?.('TomTom traffic unavailable — showing NYC DOT + driver speeds. Tap 🚦 Waze for the live map.'); renderLegend?.(); });
   map.on('sourcedata', e => { if (/^tt(flow|inc)$/.test(e.sourceId || '') && e.tile && T.status.tomtom !== 'failed') T.status.tomtom = 'ok'; });
-  T.setTomTom = on => { LS.set('tomtomOn', !!on); if (on && T.status.tomtom === 'failed') { T.status.tomtom = null; ttErr = 0; } ttLayers(); renderLegend?.(); };
+  T.setTomTom = on => { LS.set('tomtomOn', !!on); if (S.layers) S.layers.traffic = !!on; if (on && T.status.tomtom === 'failed') { T.status.tomtom = null; ttErr = 0; } ttLayers(); renderLegend?.(); };
   T.hasTomTom = () => !!T.keys.tomtom;
-  map.on('style.load', layers); if (map.isStyleLoaded()) layers(); else map.once('load', layers);
+  map.on('style.load', () => { for (const k in roadOrig) delete roadOrig[k]; }); map.on('style.load', layers); if (map.isStyleLoaded()) layers(); else map.once('load', layers);
   map.on('click', 'tf', e => { const p = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${esc(p.name || 'Road')}</b><br><span style="color:#333">${Math.round(p.mph)} mph now (normal ~${Math.round(p.ff)}) · ${level(p.ratio).label}<br><i>Source: ${esc(p.src)} · ${ageText(Date.now() - p.t)}</i></span>`).addTo(map); });
 
   // ---------- sources ----------
@@ -143,7 +186,8 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   function srcLine(tr) { if (!tr || !tr.sources.length) return 'No live traffic data for this route area — ETA uses normal speeds.';
     return `Live: ${tr.sources.join(' + ')}${tr.newest > 1.6e12 ? ' · ' + ageText(Date.now() - tr.newest) : ''} · covers ${Math.round(tr.coverage * 100)}% of route`; }
   function renderLegend() { const tr = T.cur, n = T.links.length;
-    legend.innerHTML = `Traffic${LEVELS.map(l => `<i style="background:${l.color}"></i>`).join('')} · ${n ? `${n} roads` : 'no data here'}${T.feeds.nyc ? (T.feeds.nyc.t > 1.6e12 && T.feeds.nyc.t <= Date.now() + 6e5 ? ` · NYC DOT ${ageText(Date.now() - T.feeds.nyc.t)}` : ` · NYC DOT: ${esc(T.status.nyc || 'no data')}`) : ''}${T.status.crowd ? ' · drivers live' : ''}${T.keys.tomtom ? ` · <button class="tt-tog" data-tt aria-pressed="${LS.get('tomtomOn', true)}">TomTom ${T.status.tomtom === 'failed' ? '⚠ unavailable' : LS.get('tomtomOn', true) ? 'on' : 'off'}</button>` : ''}${T.keys.here ? ' · HERE' : ''}`;
+    const ttLive = T.keys.tomtom && T.status.tomtom === 'ok' && S.layers?.traffic !== false, nycOk = T.feeds.nyc && T.feeds.nyc.t > 1.6e12 && T.feeds.nyc.t <= Date.now() + 6e5;
+    legend.innerHTML = `Traffic${LEVELS.map(l => `<i style="background:${l.color}" title="${l.label}"></i>`).join('')} · ${ttLive ? 'live (TomTom)' : n ? `${n} roads` : 'no data here'}${!ttLive && T.feeds.nyc ? (nycOk ? ` · NYC DOT ${ageText(Date.now() - T.feeds.nyc.t)}` : ` · NYC DOT: ${esc(T.status.nyc || 'no data')}`) : ''}${T.status.crowd ? ' · drivers live' : ''}${T.keys.tomtom && T.status.tomtom === 'failed' ? ' · TomTom ⚠ unavailable' : ''}${T.keys.here ? ' · HERE' : ''}`;
     legend.querySelector('[data-tt]')?.addEventListener('click', () => T.setTomTom(!LS.get('tomtomOn', true)));
     legend.style.display = S.layers?.traffic === false ? 'none' : ''; }
   // Route options: Traffic row per alternative + second-opinion links
