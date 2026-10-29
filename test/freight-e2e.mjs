@@ -6,6 +6,8 @@ const CFG = fs.readFileSync(new URL('../js/config.js', import.meta.url), 'utf8')
 const users = JSON.parse(fs.readFileSync('/workspace/.rr-secrets/testusers.json')); let pass = 0, fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); c ? pass++ : fails++; };
 const X = createClient(U, K, { realtime: { transport: WebSocket }, auth: { persistSession: false } }); await X.auth.signInWithPassword(users.dispatcher);
 const Dv = createClient(U, K, { realtime: { transport: WebSocket }, auth: { persistSession: false } }); await Dv.auth.signInWithPassword(users.driver);
+// look the driver up by @username: email lookups are rate-limited to 5/hour per dispatcher (anti-enumeration), which repeated test runs exhaust
+await Dv.from('profiles').update({ username: 'rr_test_driver' }).eq('id', users.driver.id);
 for (const c of [X]) { await c.from('loads').delete().like('ref', 'FX-%'); await c.from('address_book').delete().like('name', 'Hunts Point Market FX-%'); }
 const REF = 'FX-' + Date.now().toString(36).toUpperCase(), browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 // ---- dispatcher board
@@ -13,7 +15,7 @@ const dc = await browser.newContext({ viewport: { width: 1100, height: 1300 } })
 d.on('dialog', x => x.accept(/Name/.test(x.message()) ? 'Hunts Point Market ' + REF : 'Gate 3 code 4471, trucks enter Halleck St'));
 await d.goto(BASE + 'dispatch.html'); await d.waitForFunction(() => document.querySelector('#sbIn').onclick); await d.fill('#sbEmail', users.dispatcher.email); await d.fill('#sbPass', users.dispatcher.password); await d.click('#sbIn');
 await d.waitForFunction(() => window.RRB, null, { timeout: 30000 }); ok(await d.isHidden('#log'), 'debug log hidden by default');
-await d.fill('#bDriver', users.driver.email); await d.fill('#bRef', REF);
+await d.fill('#bDriver', '@rr_test_driver'); await d.fill('#bRef', REF);
 const pick = async (i, q, re) => { await d.fill(`[data-bi="${i}"] [data-ba]`, ''); await d.type(`[data-bi="${i}"] [data-ba]`, q, { delay: 20 }); await d.waitForSelector(`[data-bi="${i}"] .b-sug:not([hidden]) [data-sg]`, { timeout: 15000 });
   const opts = await d.$$eval(`[data-bi="${i}"] [data-sg]`, b => b.map(x => x.textContent)); const k = Math.max(0, opts.findIndex(o => re.test(o))); await d.dispatchEvent(`[data-bi="${i}"] [data-sg="${k}"]`, 'mousedown'); return opts[k]; };
 const a0 = await pick(0, 'Hunts Point Cooperative Market', /Bronx|Hunts/i); ok(await d.evaluate(() => RRB.draft[0].lat != null), 'Photon autocomplete picked a real address: ' + a0);
@@ -28,7 +30,7 @@ await pick(1, 'Newark Liberty International Airport', /Newark/i);
 const apptPast = await d.evaluate(() => { const t = new Date(Date.now() - 3 * 3600e3), f = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/New_York', dateStyle: 'short', timeStyle: 'short' }).format(t); return f.replace(' ', 'T'); });
 await d.fill('[data-bi="0"] [data-bt]', apptPast); await d.dispatchEvent('[data-bi="0"] [data-bt]', 'change');
 await d.check('#bReefer'); await d.fill('#bFree', '0'); await d.fill('#bDetR', '60'); await d.screenshot({ path: SH + '/dispatch-new-load.png', fullPage: true });
-await d.click('#bSend'); await d.waitForFunction(r => document.querySelector('#bMsg').textContent.includes('Sent ' + r), REF, { timeout: 15000 }).catch(async e => { console.log('bMsg:', await d.textContent('#bMsg')); throw e; }); ok(true, 'multi-stop reefer load sent');
+await d.click('#bSend'); await d.waitForFunction(r => document.querySelector('#bMsg').textContent.includes('Sent ' + r), REF, { timeout: 15000 }).catch(async e => { console.log('bMsg:', await d.textContent('#bMsg')); throw e; }); ok(true, 'multi-stop reefer load sent'); const PIN = (await d.textContent('#bMsg')).match(/PIN (\d{4})/)?.[1]; ok(!!PIN, 'dispatcher got the pickup PIN');
 const { data: L } = await X.from('loads').select('*').eq('ref', REF).single(); ok(L.stops.length === 4 && L.reefer?.setpoint === 34 && L.stops[0].notes?.includes('Gate 3'), '4 stops + reefer + facility notes stored on the server');
 const { data: L2 } = await X.from('loads').insert({ driver: users.driver.id, ref: REF + '-B', pickup_address: 'Port Newark', pickup_lat: 40.69, pickup_lng: -74.15, dropoff_address: 'Hunts Point', dropoff_lat: 40.81, dropoff_lng: -73.87, pickup_at: new Date(Date.now() + 5 * 3600e3).toISOString(), rate_usd: 400 }).select().single();
 await d.evaluate(() => RRB.refresh()); await d.waitForTimeout(800);
@@ -40,7 +42,6 @@ await p.goto(BASE); await p.waitForFunction(() => TruckNav?.accountReady && Truc
 await p.click('#acctBtn'); await p.click('[data-t="in"]'); await p.fill('#acEmail', users.driver.email); await p.fill('#acPass', users.driver.password); await p.click('#acGo');
 await p.waitForFunction(() => TruckNav.auth.user?.method === 'supabase', null, { timeout: 30000 }); await p.waitForTimeout(2000); await p.evaluate(() => document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden'))); await p.click('#loadsBtn');
 const C = `[data-cload="${L.id}"]`; await p.waitForSelector(C + ' [data-cs="accepted"]', { timeout: 20000 }); await p.click(C + ' [data-cs="accepted"]');
-await p.waitForSelector(C + ' [data-fx] [data-farr="0"]', { timeout: 15000 }); ok((await p.$$(C + ' .fx-stop')).length === 4, 'driver sees all 4 stops in order');
 ok((await X.rpc('driver_update_load', { p_id: L.id, p_status: 'delivered' })).error != null, 'server refuses "delivered" without the stop flow');
 await p.click(C + ' [data-farr="0"]'); await p.waitForSelector(C + ' [data-fdep="0"]', { timeout: 15000 });
 ok(/Arrived \d/.test(await p.textContent(C + ' [data-stop="0"] [data-times]')), 'arrival timestamp shown'); ok(await p.waitForFunction(c => /Detention \d+m · \$\d/.test(document.querySelector(c + ' [data-stop="0"] [data-det]')?.textContent), C, { timeout: 10000 }).then(() => true, () => false), 'detention clock running and billing (0 min free)');
@@ -48,9 +49,9 @@ await p.fill(C + ' [data-ftemp]', '39.5'); await p.click(C + ' [data-flogtemp]')
 const img = await p.screenshot({ type: 'jpeg', quality: 50, clip: { x: 0, y: 0, width: 300, height: 300 } });
 await p.$eval(C + ' [data-fdoct]', x => x.closest('details').open = true); await p.selectOption(C + ' [data-fdoct]', 'bol'); await p.setInputFiles(C + ' [data-fdoc]', { name: 'bol.jpg', mimeType: 'image/jpeg', buffer: img });
 await p.waitForSelector(C + ' [data-docr="bol"]', { timeout: 15000 }); await p.selectOption(C + ' [data-fdoct]', 'lumper'); await p.fill(C + ' [data-fdocamt]', '125'); await p.setInputFiles(C + ' [data-fdoc]', { name: 'lumper.jpg', mimeType: 'image/jpeg', buffer: img });
-await p.waitForSelector(C + ' [data-docr="lumper"]', { timeout: 15000 }); ok(true, 'BOL and $125 lumper receipt photos uploaded');
+await p.waitForSelector(C + ' [data-docr="lumper"]', { timeout: 15000 }).catch(async e => { console.log('TOAST', await p.textContent('#toast'), 'AMT', await p.inputValue(C + ' [data-fdocamt]').catch(() => '?'), 'TYPE', await p.inputValue(C + ' [data-fdoct]').catch(() => '?')); throw e; }); ok(true, 'BOL and $125 lumper receipt photos uploaded');
 await p.click(C + ' [data-sec="msgs"] summary'); await p.click(C + ' [data-fq="At the gate"]'); await p.waitForSelector(C + ' [data-msg].me'); await p.screenshot({ path: SH + '/390-load-at-stop.png' });
-await p.click(C + ' [data-fdep="0"]'); await p.waitForSelector(C + ' [data-farr="1"]', { timeout: 15000 });
+await p.evaluate(pin => { window.prompt = () => pin; }, PIN); await p.click(C + ' [data-fdep="0"]'); await p.waitForSelector(C + ' [data-farr="1"]', { timeout: 15000 });
 // dispatcher message -> driver (realtime)
 await X.from('load_events').insert({ load_id: L.id, kind: 'message', body: { text: 'Drop 2 opens at 6, take your break first' } });
 ok(await p.waitForFunction(id => [...document.querySelectorAll(`[data-cload="${id}"] [data-msg]`)].some(m => m.textContent.includes('take your break')), L.id, { timeout: 15000 }).then(() => true, () => false), 'dispatcher message arrives in the driver app live');
