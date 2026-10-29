@@ -66,6 +66,11 @@ export class SupabaseAuth {
   async saveProfile(patch) { const row = {}; if ('name' in patch) row.display_name = patch.name; if ('username' in patch) row.username = patch.username || null; if ('truck' in patch) row.truck = patch.truck || {};
     const { error } = await this.sb.from('profiles').update(row).eq('id', this.user.id); if (error) throw new Error(error.code === '23505' ? 'That username is taken' : error.message); this._force = true; await this._from((await this.sb.auth.getSession()).data.session); return this.user.profile; }
   async refresh() { await this._from((await this.sb.auth.getSession()).data.session); return this.user?.profile; }
+  // Passkeys (Face ID / Touch ID / Windows Hello). Biometrics stay on the device; the server keeps only a public key.
+  async passkeyIn() { const PK = await import('./passkey.js'); await PK.signIn(this.sb); await this._from((await this.sb.auth.getSession()).data.session); return this.user; }
+  async passkeyAdd() { const PK = await import('./passkey.js'); return PK.register(this.sb, { app: 'RigRoute' }); }
+  async passkeys() { const PK = await import('./passkey.js'); return PK.list(this.sb); }
+  async passkeyDel(id) { const PK = await import('./passkey.js'); return PK.remove(this.sb, id); }
   recoveryCode() { return null; } async signOut() { await this.sb.auth.signOut(); }
   secret() { return this.local.sk; } // relay features (friends/dispatch fallback) still use a device key
 }

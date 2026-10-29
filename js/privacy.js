@@ -10,7 +10,7 @@ export async function locGate(start) {
     <ul><li><b>Turn-by-turn for your truck</b> — routes avoid low bridges, weight limits and no-truck roads from where you are.</li>
     <li><b>Hazards near you</b> — alerts for reports on the road ahead.</li>
     <li><b>Stays on your phone</b> — your position is not stored on our servers. It is shared only if you turn on friend sharing or anonymous traffic speeds.</li></ul>
-    <p class="lw-small">Routing requests go to Valhalla (OpenStreetMap). <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>
+    <p class="lw-small">Routing requests go to Valhalla (OpenStreetMap). <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
     <button id="locWhyGo" class="lw-go">Continue</button><button id="locWhyLater" class="lw-later">Not now</button></div>`;
   document.body.appendChild(el);
   $('#locWhyGo').onclick = () => { localStorage.setItem(SEEN, '1'); el.remove(); start(); };
@@ -41,7 +41,7 @@ export function privacyHTML() {
   const tag = s => s === true ? '<span class="pv-tag sync">Syncs</span>' : s === 'opt-in' ? '<span class="pv-tag opt">Only if you turn it on</span>' : '<span class="pv-tag local">This phone only</span>';
   return `<h3>Privacy</h3><ul class="pv-list">${DATA_MAP.map(d => `<li><div><b>${d.item}</b><small>${d.where}</small></div>${tag(d.sync)}</li>`).join('')}</ul>
     <div class="pv-btns"><button id="pvExport">Export my data</button><button id="pvDelete" class="pv-danger">Delete all data</button></div>
-    <p class="small muted">Hazard reports already sent to public relays can't be recalled. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a></p>`; }
+    <p class="small muted">Hazard reports already sent to public relays can't be recalled. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>`; }
 export function wirePrivacy(root) {
   root.querySelector('#pvExport').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exportAll(), null, 2)], { type: 'application/json' })); a.download = `rigroute-data-${new Date().toISOString().slice(0, 10)}.json`; a.click(); };
   root.querySelector('#pvDelete').onclick = async () => { if (!confirm('Delete everything RigRoute stored on this phone (truck profile, trips, receipts, HOS, settings) and sign out? This cannot be undone.')) return; await deleteAll(); location.reload(); }; }

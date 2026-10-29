@@ -253,7 +253,7 @@ function mePrivacy() { const me = $('#mePanel'); if (!me) return;
     tr.querySelectorAll('[data-trip]').forEach(b => b.onclick = () => { const x = S.trips().find(y => y.id === b.dataset.trip); if (x) showReceipt({ saved: x, arrived: true }); }); }
   if (!$('#mePriv')) { const d = document.createElement('div'); d.id = 'mePriv'; d.innerHTML = privacyHTML(); me.appendChild(d); wirePrivacy(d); } }
 setInterval(mePrivacy, 1000);
-function eldNotes() { const hp = $('#hosPanel .warnnote'); if (hp && !hp.dataset.v) { hp.dataset.v = 1; hp.innerHTML = '⚠ <b>Not a certified ELD</b> — this is a helper, not a legal log. Use your carrier\'s ELD for compliance.'; }
+function eldNotes() { const hp = $('#hosPanel .warnnote'); if (hp && !hp.dataset.v) { hp.dataset.v = 1; hp.innerHTML = '⚠ <b>Not an ELD · informational only.</b> Not a certified ELD or legal log — use your carrier\'s ELD for compliance.'; }
   const rp = $('#routePanel'); if (rp && S.route && !LS.get('firstRouteNote', false) && !$('#eldRoute')) { const n = document.createElement('div'); n.id = 'eldRoute'; n.className = 'eld-note'; n.setAttribute('role', 'note');
     n.innerHTML = `<span>⚠ ${NOT_ELD}</span><button class="textlink" id="eldOk">Got it</button>`; ($('#alts') || rp.lastChild).before(n); $('#eldOk').onclick = () => { LS.set('firstRouteNote', true); n.remove(); }; } }
 setInterval(eldNotes, 700);

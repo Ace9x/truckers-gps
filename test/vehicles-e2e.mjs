@@ -36,6 +36,9 @@ ok(await p.evaluate(() => TruckNav.vehOf() === 'reefervan' && TruckNav.VEHICLES.
 await p.evaluate(() => { const s = document.querySelector('#vehSel'); s.value = 'semi'; s.dispatchEvent(new Event('change', { bubbles: true })); });
 const semi = await route(); ok(semi.body?.costing === 'truck' && semi.body.costing_options.truck.height > 4 && semi.body.costing_options.truck.use_truck_route === 0.8, 'semi: full truck costing restored');
 ok(await p.evaluate(() => !document.body.classList.contains('no-truckui') && TruckNav.truck.weightLbs === 80000), 'semi: truck tools on, 80,000 lb');
+ok(/Not an ELD · informational only/.test(await p.evaluate(() => document.querySelector('#hosPanel').textContent + document.querySelector('#dockHos').title)), 'HOS panel + dock carry the not-an-ELD notice');
+ok(/verify clearances/.test(await p.textContent('#routeSafety')), 'route sheet has the verify-clearances/hazmat safety disclaimer');
+{ const t = await ctx.newPage(); const r = await t.goto(B + 'terms.html'); ok(r.ok() && /not an ELD/i.test(await t.textContent('main')) && /nothing auto-renews/.test(await t.textContent('main')), 'terms page live (not-an-ELD, verify restrictions, no auto-renew)'); await t.close(); }
 // dispatcher console shows vehicle selectors
 const d = await ctx.newPage(); await d.goto(B + 'dispatch.html'); ok(await d.$('#bVeh') && await d.$('#veh') && (await d.$$('#veh option')).length === 6, 'dispatch forms have a vehicle type selector (board + relay)');
 ok(!errs.length, 'no page errors ' + errs.join(' ; ')); console.log(`pass=${pass} fail=${fail}`); await br.close(); process.exit(fail ? 1 : 0);

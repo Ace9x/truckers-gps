@@ -45,7 +45,7 @@ const applyTheme = () => { curTheme = effTheme(); document.body.classList.toggle
 applyTheme(); $('#ver').textContent = 'v' + VERSION;
 
 // ---------- Map ----------
-const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true, customAttribution: ['Routing <a href="https://github.com/valhalla/valhalla" target="_blank" rel="noopener">Valhalla</a>', 'NYC truck routes &amp; speeds: <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC DOT</a>', '<a href="terms.html" target="_blank">Terms &amp; safety</a> · <a href="privacy.html" target="_blank">Privacy</a>'] } });
+const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true, customAttribution: ['Routing <a href="https://github.com/valhalla/valhalla" target="_blank" rel="noopener">Valhalla</a>', 'NYC truck routes &amp; speeds: <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC DOT</a>', '<a href="terms.html" target="_blank">Terms &amp; safety</a> · <a href="privacy.html" target="_blank">Privacy</a> · <a href="terms.html" target="_blank">Terms</a>'] } });
 S.map = map;
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
