@@ -53,7 +53,12 @@ export async function channelHistory(channel, since = 0) { const c = await sb();
 export async function watchChannel(channel, cb) { const c = await sb(); await c.realtime.setAuth(); const ch = c.channel('dm-' + channel.slice(0, 16)).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dispatch_messages', filter: 'channel=eq.' + channel }, p => cb(p.new.body, p.new)).subscribe(); return () => c.removeChannel(ch); }
 
 // ---- freight flow (supabase/010_freight_flow.sql)
-export async function stopEvent(id, idx, event, pos, pod) { const c = await sb(); return must(await c.rpc('driver_stop_event', { p_id: id, p_idx: idx, p_event: event, p_lat: pos?.lat ?? null, p_lng: pos?.lon ?? pos?.lng ?? null, p_pod: pod || null })); }
+export async function stopEvent(id, idx, event, pos, pod, pin) { const c = await sb(); return must(await c.rpc('driver_stop_event', { p_id: id, p_idx: idx, p_event: event, p_lat: pos?.lat ?? null, p_lng: pos?.lon ?? pos?.lng ?? null, p_pod: pod || null, p_pin: pin ?? null })); }
+// fleets
+export async function myFleets() { const c = await sb(), me = await uid(); if (!me) return []; return must(await c.from('fleet_members').select('fleet, role, unit, fleets(id, name, owner)').eq('user_id', me)); }
+export async function joinFleet(code, unit) { const c = await sb(); return must(await c.rpc('join_fleet', { p_code: code, p_unit: unit || null })); }
+export async function pushHos(h) { const c = await sb(), me = await uid(); if (!c || !me || !h) return; const m = x => Number.isFinite(x) ? Math.round(x / 60e3) : null;
+  await c.from('driver_hos').upsert({ user_id: me, status: h.status, drive_left_min: m(h.driveLeft), window_left_min: m(h.windowLeft), cycle_left_min: m(h.cycleLeft), updated_at: new Date().toISOString() }); }
 export async function loadEvents(ids) { const c = await sb(); if (!ids.length) return []; return must(await c.from('load_events').select('*').in('load_id', ids).order('t')); }
 export async function postEvent(load_id, kind, body, pos) { const c = await sb(); return must(await c.from('load_events').insert({ load_id, kind, body, lat: pos?.lat ?? null, lng: pos?.lon ?? pos?.lng ?? null }).select().single()); }
 export async function watchEvents(cb) { const c = await sb(); if (!(await uid())) return () => {}; await c.realtime.setAuth(); const ch = c.channel('lev-' + Math.random().toString(36).slice(2, 8)).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'load_events' }, p => cb(p.new)).subscribe(); return () => c.removeChannel(ch); }

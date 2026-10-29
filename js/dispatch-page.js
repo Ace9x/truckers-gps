@@ -66,8 +66,8 @@ D.onChange(render); render(); setInterval(render, 30e3);
 import * as cloud from './cloud.js';
 (async () => { const c = await cloud.sb(); if (!c) { $('#sbSec').hidden = true; return; }
   const show = async () => { const id = await cloud.uid(); $('#sbAuth').hidden = !!id; $('#sbMain').hidden = !id; if (!id) return; const { data: u } = await c.auth.getUser(); const role = await cloud.myRole();
-    $('#sbWho').textContent = u.user.email + ' (' + role + ')'; if (role !== 'dispatcher' && role !== 'admin') $('#bMsg').textContent = '⚠ This account is a ' + role + ' account — sign up a separate dispatcher account to send loads.'; draw(); };
-  const draw = async () => { if (!window.RRB) (await import('./board.js')).start(); else window.RRB.refresh(); };
+    $('#sbWho').textContent = u.user.email + ' (' + role + ')'; if (role !== 'dispatcher' && role !== 'admin') $('#bMsg').textContent = 'Driving your own truck too? Create a fleet in 👥 Fleet to dispatch from this account.'; draw(); };
+  const draw = async () => { if (!window.RRF) await (await import('./fleet.js')).start(); else await (await import('./fleet.js')).refresh(); if (!window.RRB) (await import('./board.js')).start(); else window.RRB.refresh(); };
   const cred = () => ({ email: $('#sbEmail').value.trim(), password: $('#sbPass').value });
   $('#sbIn').onclick = async () => { const { error } = await c.auth.signInWithPassword(cred()); $('#sbMsg').textContent = error ? '⚠ ' + error.message : ''; show(); };
   $('#sbUp').onclick = async () => { const { data, error } = await c.auth.signUp({ ...cred(), options: { data: { role: 'dispatcher', display_name: $('#dName').value }, emailRedirectTo: location.href } }); $('#sbMsg').textContent = error ? '⚠ ' + error.message : data.session ? '' : '✅ Check your email to confirm, then sign in.'; show(); };
