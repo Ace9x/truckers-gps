@@ -3,7 +3,7 @@
 import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
 // reconnect backoff per relay: 4s, 8s … max 2 min (a 503/rate-limited relay must not be hammered)
 export const backoff = n => Math.min(120e3, 4000 * 2 ** Math.min(5, n));
-export const RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom', 'wss://relay.damus.io'];
+export const RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom', 'wss://relay.damus.io', 'wss://offchain.pub'];
 export const KIND_MSG = 7534, KIND_PROFILE = 30078;
 const te = new TextEncoder(), td = new TextDecoder(), C = globalThis.crypto, SUB = C.subtle;
 export const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');

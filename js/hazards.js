@@ -4,7 +4,9 @@ import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
 import { HZ, HZ_ORDER, alive, opacity, ingest, applyVote, RateLimiter, geohash, ghNeighbors, AREA_P, ahead, alertText, dist, tooFar, held, MAX_REPORT_M, FLAG_REASONS } from './hazlogic.js';
 import { snapToRoute } from './logic.js';
 
-export const RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom'];
+// same pool as Link: any one relay being down (e.g. a 503) doesn't matter; publish goes to every open relay, MQTT if none
+export { RELAYS } from './link.js';
+import { RELAYS } from './link.js';
 export const KIND = 7533, TAG = 'rigroute-hz-v1';
 const MQTT_URL = 'wss://broker.emqx.io:8084/mqtt', MQTT_LIB = 'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
 const hex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -26,7 +28,7 @@ export class LiveHazards {
     const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } this.relays.push(r);
     r.ws.onopen = () => { r.open = true; r.open0 = true; this._st('live'); this._req(r); this.outbox?.forEach(m => r.ws.send(m)); };
     r.ws.onmessage = e => { try { const m = JSON.parse(e.data); if (m[0] === 'EVENT') this._event(m[2]); } catch {} };
-    r.ws.onclose = () => { r.open = false; this.relays = this.relays.filter(x => x !== r); if (!this.relays.some(x => x.open) && !this.mq) this._st('reconnecting'); this._fails = this._fails || {}; const n = this._fails[url] = r.open0 ? 0 : (this._fails[url] || 0) + 1; setTimeout(() => this._open(url), Math.min(120e3, 4000 * 2 ** Math.min(5, n))); };
+    r.ws.onclose = () => { r.open = false; this.relays = this.relays.filter(x => x !== r); if (!this.relays.some(x => x.open) && !this.mq) { this._st('reconnecting'); clearTimeout(this._fb); this._fb = setTimeout(() => { if (!this.relays.some(x => x.open) && !this.mq) this._mqtt(); }, 8000); } this._fails = this._fails || {}; const n = this._fails[url] = r.open0 ? 0 : (this._fails[url] || 0) + 1; setTimeout(() => this._open(url), Math.min(120e3, 4000 * 2 ** Math.min(5, n))); };
     r.ws.onerror = () => {};
   }
   _st(s) { this.status = s; this.onStatus(s); }

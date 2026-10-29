@@ -16,6 +16,11 @@ async function driver(name, geo, clock) { const ctx = await browser.newContext({
 const t0 = Date.now();
 const [A, B, C] = await Promise.all([driver('A', A_POS), driver('B', B_POS, true), driver('C', C_POS)]);
 ok(true, `3 drivers online over public relays: ${await A.evaluate(() => TruckNav.hz.relays.filter(r => r.open).map(r => r.url).join(', '))}`);
+ok(await A.evaluate(() => TruckNav.hz.relays.filter(r => r.open).length >= 2), 'hazards connected to 2+ relays (one being down does not matter)');
+// relay fallback: a pool whose first relays are dead still connects and publishes over the live one
+const fb = await A.evaluate(async () => { const { LiveHazards } = await import('./js/hazards.js'); const h = new LiveHazards({ relays: ['wss://127.0.0.1:9', 'wss://relay.invalid', 'wss://nos.lol'] });
+  for (let i = 0; i < 60 && !h.relays.some(r => r.open); i++) await new Promise(r => setTimeout(r, 250)); const open = h.relays.filter(r => r.open).map(r => r.url); h.relays.forEach(r => { try { r.ws.onclose = null; r.ws.close(); } catch {} }); clearTimeout(h._fb); return open; });
+ok(fb.length === 1 && fb[0] === 'wss://nos.lol', `relay fallback: 2 dead relays skipped, live on ${fb.join(', ')}`);
 // B is driving north (heading 0) toward A's spot
 await B.evaluate(() => { TruckNav.pos.heading = 0; });
 // A files 3 reports via the one-tap UI (tap ⚠ → tap type)
