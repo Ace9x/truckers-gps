@@ -8,7 +8,7 @@ for (const pg of ['', 'dispatch.html', 'privacy.html']) { const p = await browse
   await p.goto(BASE + pg); await p.waitForTimeout(pg ? 3000 : 8000); const csp = await p.$eval('meta[http-equiv="Content-Security-Policy"]', m => m.content).catch(() => '');
   ok(/script-src 'self'/.test(csp) && /object-src 'none'/.test(csp), `${pg || 'index'}: CSP meta present`); ok(!v.length, `${pg || 'index'}: no CSP violations ${v.join(' | ')}`);
   if (!pg) ok(await p.evaluate(() => !!window.TruckNav?.ready && !!TruckNav.map?.loaded()), 'app boots and map loads under CSP');
-  ok(!/unsafe-eval/.test(csp) && !/script-src[^;]*'unsafe-inline'/.test(csp), `${pg || 'index'}: no unsafe-eval / unsafe-inline scripts`); await p.close(); }
+  ok(!/unsafe-eval/.test(csp) && !/script-src[^;]*'unsafe-inline'/.test(csp), `${pg || 'index'}: no unsafe-eval / unsafe-inline scripts`); ok(/media-src[^;]*blob:/.test(csp), `${pg || 'index'}: media-src allows blob: (cloned-voice playback)`); await p.close(); }
 // hostile text through the real server
 const X = createClient(U, K, { realtime: { transport: WebSocket }, auth: { persistSession: false } }); await X.auth.signInWithPassword(users.dispatcher); await X.from('loads').delete().like('notes', 'XSS-%');
 const BAD = `<img src=x onerror="window.__xss=1">'"><svg onload=window.__xss=2>`;

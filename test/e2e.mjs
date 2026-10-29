@@ -7,7 +7,7 @@ const HUNTS_POINT = { latitude: 40.8128, longitude: -73.8803 }, NJ = { lat: 40.6
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 13'], geolocation: HUNTS_POINT, permissions: ['geolocation'] });
-const page = await ctx.newPage(); page.on('pageerror', e => { console.log('PAGE ERROR', e.message); fails++; });
+const page = await ctx.newPage(); page.on('pageerror', e => { console.log('PAGE ERROR', e.message); fails++; }); page.on('console', m => { if (/Refused to|Content Security Policy/.test(m.text())) { console.log('CSP VIOLATION', m.text().slice(0, 200)); fails++; } });
 const T = (f, a) => page.evaluate(f, a); const shot = n => page.screenshot({ path: `${SHOTS}/${n}.png` });
 const closeP = () => page.click('.panel:not(.hidden) .close').catch(() => {});
 await page.goto(BASE); await page.waitForFunction(() => window.TruckNav?.ready); await page.waitForFunction(() => TruckNav.pos, null, { timeout: 15000 });

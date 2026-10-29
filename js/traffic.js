@@ -64,7 +64,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   async function fetchNyc() { if (T.feeds.nyc && Date.now() - T.feeds.nyc.fetched < 120e3) return;
     try { const r = await fetch(`${NYC}?$limit=3000&$where=data_as_of>'${new Date(Date.now() - 6 * 3600e3 - 4 * 3600e3).toISOString().slice(0, 19)}'&$order=data_as_of DESC`, { signal: AbortSignal.timeout(25000) });
       const rows = await r.json(); const seen = new Set(), latest = rows.filter(x => !seen.has(x.link_id) && seen.add(x.link_id));
-      const all = parseNycDot(latest), links = freshLinks(all); T.feeds.nyc = { links, fetched: Date.now(), t: links.length ? Math.max(...links.map(l => l.t).filter(Number.isFinite)) : null }; T.status.nyc = links.length ? `${links.length} links` : all.length ? 'stale (hidden)' : 'no data'; }
+      const all = parseNycDot(latest), links = freshLinks(all); T.feeds.nyc = { links, fetched: Date.now(), t: links.length ? Math.max(...links.map(l => l.t).filter(Number.isFinite)) : null }; T.status.nyc = links.length ? `${links.length} links` : all.length ? 'feed stale' : 'no data'; }
     catch (e) { T.status.nyc = 'unavailable'; } }
   async function fetchHere(b) { if (!T.keys.here) return; try {
       const j = await (await fetch(`https://data.traffic.hereapi.com/v7/flow?in=bbox:${b.map(x => x.toFixed(4)).join(',')}&locationReferencing=shape&apiKey=${encodeURIComponent(T.keys.here)}`, { signal: AbortSignal.timeout(20000) })).json();
@@ -83,11 +83,11 @@ export function init(S, { $, map, say, toast, esc, LS }) {
 
   // ---------- crowd speeds over Nostr ----------
   let sk; try { sk = new Uint8Array(JSON.parse(localStorage.getItem('tn_tfsk'))); if (sk.length !== 32) throw 0; } catch { sk = generateSecretKey(); localStorage.setItem('tn_tfsk', JSON.stringify([...sk])); }
-  const rel = []; T.cells = []; const seen = new Set();
+  const rel = [], fails = {}; T.cells = []; const seen = new Set();
   function open(url) { const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } rel.push(r);
-    r.ws.onopen = () => { r.open = true; T.status.crowd = 'live'; req(r); };
+    r.ws.onopen = () => { r.open = true; r.was = true; T.status.crowd = 'live'; req(r); };
     r.ws.onmessage = e => { try { const m = JSON.parse(e.data); if (m[0] === 'EVENT') ingest(m[2]); } catch {} };
-    r.ws.onclose = () => { r.open = false; rel.splice(rel.indexOf(r), 1); setTimeout(() => open(url), 5000); }; r.ws.onerror = () => {}; }
+    r.ws.onclose = () => { r.open = false; rel.splice(rel.indexOf(r), 1); const n = fails[url] = r.was ? 0 : (fails[url] || 0) + 1; setTimeout(() => open(url), Math.min(120e3, 5000 * 2 ** Math.min(5, n))); }; r.ws.onerror = () => {}; }
   const req = r => { if (T.cells.length) try { r.ws.send(JSON.stringify(['REQ', 'tf', { kinds: [TKIND], '#g': T.cells, '#t': [TTAG], since: Math.floor(Date.now() / 1000) - 900, limit: 1000 }])); } catch {} };
   RELAYS.forEach(open); T.relays = rel;
   function ingest(ev) { if (!ev || ev.kind !== TKIND || seen.has(ev.id)) return; seen.add(ev.id); let c; try { c = JSON.parse(ev.content); } catch { return; }

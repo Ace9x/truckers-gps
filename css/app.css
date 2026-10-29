@@ -135,3 +135,7 @@ body.no-truckui #truckForm label:has(> [name=avoidWeigh]), body.no-truckui #truc
 .eld-note{display:inline-block;font-size:11px;font-weight:600;opacity:.85;letter-spacing:.02em}
 body.no-truckui .hos-park{display:none!important}
 body.veh-car .route-safety{display:none}
+[hidden]{display:none!important}
+#truckForm .span2{grid-column:1/-1}
+#truckUIRow{display:flex;align-items:center;gap:8px}
+body.veh-car #hazBtn, body.veh-car label.chk:has(#cmpCar), body.no-truckui #weighBtn, body.veh-commercial #hazBtn{display:none!important}

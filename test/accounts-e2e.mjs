@@ -40,6 +40,7 @@ ok(await Dp.isDisabled('#send') && /Needed: driver/.test(await Dp.textContent('#
 await Dp.selectOption('#to', { index: 1 }); await Dp.fill('#rate', '850'); await Dp.fill('#pAddr', '355 Food Center Dr, Bronx, NY'); ok(await Dp.isDisabled('#send'), 'typed address without a picked match still blocks Send');
 await Dp.evaluate(() => { const set = (i, v) => { const e = document.querySelector(i); e.value = v; }; set('#pLL', '40.80850,-73.87400'); set('#dAddr', '1 Export St, Newark, NJ'); set('#dLL', '40.69300,-74.15200'); set('#dWin', '2099-01-01T08:00,2099-01-01T10:00'); document.querySelector('#rate').dispatchEvent(new Event('input')); });
 ok(!(await Dp.isDisabled('#send')), 'Send enabled once driver, both addresses+locations and rate are set');
+await A.evaluate(() => addEventListener('unhandledrejection', e => window.__lastErr = String(e.reason?.message || e.reason)));
 const LID = await Dp.inputValue('#lid'); await Dp.click('#send'); ok(await wait(Dp, () => /sent/.test(document.querySelector('#sendMsg').textContent), null, 20), 'dispatcher sent load ' + LID);
 ok(await wait(A, l => !!document.querySelector(`[data-load="${l}"] [data-act="accept"]`), LID, 40), 'driver Loads inbox shows the offer'); await shot(A, '06-driver-load-offer');
 await A.click(`[data-load="${LID}"] [data-act="accept"]`); ok(await wait(Dp, l => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === 'accepted', LID, 40), 'dispatcher sees ACCEPTED');
@@ -51,8 +52,10 @@ await A.evaluate(() => { document.querySelector('#endBtn')?.click(); document.qu
 await A.check('#shareLoc'); ok(await wait(Dp, () => RRD.drivers[0].sharing && RRD.drivers[0].last?.lat, null, 40), 'driver opted in to live location -> dispatcher sees position');
 ok(await wait(Dp, l => !!document.querySelector(`[data-load="${l}"] [data-eta]`), LID, 20), 'dispatcher sees (en route) an ETA estimate for the load');
 
-for (const s of ['arrived_pickup', 'loaded', 'en_route_drop', 'arrived_drop']) { await A.click(`[data-load="${LID}"] [data-s="${s}"]`);
-  ok(await wait(Dp, ([l, s]) => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === s, [LID, s], 40), 'dispatcher sees status ' + s); }
+const PIN = await Dp.textContent(`[data-load="${LID}"] [data-pin] b`).catch(() => ''); ok(/^\d{4}$/.test(PIN || ''), 'dispatcher console shows the 4-digit pickup PIN on the load: ' + PIN);
+for (const s of ['arrived_pickup', 'loaded', 'en_route_drop', 'arrived_drop']) { if (s === 'loaded') { await A.evaluate(w => { window.prompt = () => w; }, '0000' === PIN ? '1111' : '0000'); await A.click(`[data-load="${LID}"] [data-s="loaded"]`); await A.waitForTimeout(800); ok(await A.evaluate(l => TruckNav.dispatch.allLoads().find(x => x.load.id === l).state === 'arrived_pickup', LID), 'wrong pickup PIN is refused'); await A.evaluate(w => { window.prompt = () => w; }, PIN); }
+  await A.click(`[data-load="${LID}"] [data-s="${s}"]`);
+  ok(await wait(Dp, ([l, s]) => document.querySelector(`[data-load="${l}"] [data-state]`)?.dataset.state === s, [LID, s], 40), 'dispatcher sees status ' + s) }
 await A.check('#shareLoc'); ok(await wait(Dp, () => RRD.drivers[0].sharing && RRD.drivers[0].last?.lat, null, 40), 'driver opted in to live location -> dispatcher sees position');
 await Dp.fill(`[data-load="${LID}"] [data-mi]`, 'Gate 3 please'); await Dp.click(`[data-load="${LID}"] [data-ms]`);
 ok(await wait(A, () => /Gate 3 please/.test(document.querySelector('#loadsPanel, body').textContent), null, 30), 'driver receives dispatcher message');

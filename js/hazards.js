@@ -24,9 +24,9 @@ export class LiveHazards {
   // ---------- transport ----------
   _open(url) {
     const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } this.relays.push(r);
-    r.ws.onopen = () => { r.open = true; this._st('live'); this._req(r); this.outbox?.forEach(m => r.ws.send(m)); };
+    r.ws.onopen = () => { r.open = true; r.open0 = true; this._st('live'); this._req(r); this.outbox?.forEach(m => r.ws.send(m)); };
     r.ws.onmessage = e => { try { const m = JSON.parse(e.data); if (m[0] === 'EVENT') this._event(m[2]); } catch {} };
-    r.ws.onclose = () => { r.open = false; this.relays = this.relays.filter(x => x !== r); if (!this.relays.some(x => x.open) && !this.mq) this._st('reconnecting'); setTimeout(() => this._open(url), 4000); };
+    r.ws.onclose = () => { r.open = false; this.relays = this.relays.filter(x => x !== r); if (!this.relays.some(x => x.open) && !this.mq) this._st('reconnecting'); this._fails = this._fails || {}; const n = this._fails[url] = r.open0 ? 0 : (this._fails[url] || 0) + 1; setTimeout(() => this._open(url), Math.min(120e3, 4000 * 2 ** Math.min(5, n))); };
     r.ws.onerror = () => {};
   }
   _st(s) { this.status = s; this.onStatus(s); }

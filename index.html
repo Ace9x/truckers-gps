@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
 <head>
-<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://esm.sh 'sha256-qBYznKsJlF4jGk8ryalbo6EYrK6xpZh+oGnima/okJw='; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; worker-src 'self' blob:; child-src blob:; frame-src https://embed.waze.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://esm.sh 'sha256-qBYznKsJlF4jGk8ryalbo6EYrK6xpZh+oGnima/okJw='; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src blob:; frame-src https://embed.waze.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0d1117">
@@ -139,7 +139,7 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
 </section>
 
 <section id="truckPanel" class="panel hidden">
-  <div class="phead"><h2>My Truck</h2><button class="close">✕</button></div>
+  <div class="phead"><h2>My Vehicle</h2><button class="close">✕</button></div>
   <label>Driver type</label><div class="row" id="driverType"><button class="small-btn" data-dt="otr">🛣 OTR</button><button class="small-btn" data-dt="local">🏙 Local</button><button class="small-btn" data-dt="owner">💼 Owner‑Op</button><button class="small-btn" data-dt="fleet">🏢 Fleet</button></div>
   <p id="dtNote" class="muted small"></p>
   <form id="truckForm" class="grid2">

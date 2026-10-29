@@ -1,6 +1,8 @@
 // RigRoute Link — free encrypted messaging over public Nostr relays (no server, no paid service).
 // Used by auth (profile sync), dispatch (driver <-> dispatcher) and friends. AES-256-GCM end-to-end; relays only see ciphertext + a hashed channel tag.
 import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
+// reconnect backoff per relay: 4s, 8s … max 2 min (a 503/rate-limited relay must not be hammered)
+export const backoff = n => Math.min(120e3, 4000 * 2 ** Math.min(5, n));
 export const RELAYS = ['wss://nos.lol', 'wss://relay.primal.net', 'wss://nostr.mom', 'wss://relay.damus.io'];
 export const KIND_MSG = 7534, KIND_PROFILE = 30078;
 const te = new TextEncoder(), td = new TextDecoder(), C = globalThis.crypto, SUB = C.subtle;
@@ -22,14 +24,16 @@ export const normCode = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g,
 
 // ---- relay bus: one socket per relay, auto-reconnect, re-REQ on reconnect, event-id dedupe
 export class Bus {
-  constructor(urls = RELAYS) { this.urls = urls; this.rs = []; this.subs = new Map(); this.seen = new Set(); this.waiters = []; urls.forEach(u => this._open(u)); }
+  constructor(urls = RELAYS) { this.urls = urls; this.rs = []; this.fails = {}; this.down = {}; this.subs = new Map(); this.seen = new Set(); this.waiters = []; urls.forEach(u => this._open(u)); }
   get openCount() { return this.rs.filter(r => r.open).length; }
+  // every configured relay with its state (down ones included) for health UIs
+  get health() { return this.urls.map(url => ({ url, open: this.rs.some(r => r.url === url && r.open), retryAt: this.down[url] || null })); }
   _open(url) { const r = { url, open: false }; try { r.ws = new WebSocket(url); } catch { return; } this.rs.push(r);
-    r.ws.onopen = () => { r.open = true; for (const [id, f] of this.subs) this._req(r, id, f.filter); this.waiters.splice(0).forEach(w => w()); };
+    r.ws.onopen = () => { r.open = true; r.wasOpen = true; this.fails[url] = 0; delete this.down[url]; for (const [id, f] of this.subs) this._req(r, id, f.filter); this.waiters.splice(0).forEach(w => w()); };
     r.ws.onmessage = m => { let d; try { d = JSON.parse(m.data); } catch { return; }
       if (d[0] === 'EVENT') { const s = this.subs.get(d[1]); if (!s) return; const ev = d[2], k = d[1] + ev.id; if (this.seen.has(k)) return; this.seen.add(k); s.cb(ev); }
       else if (d[0] === 'EOSE') this.subs.get(d[1])?.eose?.(r.url); else if (d[0] === 'OK') this.onOk?.(d[1], d[2], r.url); };
-    r.ws.onclose = () => { r.open = false; this.rs = this.rs.filter(x => x !== r); if (!this.closed) setTimeout(() => this._open(url), 4000); };
+    r.ws.onclose = () => { r.open = false; this.rs = this.rs.filter(x => x !== r); if (!this.closed) { const d = backoff(this.fails[url] = (this.fails[url] || 0) + (r.wasOpen ? 0 : 1)); this.down[url] = Date.now() + d; setTimeout(() => this._open(url), d); } };
     r.ws.onerror = () => {}; }
   _req(r, id, filter) { try { r.ws.send(JSON.stringify(['REQ', id, filter])); } catch {} }
   ready(ms = 8000) { return this.openCount ? Promise.resolve() : new Promise(res => { this.waiters.push(res); setTimeout(res, ms); }); }

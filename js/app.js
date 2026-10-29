@@ -128,7 +128,8 @@ function startGPS(mode = 'high') {
   S.gpsMode = mode;
   const opts = mode === 'high' ? { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 } : { enableHighAccuracy: false, maximumAge: 60000, timeout: 120000 };
   watchId = navigator.geolocation.watchPosition(p => { if (S.demo) return; const c = p.coords;
-    onFix({ lon: c.longitude, lat: c.latitude, speed: c.speed, heading: Number.isFinite(c.heading) ? c.heading : null, acc: c.accuracy, t: p.timestamp }); },
+    const first = !S.pos; onFix({ lon: c.longitude, lat: c.latitude, speed: c.speed, heading: Number.isFinite(c.heading) ? c.heading : null, acc: c.accuracy, t: p.timestamp });
+    if (first && S.dest && !S.route && !S.nav) plan(); }, // destination set before the first GPS fix (deep link / restored dest): plan now
   err => { if (err.code === 1) toast('Location permission denied — enable it in browser settings to navigate', 6000); else if (mode === 'high') toast('Waiting for GPS signal…'); }, opts);
 }
 function powerManage(f) {

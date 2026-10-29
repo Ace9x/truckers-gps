@@ -166,11 +166,11 @@ function state() { const b = document.body, mph = (S.pos?.speed || 0) * 2.23694,
   const st = !S.nav ? 'browse' : rem < 805 ? 'arriving' : 'nav';
   for (const k of ['browse', 'nav', 'arriving']) b.classList.toggle('st-' + k, st === k); b.classList.toggle('moving', mph > 5); b.classList.toggle('mascot-opt', !!S.mascot?.enabled);
   b.classList.toggle('following', S.follow !== false); $('#nsMute').innerHTML = svg(ICONS[S.voiceObj?.enabled === false ? '🔇' : '🔊']); $('#nsMute').classList.toggle('off', S.voiceObj?.enabled === false);
-  const t = S.truck || {}; const txt = `${ftIn(t)} · ${Number(t.weightLbs || 0).toLocaleString()} lb · ${t.hazmat ? 'Hazmat' : 'No hazmat'}`;
-  const chip = $('#truckChip'); if (chip.dataset.t !== txt) { chip.dataset.t = txt; chip.innerHTML = svg(ICONS['🚛']) + `<span>${ftIn(t)} · ${Math.round((t.weightLbs || 0) / 1000)}k lb${t.hazmat ? ' · HM' : ''}</span>`; chip.setAttribute('aria-label', 'Truck profile: ' + txt); chip.title = txt; }
+  const t = S.truck || {}, V = S.VEHICLES?.[S.vehOf?.() || 'semi'] || { label: 'Semi', icon: '🚛' }, isCar = V.costing === 'auto'; const txt = isCar ? V.label : `${V.label} · ${ftIn(t)} · ${Number(t.weightLbs || 0).toLocaleString()} lb · ${t.hazmat ? 'Hazmat' : 'No hazmat'}`;
+  const chip = $('#truckChip'); if (chip.dataset.t !== txt) { chip.dataset.t = txt; chip.innerHTML = (V.icon === '🚛' ? svg(ICONS['🚛']) : `<span aria-hidden="true">${V.icon}</span>`) + `<span>${isCar ? 'Car' : `${ftIn(t)} · ${Math.round((t.weightLbs || 0) / 1000)}k lb${t.hazmat ? ' · HM' : ''}`}</span>`; chip.setAttribute('aria-label', 'Vehicle profile: ' + txt + ', tap to edit'); chip.title = txt; }
   try { if (S.truck) localStorage.setItem('tn_truckBak', JSON.stringify(S.truck)); } catch {}
   const rs = $('#routeSummary'); if (rs && !$('#rpTruck')) rs.insertAdjacentHTML('beforebegin', '<button id="rpTruck" class="small-btn"></button>');
-  const rp = $('#rpTruck'); if (rp && rp.dataset.t !== txt) { rp.dataset.t = txt; rp.innerHTML = svg(ICONS['🚛']) + `<span class="rpt">Routing for ${txt}</span><span class="muted">Edit</span>`; rp.setAttribute('aria-label', 'Routing for ' + txt + '. Edit truck profile'); rp.onclick = () => document.querySelector('[data-panel=truckPanel]')?.click(); } }
+  const rp = $('#rpTruck'); if (rp && rp.dataset.t !== txt) { rp.dataset.t = txt; rp.innerHTML = (V.icon === '🚛' ? svg(ICONS['🚛']) : `<span aria-hidden="true">${V.icon}</span>`) + `<span class="rpt">Routing for ${txt}</span><span class="muted">Edit</span>`; rp.setAttribute('aria-label', 'Routing for ' + txt + '. Edit vehicle profile'); rp.onclick = () => document.querySelector('[data-panel=truckPanel]')?.click(); } }
 function placeChip() { const row = $('#acctChips'), c = $('#truckChip'); if (row && c && c.parentElement !== row) { c.classList.add('chip'); row.prepend(c); } }
 setInterval(() => { state(); placeChip(); }, 1000); state();
 
