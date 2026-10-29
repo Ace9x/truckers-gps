@@ -453,3 +453,9 @@ html body #tfLegend i{display:inline-block;vertical-align:middle;margin:0 1px}ht
 #langFirst .lf-grid button.on{border-color:#ff9800;box-shadow:0 0 0 2px #ff9800 inset}#langFirst small{opacity:.6;font-size:11px}
 html[dir=rtl] body{direction:rtl}html[dir=rtl] .panel{text-align:right}html[dir=rtl] #steps,html[dir=rtl] #bInstr{direction:auto}
 html[dir=rtl] input,html[dir=rtl] select,html[dir=rtl] textarea{text-align:right}
+/* help/glossary core styles live in js/help.js (shared with dispatch.html) */
+.panel button,.panel .small-btn,.panel select,.panel input:not([type=checkbox]):not([type=range]){min-height:44px}
+.panel .chk{min-height:44px;display:flex;align-items:center;gap:10px} .panel .chk input{width:24px;height:24px}
+.panel p,.panel label{font-size:max(1em,15px)}
+#routePanel .phead h2::before{content:'🧭 '} #hosPanel .phead h2::before{content:'⏱ '} #loadPanel .phead h2::before{content:'📦 '} #truckPanel .phead h2::before{content:'🚛 '}
+#reportPanel .phead h2::before{content:'📣 '} #facPanel .phead h2::before{content:'🏭 '} #mePanel .phead h2::before{content:'😎 '} #layersPanel .phead h2::before{content:'🗺 '}

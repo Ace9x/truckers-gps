@@ -16,6 +16,9 @@ await page('?to=40.6930,-74.1520&name=Port%20Newark', async p => {
   await p.waitForFunction(() => TruckNav?.route, null, { timeout: 60000 }).catch(() => {}); await p.waitForTimeout(3000); await grab(p);
   const ids = await p.evaluate(() => [...document.querySelectorAll('.panel, [id$=Panel]')].map(e => e.id).filter(Boolean));
   for (const id of ids) { await p.evaluate(id => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); const e = document.getElementById(id); e.classList.remove('hidden'); e.hidden = false; }, id); await openAll(p); }
+  // every Help sheet, every glossary term, and every tour card
+  await p.evaluate(async () => { const H = window.RRHelp; for (const id of Object.keys(H.HELP)) { H.showHelp(id); await new Promise(r => setTimeout(r, 120)); } for (const k of Object.keys(H.TERMS)) { H.explain(k); await new Promise(r => setTimeout(r, 80)); } document.querySelector('#helpSheet')?.remove();
+    TruckNav.startTour?.(); for (let i = 0; i < 8 && document.querySelector('#tNext'); i++) { await new Promise(r => setTimeout(r, 150)); document.querySelector('#tNext').click(); } await new Promise(r => setTimeout(r, 150)); document.querySelector('#tKeep')?.click(); }); await grab(p);
   await p.evaluate(() => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); TruckNav.startNav?.(); }); await p.waitForTimeout(3000); await grab(p);
   await p.evaluate(() => { TruckNav.endNav?.(); }); await p.waitForTimeout(2000); await grab(p);
   for (const sel of ['#moreBtn', '#sosBtn', '#layersBtn', '#meBtn', '#helpBtn', '#searchBtn']) { await p.evaluate(s => document.querySelector(s)?.click(), sel); await p.waitForTimeout(700); await openAll(p); }

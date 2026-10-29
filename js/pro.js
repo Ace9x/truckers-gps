@@ -1,4 +1,4 @@
-import { t as T_ } from './i18n.js'; import * as LUI from './langui.js';
+import { t as T_ } from './i18n.js'; import * as LUI from './langui.js'; import * as HELPUI from './help.js';
 // RigRoute GPS — Pro UI layer: SVG icon set (replaces emoji glyphs visually, keeps text for screen readers/tests),
 // trucking map style, splash, help button, first-run tour with Ace. Styling/markup only — no feature logic.
 import { ICONS } from './iconset.js';
@@ -62,15 +62,13 @@ document.addEventListener('click', e => { if (e.target.closest('.panel .close'))
 
 // ---------- Help button + first-run tour (Ace) ----------
 const side = $('#sideBtns'); if (side && !$('#helpBtn')) side.insertAdjacentHTML('beforeend', '<button id="helpBtn" class="round" title="Help & tour" aria-label="Help and tour">?</button>');
-const STEPS = [
-  { t: 'Hi, I\'m Ace', b: 'I\'ll show you around RigRoute in under a minute. Six quick steps, then I get out of your way.' },
-  { sel: '[data-panel=truckPanel]', t: 'Set your truck', b: 'Enter height, weight, length and hazmat once. Every route avoids low bridges and restricted roads for your rig.' },
-  { sel: '#searchBtn', t: 'Search a destination', b: 'Type an address, warehouse or city. Long-press the map to drop a pin by hand.' },
-  { sel: '[data-panel=routePanel]', t: 'Start navigation', b: 'Pick a route and tap Start. You get lane guidance, speed limits and truck-specific warnings by voice.' },
-  { sel: '#reportBtn', t: 'Report hazards', b: 'One tap flags accidents, construction, police or debris. Drivers near you see it live.' },
-  { sel: '#speedBox', t: 'Drive mode', b: 'Above 10 mph the screen switches to big glanceable buttons and voice commands, so you never have to type.' },
-  { sel: '[data-panel=routePanel]', t: 'Offline maps', b: 'Under Route, save your route or a whole region for dead zones. Navigation keeps working with no signal.' },
-  { ask: true, t: 'Want to keep me riding along?', b: 'I can give tips and heads-ups while you drive. You can change this anytime under Me > Fun & co-pilot, or tap ? for help.' },
+const STEPS = [ // plain-language first-run walkthrough: 5 picture cards (skippable, replay from ? Help or Me)
+  { pic: '👋', t: 'Hi, I\'m Ace', b: 'I will show you how to use RigRoute. It takes one minute. Tap Skip any time.' },
+  { pic: '🚛', sel: '[data-panel=truckPanel]', t: 'Tell us about your truck', b: 'Tap Truck. Enter how tall, heavy, and long it is. Then we keep you away from low bridges and roads trucks can\'t use.' },
+  { pic: '🔍', sel: '#searchBtn', t: 'Pick where to go', b: 'Tap here and type an address or a company name. Then tap Start. The phone tells you every turn out loud.' },
+  { pic: '📣', sel: '#reportBtn', t: 'Warn other drivers', b: 'See a crash, police, or road work? Tap here. Other drivers will see it on their map.' },
+  { pic: '❓', sel: '#helpBtn', t: 'Need help?', b: 'Tap ? on any screen. It tells you what the screen does, and it can read it out loud. Tap a small ? next to a word like HOS to learn what it means.' },
+  { ask: true, pic: '🤝', t: 'Want to keep me riding along?', b: 'I can give tips while you drive. You can change this any time under Me.' },
 ];
 export function startTour() {
   endTour(); let i = 0;
@@ -79,7 +77,7 @@ export function startTour() {
   const show = () => { const s = STEPS[i], el = s.sel && $(s.sel), r = el?.getBoundingClientRect();
     if (r && r.width) { ring.classList.remove('hidden'); Object.assign(ring.style, { left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' }); } else ring.classList.add('hidden');
     const low = r && r.top > innerHeight / 2; card.style.top = low || !r ? '' : Math.min(r.bottom + 16, innerHeight - 260) + 'px'; card.style.bottom = low ? innerHeight - r.top + 16 + 'px' : (!r ? 'calc(50% - 100px)' : '');
-    card.innerHTML = `<div class="th"><div class="ava">ACE</div><div><div class="ts">${s.ask ? 'Your call' : i ? `Step ${i} of ${STEPS.length - 2}` : 'Welcome'}</div><div class="tt">${s.t}</div></div><div class="dots">${STEPS.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div></div><p>${s.b}</p>
+    card.innerHTML = `<div class="tpic" aria-hidden="true">${s.pic || ''}</div><div class="th"><div class="ava">ACE</div><div><div class="ts">${s.ask ? 'Your call' : i ? `Step ${i} of ${STEPS.length - 2}` : 'Welcome'}</div><div class="tt">${s.t}</div></div><div class="dots">${STEPS.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div></div><p>${s.b}</p>
       <div class="tb">${s.ask ? '<button id="tOff">Turn off Ace</button><button id="tKeep" class="primary">Keep Ace</button>' : `<button id="tSkip">Skip</button><button id="tNext" class="primary">${i ? 'Next' : 'Show me'}</button>`}</div>`;
     if (s.ask) { $('#tKeep').onclick = () => finish(true); $('#tOff').onclick = () => finish(false); } else { $('#tSkip').onclick = () => finish(false); $('#tNext').onclick = () => { i++; show(); }; } };
   show(); S.tour = { step: () => i };
@@ -88,7 +86,7 @@ function endTour() { ['#tourDim', '#tourRing', '#tourCard'].forEach(s => $(s)?.r
 function finish(keep) { endTour(); LS.set('tourDone', true); LS.set('mascot', keep); if (S.mascot) { S.mascot.enabled = keep; if (!keep) S.mascot.hide(); else S.mascot.say('Great, I\'ll ride along. Tap ? anytime for help.', 'happy', 4000); }
   const c = $('#mascotOn'); if (c) c.checked = keep; S.tourResult = keep ? 'kept' : 'off'; }
 S.startTour = startTour;
-$('#helpBtn')?.addEventListener('click', startTour);
+$('#helpBtn')?.addEventListener('click', () => { const open = document.querySelector('.panel:not(.hidden)'); if (open && window.RRHelp?.HELP[open.id]) window.RRHelp.showHelp(open.id); else startTour(); });
 $('#replayTour')?.addEventListener('click', () => { document.querySelector('.panel:not(.hidden) .close')?.click(); startTour(); });
 // First run: Ace is on as the onboarding guide; afterwards the user's choice (default off) rules.
 if (!LS.get('tourDone', false) && (!navigator.webdriver || /[?&]tour=1/.test(location.search)) && !/[?&]notour/.test(location.search)) setTimeout(function go() { if ((S.pos?.speed || 0) > 2 || S.nav) return setTimeout(go, 5000); startTour(); }, 1700); // UX P16: only while parked
@@ -331,4 +329,4 @@ setInterval(hosEta, 1000);
 try { D2.start(); } catch (e) { console.warn('design2', e); }
 
 // Language: picker in Me, first-run chooser (before the truck wizard / tour)
-{ const go = () => { LUI.mount(); LUI.firstRun(); }; if (document.readyState === 'loading') addEventListener('DOMContentLoaded', go); else setTimeout(go, 0); }
+{ const go = () => { LUI.mount(); HELPUI.mount(); LUI.firstRun(); }; if (document.readyState === 'loading') addEventListener('DOMContentLoaded', go); else setTimeout(go, 0); }
