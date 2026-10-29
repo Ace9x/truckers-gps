@@ -26,27 +26,27 @@
   "locale": "pl-PL",
   "speech": "pl-PL",
   "valhalla": "pl-PL",
-  "coverage": 0.13
+  "coverage": 0.131
  },
  "pt": {
   "name": "Português",
   "locale": "pt-BR",
   "speech": "pt-BR",
   "valhalla": "pt-PT",
-  "coverage": 0.13
+  "coverage": 0.131
  },
  "ru": {
   "name": "Русский",
   "locale": "ru-RU",
   "speech": "ru-RU",
   "valhalla": "ru-RU",
-  "coverage": 0.13
+  "coverage": 0.131
  },
  "zh": {
   "name": "中文",
   "locale": "zh-CN",
   "speech": "zh-CN",
   "valhalla": "zh-CN",
-  "coverage": 0.13
+  "coverage": 0.131
  }
 }

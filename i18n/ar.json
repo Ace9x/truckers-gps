@@ -989,5 +989,6 @@
 "your position is not stored on our servers. It is shared only if you turn on friend sharing or anonymous traffic speeds": "لا نحفظ موقعك على خوادمنا. لا تتم مشاركته إلا إذا شغّلت المشاركة مع الأصدقاء أو السرعة المجهولة",
 "Routing requests go to Valhalla (OpenStreetMap)": "تُرسل طلبات الطرق إلى Valhalla (OpenStreetMap)",
 "Continue": "متابعة",
-"Not now": "ليس الآن"
+"Not now": "ليس الآن",
+"This page is only in English. The English version is the one that counts.": "هذه الصفحة باللغة الإنجليزية فقط. النسخة الإنجليزية هي المعتمدة."
 }
