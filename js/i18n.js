@@ -39,7 +39,7 @@ function look(d, k) { let v = own(d, k); if (v != null) return v;
 const KEEP = /^(ACE|Ace|RigRoute( GPS| Dispatch)?|Apple Maps|Google Maps|Waze|OpenFreeMap|OpenStreetMap contributors|Overpass|Photon|Valhalla|USGS The National Map|Map ©|Port Newark|Pilot Travel Center|Whitney Houston Service Area|TomTom|HERE|ElevenLabs|NYC DOT|GPS|SOS|OK|MPH|CDL|TWIC|E-ZPass|PrePass|Drivewyze)$|^(wss:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+$|^([A-Z]{2,3} \{\d\}( · )?)+$/;
 function isDone(k) { if (done.has(k) || KEEP.test(k)) return true;
   if (!/\s/.test(k) && words.has(k.replace(TRAIL, '').replace(LEAD, ''))) return true; // one translated word left alone by markup
-  if (k.length > 24 && long.some(v => v.includes(k.replace(TRAIL, '')))) return true; // piece of a translated sentence split by markup
+  if (k.length > 12 && long.some(v => v.includes(k.replace(TRAIL, '')))) return true; // piece of a translated sentence split by markup
   if (k.includes(' · ')) return k.split(' · ').every(p => !/\p{L}{2}/u.test(p) || isDone(p.trim())); const pk = keyOf(k); if (done.has(pk) || KEEP.test(pk)) return true;
   const m = k.match(/^([^\p{L}\p{N}"“(¿¡]*)(.*?)([^\p{L}\p{N})"”']*)$/u); if (m && m[2]) { if (done.has(m[2]) || KEEP.test(m[2]) || done.has(keyOf(m[2]))) return true; if (done.has(m[2] + m[3].trim()) || done.has(keyOf(m[2] + m[3].trim()))) return true; } return false; }
 const keyOf = k => { const nums = []; const pk = k.replace(NUM, m => `{${nums.push(m) - 1}}`); return nums.length ? pk : k; };
