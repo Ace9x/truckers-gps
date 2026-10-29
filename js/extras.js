@@ -1,8 +1,8 @@
 // RigRoute v2.3 — features competitors paywall, free here: speed limits + truck-speed alerts, lane guidance, IFTA miles by state,
 // toll roads on route, fuel-stop planner, multi-stop trips, NWS severe weather, runaway ramps, SOS, driving lockout, fatigue reminders, accessibility.
-import { snapToRoute, sampleLine, haversine } from './logic.js';
+import { snapToRoute, sampleLine, haversine, pointAlong } from './logic.js';
 import { eiaFor, latestPrices, bestFuel, ageText } from './trip.js';
-import { milesByState, tollMiles, tollSegments, limitAt, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, fatigueDue, remainingStops } from './trip.js';
+import { milesByState, tollMiles, tollSegments, limitAt, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, periodAt, wxRisk, fatigueDue, remainingStops } from './trip.js';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 
@@ -76,7 +76,15 @@ export function init(S, h) {
     if (S.route !== r) return; S.weather = weatherForTrucks(feats); S.wxChecked = pts.length;
     $('#wxBox').innerHTML = S.weather.length ? '<b>🌩 Weather alerts on route (NWS):</b><ul>' + S.weather.map(w => `<li class="${w.severity === 'Severe' || w.severity === 'Extreme' ? 'bad' : ''}"><b>${esc(w.event)}</b> — ${esc(w.area)}<br>${esc(w.advice)}</li>`).join('') + '</ul>'
       : `<b>🌤 No NWS weather warnings</b> along this route right now (${pts.length} points checked${S.wxErr ? ', some checks failed' : ''}).`;
-    if (S.weather.length) { const w = S.weather[0]; alertBanner(`🌩 ${w.event} on your route`); say(`Weather alert on your route: ${w.event}. ${w.advice}`, 'danger'); } }
+    if (S.weather.length) { const w = S.weather[0]; alertBanner(`🌩 ${w.event} on your route`); say(`Weather alert on your route: ${w.event}. ${w.advice}`, 'danger'); } loadForecast(r); }
+  // NWS hourly forecast at the time you reach start / middle / destination (api.weather.gov/points → forecastHourly)
+  async function loadForecast(r) { const t0 = Date.now(), at = [[0, 'Start'], [0.5, 'Midway'], [1, 'Destination']].map(([f, n]) => { const p = pointAlong(r.line, r.cum, r.length * f); return { lon: p[0], lat: p[1], t: t0 + r.time * f * 1000, n }; });
+    const rows = await Promise.all(at.map(async a => { try { const pt = await (await fetch(`https://api.weather.gov/points/${a.lat.toFixed(4)},${a.lon.toFixed(4)}`, { headers: { Accept: 'application/geo+json' }, signal: AbortSignal.timeout(12000) })).json();
+      const fc = await (await fetch(pt.properties.forecastHourly, { headers: { Accept: 'application/geo+json' }, signal: AbortSignal.timeout(12000) })).json(); return { ...a, p: periodAt(fc.properties?.periods, a.t) }; } catch { return { ...a, p: null, err: true }; } }));
+    if (S.route !== r) return; let fx = $('#wxFc'); if (!fx) { fx = document.createElement('div'); fx.id = 'wxFc'; $('#wxBox').after(fx); }
+    const ok = rows.filter(x => x.p); if (!ok.length) { fx.innerHTML = '<span class="muted small">NWS forecast unavailable here (US only, or the service did not answer).</span>'; return; }
+    fx.innerHTML = '<b>🌡 Forecast when you get there (NWS):</b><ul>' + rows.map(x => x.p ? `<li class="${wxRisk(x.p) ? 'bad' : ''}"><b>${x.n}</b> ~${new Date(x.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: ${esc(x.p.temperature)}°${esc(x.p.temperatureUnit)}, ${esc(x.p.shortForecast)}, wind ${esc(x.p.windSpeed)} ${esc(x.p.windDirection)}${wxRisk(x.p) ? ' — ⚠ ' + esc(wxRisk(x.p)) : ''}</li>` : `<li class="muted">${x.n}: no forecast</li>`).join('') + '</ul>';
+    S.forecast = rows; const bad = ok.find(x => wxRisk(x.p)); if (bad) say(`Weather at ${bad.n.toLowerCase()}: ${wxRisk(bad.p)}.`, 'info'); }
 
   async function loadLanes(r) { S.lanes = []; S.lanesDone = false; try {
       const locs = [r.line[0], ...S.stops.map(s => [s.lon, s.lat]), r.line.at(-1)].map(([lon, lat]) => ({ lon, lat }));

@@ -7,3 +7,7 @@ test('vans use truck costing with small dims, no hazmat, truck UI optional', () 
   assert.equal(costingFor(t), 'truck'); assert.ok(o.height > 2.6 && o.height < 3.0, 'about 9 ft'); assert.ok(o.weight >= 3.8 && o.weight <= 4.6, '8.5–10k lb'); assert.equal(o.hazmat, false);
   assert.equal(truckUIOn(t), false); assert.equal(truckUIOn({ ...t, truckUI: true }), true); } assert.ok(VEHICLES.reefervan.reefer); });
 test('box and semi keep truck costing and truck UI', () => { for (const v of ['box', 'semi']) { assert.equal(costingFor(mk(v)), 'truck'); assert.ok(truckUIOn(mk(v))); assert.equal(costingOptions(mk(v)).truck.use_truck_route, 0.8); } });
+import { periodAt, windMph, wxRisk } from '../js/trip.js';
+test('NWS forecast helpers', () => { const P = [{ startTime: '2026-10-29T10:00:00-04:00', endTime: '2026-10-29T11:00:00-04:00', windSpeed: '15 to 35 mph', shortForecast: 'Sunny' }];
+  assert.equal(periodAt(P, Date.parse('2026-10-29T10:30:00-04:00')), P[0]); assert.equal(periodAt(P, Date.parse('2026-10-29T12:00:00-04:00')), null); assert.equal(windMph('15 to 35 mph'), 35);
+  assert.match(wxRisk(P[0]), /crosswind/); assert.match(wxRisk({ windSpeed: '5 mph', shortForecast: 'Freezing Rain' }), /Ice/); assert.equal(wxRisk({ windSpeed: '5 mph', shortForecast: 'Sunny' }), null); });

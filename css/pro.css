@@ -393,7 +393,8 @@ body.moving input[type=search],body.moving input[type=text],body.moving #stopQ,b
 #hosEta .he-sub{font-size:12px;color:var(--mut);margin-top:2px}#hosEta .he-appt{margin-top:8px;font:700 14px var(--font)}#hosEta .ok{color:var(--rr-ok)}#hosEta .late{color:var(--rr-bad)}
 #rpUsed{margin-top:4px!important;font-size:12px}
 /* One-tap / voice only while moving (49 CFR 392.80/392.82): no lists or forms over the map */
-body.moving.st-nav .panel{display:none!important}
+body.moving:not(.passenger) .panel:not(#sosPanel),body.moving:not(.passenger) #truckWiz{display:none!important}
+#mtLock{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:9000;background:#1E293B;color:#F1F5F9;border:2px solid #FF9500;border-radius:14px;padding:16px;font-size:18px}#mtLock[hidden]{display:none}#mtLock button{min-height:64px;min-width:120px;font-size:18px}
 #nycOff{padding:12px;border-radius:12px;background:#facc1514;border:1px solid #facc1540;font:500 13px/1.45 var(--font)}#nycOff b{font-weight:700}
 /* Truck wizard */
 #truckWiz{position:fixed;inset:0;z-index:85;background:#0f141af0;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + var(--safe-b))}

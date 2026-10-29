@@ -68,3 +68,8 @@ export function bestFuel(stations, { gallons = 150, mpg = 6.5, baseline }) {
     .sort((a, b) => b.save - a.save || a.price - b.price);
 }
 export const ageText = (t, now = Date.now()) => { const m = Math.round((now - t) / 60e3); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+
+// NWS hourly forecast helpers: the period covering time t, and the top wind speed in a "15 to 25 mph" string
+export function periodAt(periods = [], t = Date.now()) { return periods.find(p => Date.parse(p.startTime) <= t && t < Date.parse(p.endTime)) || null; }
+export function windMph(s = '') { const n = String(s).match(/\d+/g); return n ? Math.max(...n.map(Number)) : null; }
+export function wxRisk(p) { if (!p) return null; const w = windMph(p.windSpeed), f = (p.shortForecast || '').toLowerCase(); if (/freezing|ice|sleet/.test(f)) return 'Ice possible — slow down, extra following distance'; if (/snow|blizzard/.test(f)) return 'Snow — check chain laws'; if (w != null && w >= 30) return `Wind ${w} mph — crosswind risk for high-profile/empty trailers`; if (/thunder/.test(f)) return 'Thunderstorms'; if (/fog/.test(f)) return 'Fog — low visibility'; return null; }

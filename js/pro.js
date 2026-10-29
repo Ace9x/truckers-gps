@@ -286,6 +286,17 @@ setInterval(routeSheet, 500);
 // Lock out text entry while moving above 5 mph (app_polish_ideas §2 / NHTSA): blur any focused field.
 setInterval(() => { if (document.body.classList.contains('moving')) { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== 'checkbox') a.blur(); } }, 500);
 
+// Multi-tap lock (49 CFR 392.80/392.82; audit H7): above 5 mph every multi-tap surface (panels, truck wizard, load board, account, layers, hazard list) is closed
+// and replaced by one card. Voice and the single-tap map buttons keep working. A passenger can unlock for 10 minutes.
+S.multiTapLocked = () => document.body.classList.contains('moving') && !S.passenger;
+function mtLock() { const b = document.body, locked = S.multiTapLocked(); b.classList.toggle('passenger', !!S.passenger);
+  let card = $('#mtLock'); if (!card) { card = document.createElement('div'); card.id = 'mtLock'; card.setAttribute('role', 'alertdialog'); card.setAttribute('aria-live', 'assertive'); card.hidden = true;
+    card.innerHTML = `<b>🚛 Paused while moving</b><p>Menus, forms and lists need several taps, so they're locked above 5 mph (FMCSA single-touch rule). Use voice, or pull over.</p><div class="row"><button id="mtOk">OK</button><button id="mtPass" class="ghost">I'm a passenger</button></div>`;
+    document.body.appendChild(card); $('#mtOk').onclick = () => { card.hidden = true; }; $('#mtPass').onclick = () => { S.passenger = true; card.hidden = true; b.classList.remove('mt-locked'); clearTimeout(mtLock.t); mtLock.t = setTimeout(() => { S.passenger = false; }, 10 * 60e3); }; }
+  if (locked && document.querySelector('.panel:not(.hidden):not(#sosPanel), #truckWiz:not(.hidden):not([hidden])')) { if (!b.classList.contains('mt-locked')) { b.classList.add('mt-locked'); card.hidden = false; document.activeElement?.blur?.(); } }
+  else if (!locked && b.classList.contains('mt-locked')) { b.classList.remove('mt-locked'); card.hidden = true; } }
+setInterval(mtLock, 400);
+
 // ---- HOS options: adverse conditions + short-haul (exact engine in hos.js); label stays "planning aid, not an ELD" ----
 S.hosOpts = () => LS.get('hosOpts', {});
 function hosOptsUI() { const hp = $('#hosPanel'); if (!hp || $('#hosOpts')) return; const d = document.createElement('div'); d.id = 'hosOpts';

@@ -57,7 +57,7 @@ const destMarker = new maplibregl.Marker({ color: '#e53935' }); const gateMarker
 let poiMarkers = [], rptMarkers = [], avoidMarkers = []; let updateHud = null;
 
 function addLayers() {
-  if (!map.getSource('sat')) map.addSource('sat', { type: 'raster', tileSize: 256, maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] });
+  if (!map.getSource('sat')) map.addSource('sat', { type: 'raster', tileSize: 256, maxzoom: 16, attribution: 'Imagery: <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank">USGS The National Map</a> (public domain, US only)', tiles: ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}'] });
   const firstSym = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
   if (!map.getLayer('sat')) map.addLayer({ id: 'sat', type: 'raster', source: 'sat', layout: { visibility: S.sat ? 'visible' : 'none' } }, firstSym);
   for (const id of ['car', 'alts', 'route', 'done']) if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: empty, ...(id === 'route' ? { lineMetrics: true } : {}) }); // lineMetrics: route coloured by traffic via line-gradient
