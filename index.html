@@ -142,6 +142,9 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
   <label>Driver type</label><div class="row" id="driverType"><button class="small-btn" data-dt="otr">🛣 OTR</button><button class="small-btn" data-dt="local">🏙 Local</button><button class="small-btn" data-dt="owner">💼 Owner‑Op</button><button class="small-btn" data-dt="fleet">🏢 Fleet</button></div>
   <p id="dtNote" class="muted small"></p>
   <form id="truckForm" class="grid2">
+    <label class="span2">Vehicle<select name="vehicle" id="vehSel"><option value="car">🚗 Car</option><option value="van">🚐 Cargo Van</option><option value="reefervan">🧊 Reefer Van (sprinter or box w/ reefer)</option><option value="box">📦 Box Truck</option><option value="semi">🚛 Semi</option></select></label>
+    <label class="span2" id="truckUIRow" hidden><input type="checkbox" name="truckUI"> Show truck tools (HOS, weigh stations, truck stops)</label>
+    <p class="span2 van-note small">Commercial plates: NYC parkways are closed to commercial vehicles — routes avoid them. Commercial-plate vans follow truck routes for through trips.</p>
     <label>Height ft<input name="heightFt" type="number" inputmode="decimal" step="1" min="6" max="15"></label>
     <label>Height in<input name="heightIn" type="number" inputmode="decimal" step="1" min="0" max="11"></label>
     <label>Gross weight lbs<input name="weightLbs" type="number" inputmode="numeric" step="1000"></label>

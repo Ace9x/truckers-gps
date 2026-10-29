@@ -126,3 +126,9 @@ body.bigtext{font-size:20px}body.bigtext #bInstr{font-size:26px}body.bigtext #bD
 body.contrast{--bg:#000;--panel:#000;--fg:#fff;--mut:#e0e0e0;--line:#fff;--acc:#ffd600}body.contrast #banner{background:#000;border:3px solid #ffd600}
 .amen{color:var(--acc);margin-top:2px}
 .price{color:#7ee787;margin-top:2px}
+/* vehicle types: truck-only UI hidden for cars and for vans unless turned on */
+body.no-truckui #dock [data-panel=hosPanel], body.no-truckui #hosPanel, body.no-truckui .rr-chip.k-weigh, body.no-truckui .hosA{display:none!important}
+body:not(.veh-commercial) .van-note{display:none}
+body.veh-car #truckForm label:has(> input[name=hazmat]), body.veh-car #truckForm label:has(> input[name=heightFt]), body.veh-car #truckForm label:has(> input[name=heightIn]), body.veh-car #truckForm label:has(> input[name=weightLbs]), body.veh-car #truckForm label:has(> input[name=axles]), body.veh-car #truckForm label:has(> input[name=lengthFt]), body.veh-car #truckForm label:has(> input[name=widthFt]){display:none}
+body.no-truckui #truckForm label:has(> [name=avoidWeigh]), body.no-truckui #truckForm label:has(> [name=cycle]){display:none}
+.wz-veh{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.wz-veh button{min-height:64px;border-radius:12px;border:2px solid #3a424d;background:#1b222b;color:#f4f6f8;font:600 15px var(--font,system-ui);display:flex;align-items:center;gap:8px;padding:8px 12px;text-align:left}.wz-veh button span{font-size:26px}.wz-veh button.on{border-color:#ff9500;background:#2a2116}

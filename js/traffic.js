@@ -169,7 +169,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       // truck costing on every candidate: clearance/weight/hazmat/length restrictions kept. Also ask for a route that steers around the worst jam (Waze-style).
       const along = S.along || 0, worst = [...tr.slowdowns].filter(s => s.end > along).sort((a, b) => b.delay - a.delay)[0], ex = [];
       if (worst) for (let a = Math.max(worst.start, along + 300); a < Math.min(worst.end, worst.start + 3000); a += 250) { const i = S.route.cum.findIndex(c => c >= a); if (i > 0) ex.push(sq(S.route.line[i], 40)); }
-      const [r1, r2] = await Promise.all([S.valhalla(from, to, 'truck', { alternates: 2, heading: from.heading }).catch(() => []), ex.length ? S.valhalla(from, to, 'truck', { heading: from.heading, exclude: ex }).then(r => [r]).catch(() => []) : []]);
+      const [r1, r2] = await Promise.all([S.valhalla(from, to, S.costingFor?.() || 'truck', { alternates: 2, heading: from.heading }).catch(() => []), ex.length ? S.valhalla(from, to, S.costingFor?.() || 'truck', { heading: from.heading, exclude: ex }).then(r => [r]).catch(() => []) : []]);
       const alts = [...r1, ...r2];
       const cur = { time: S.remT != null ? S.remT - (S.trafficDelay || 0) : S.route.time, delay: tr.delay };
       const cand = alts.map(r => ({ r, time: r.time, delay: T.routeTraffic(r, 0).delay })).filter(c => Math.abs(c.r.length - (S.route.length - (S.along || 0))) > 200 || c.r.time < cur.time - 60);

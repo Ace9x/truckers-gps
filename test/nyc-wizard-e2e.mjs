@@ -27,7 +27,7 @@ ok(await p.evaluate(() => TruckNav.nycTruckStatus === 'off'), 'status off while 
 await p.evaluate(() => { TruckNav.pos = { lat: 40.85480, lon: -73.90645, speed: 10, acc: 5 }; }); await p.waitForTimeout(2500); ok(await p.evaluate(() => TruckNav.nycTruckStatus === 'on'), 'status back on Jerome Ave');
 await p.evaluate(() => { TruckNav.nav = false; });
 // 6. wizard: 4 steps, 64px steppers, saves truck
-await p.evaluate(() => TruckNav.truckWizard()); await p.waitForSelector('#truckWiz .wz-stepper');
+await p.evaluate(() => TruckNav.truckWizard()); await p.waitForSelector('#truckWiz [data-vtype]'); await p.click('#truckWiz .wz-next'); await p.waitForSelector('#truckWiz .wz-stepper');
 const h = await p.$eval('.wz-stepper button', b => b.getBoundingClientRect().height); ok(h >= 64, 'stepper buttons are 64px: ' + h);
 for (let i = 0; i < 6; i++) await p.click('.wz-stepper [data-d="-1"]'); ok((await p.textContent('.wz-stepper output')) === '13′0″', 'height stepped 13′6″ → 13′0″');
 await p.screenshot({ path: '/workspace/truckers-gps-shots/r4/390-wizard-height.png' });

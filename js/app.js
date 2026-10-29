@@ -1,5 +1,5 @@
 import { locGate } from './privacy.js';
-import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting,
+import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting, VEHICLES as VTYPES, vehOf, costingFor, costingOptions, truckUIOn,
   hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
@@ -204,7 +204,7 @@ function mergeLegs(trip, costing) {
 async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [], exclude = [] } = {}) {
   const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
   const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: 'en-US', directions_options: { units: 'kilometers' } };
-  if (costing === 'truck') body.costing_options = { truck: truckCosting(S.truck) };
+  if (costing === 'truck') body.costing_options = costingOptions(S.truck);
   { const ex = [...(avoid ? excludePolys(from, to) : []), ...exclude]; if (ex.length) body.exclude_polygons = ex; } // exclude: e.g. a live traffic jam
   if (alternates && !stops.length) body.alternates = alternates;
   const r = await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
@@ -231,11 +231,11 @@ async function plan(isReroute = false) {
       let vias = [];
       if (S.chosen) { const sn = snapToRoute([from.lon, from.lat], S.chosen.line, S.chosen.cum, 0); if (sn.dist < 3000) vias = rejoinVias(S.chosen.line, S.chosen.cum, sn.along, { ahead: 1500, max: 2 }); }
       let tr; const tries = [{ heading: from.heading, vias }, { vias }, { heading: from.heading, vias, radius: 300 }, { radius: 300 }]; let err; // radius: escape driveways/lots
-      for (const o of tries) { try { tr = await valhalla(from, to, 'truck', o); vias = o.vias || []; break; } catch (e) { err = e; } }
+      for (const o of tries) { try { tr = await valhalla(from, to, costingFor(S.truck), o); vias = o.vias || []; break; } catch (e) { err = e; } }
       if (!tr) throw err;
       S.lastRerouteVias = vias.length; setRoute(tr); return tr;
     }
-    const [alts, car] = await Promise.all([valhalla(from, to, 'truck', { alternates: 2 }), valhalla(from, to, 'auto', { avoid: false }).catch(() => null)]);
+    const [alts, car] = await Promise.all([valhalla(from, to, costingFor(S.truck), { alternates: 2 }), costingFor(S.truck) === 'auto' ? null : valhalla(from, to, 'auto', { avoid: false }).catch(() => null)]);
     S.routes = alts; S.carRoute = car; S.sel = 0; setRoute(alts[0]); S.chosen = alts[0];
     LS.set('routes', alts.map(r => ({ ...r, cum: undefined }))); LS.set('carRoute', car ? { ...car, cum: undefined } : null); LS.set('sel', 0);
     renderRoute(); fitRoute(); ['#goBtn', '#demoBtn', '#facBtn', '#offlineBtn'].forEach(s => $(s).disabled = false);
@@ -270,7 +270,7 @@ async function analyzeRoute(r) {
   let edges = [];
   try { const shape = sampleLine(r.line, Math.min(r.line.length, 4000));
     const res = await fetch(VALHALLA.replace('/route', '/trace_attributes'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30000),
-      body: JSON.stringify({ encoded_polyline: encodePolyline(shape), costing: 'truck', costing_options: { truck: truckCosting(S.truck) }, shape_match: 'map_snap', filters: { attributes: ['edge.way_id', 'edge.max_upward_grade', 'edge.max_downward_grade', 'edge.tunnel', 'edge.length', 'edge.names', 'edge.begin_shape_index', 'edge.road_class', 'edge.speed_limit', 'edge.toll', 'node.admin_index', 'admin.state_code', 'admin.country_code'], action: 'include' } }) });
+      body: JSON.stringify({ encoded_polyline: encodePolyline(shape), costing: costingFor(S.truck), costing_options: costingOptions(S.truck), shape_match: 'map_snap', filters: { attributes: ['edge.way_id', 'edge.max_upward_grade', 'edge.max_downward_grade', 'edge.tunnel', 'edge.length', 'edge.names', 'edge.begin_shape_index', 'edge.road_class', 'edge.speed_limit', 'edge.toll', 'node.admin_index', 'admin.state_code', 'admin.country_code'], action: 'include' } }) });
     const j = await res.json(); const sc = cumulative(shape);
     edges = (j.edges || []).map(e => { const p = shape[Math.min(e.begin_shape_index ?? 0, shape.length - 1)]; return { ...e, length: (e.length || 0) * 1000, along: snapToRoute(p, r.line, r.cum, 0).along }; });
     S.routeEdges = edges.length; S.admins = j.admins || [];
@@ -285,7 +285,7 @@ async function analyzeRoute(r) {
   }
   if (S.route !== r) return;
   S.edges = edges; try { S.onRouteAnalyzed?.(r); } catch (e) { console.warn(e); }
-  S.dangers = [...dangersAhead(edges, tags, truckMetric()), ...curves].sort((a, b) => a.along - b.along);
+  S.dangers = [...(costingFor(S.truck) === 'auto' ? [] : dangersAhead(edges, tags, truckMetric())), ...curves].sort((a, b) => a.along - b.along);
   renderDangers();
 }
 S.analyzeRoute = analyzeRoute;
@@ -308,7 +308,7 @@ function dangerAlerts() {
 // Wrong-road check: ask Valhalla what road we're on (truck access, class)
 let wrTimer = 0;
 async function checkWrongRoad() {
-  if (!S.nav || !S.pos || !navigator.onLine || Date.now() - wrTimer < 10000 || (S.pos.speed || 0) < 2) return; wrTimer = Date.now(); S.wrChecks = (S.wrChecks || 0) + 1;
+  if (costingFor(S.truck) === 'auto' || !S.nav || !S.pos || !navigator.onLine || Date.now() - wrTimer < 10000 || (S.pos.speed || 0) < 2) return; wrTimer = Date.now(); S.wrChecks = (S.wrChecks || 0) + 1;
   try { const r = await fetch(VALHALLA.replace('/route', '/locate'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(8000),
       body: JSON.stringify({ locations: [{ lat: S.pos.lat, lon: S.pos.lon, heading: S.pos.heading != null ? Math.round(S.pos.heading) : undefined, radius: 15 }], costing: 'auto', verbose: true }) }); // auto: so roads closed to trucks are still found
     const j = await r.json(); const e = j[0]?.edges?.[0]; S.lastLocate = e?.edge_info?.names; showWrongRoad(wrongRoad(e, { offRoute: (S.distFromRoute || 0) > 40, nearDest: S.route && S.route.length - S.along < 800 }));
@@ -451,6 +451,7 @@ function showPois(raw, note) { S.lastPoiRaw = raw; S.lastPoiNote = note;
   S.pois = raw.filter(e => !isHelperAmenity(e.tags)).map(e => { const lon = e.lon ?? e.center?.lon, lat = e.lat ?? e.center?.lat; if (lon == null) return null; const k = classifyPoi(e.tags || {});
     const sn = snapToRoute([lon, lat], r.line, r.cum, 0); return { id: e.id || (e.type?.[0] + e.id) || `${lat},${lon}`, lon, lat, kind: k, name: e.tags?.name || e.tags?.brand || POI_NAME[k], tags: e.tags || {}, along: sn.along, off: sn.dist }; })
     .filter(p => p && p.off <= 1700 && (k => !seen.has(k) && seen.add(k))(p.kind + Math.round(p.lat * 500) + ',' + Math.round(p.lon * 500))).sort((a, b) => a.along - b.along);
+  if (!truckUIOn(S.truck)) S.pois = S.pois.filter(p => p.kind !== 'weigh' && p.kind !== 'stop'); // cars / vans without truck tools: no weigh stations or truck stops
   attachAmenities(S.pois, helpers, 250, LS.get('amenConf', {}));
   const pf = S.poiFilter || 'all', match = p => pf === 'all' || (pf === 'diesel' ? (p.kind === 'fuel' || p.kind === 'stop') && p.tags['fuel:diesel'] !== 'no' : pf === 'truck' ? p.kind === 'stop' || p.tags.hgv === 'yes' || p.tags['fuel:HGV_diesel'] === 'yes' : pf === 'rest' ? p.kind === 'rest' || p.kind === 'parking' : pf === 'showers' ? !!p.amen?.showers : pf === 'restrooms' ? !!p.amen?.restrooms : pf === 'food' ? !!p.amen?.food : p.kind === pf);
   const ahead = S.pois.filter(p => p.along >= base - 50 && match(p));
@@ -644,6 +645,7 @@ function hosRender() {
   $$('[data-duty]').forEach(b => b.classList.toggle('on', b.dataset.duty === h.status));
   $('#hosWarn').innerHTML = h.warnings.map(w => `<div class="alert ${/soon|under/i.test(w) ? 'warn' : ''}">${w}</div>`).join('');
   $$('#alerts .hosA').forEach(e => e.remove());
+  if (!truckUIOn(S.truck)) return;
   if (h.status === 'drive') for (const w of h.warnings) { const el = document.createElement('div'); el.className = 'alert hosA ' + (/soon|under/i.test(w) ? 'warn' : ''); el.textContent = '⏱ ' + w; $('#alerts').prepend(el); }
   for (const w of h.warnings) if (!S.warned[w] && h.status === 'drive') { S.warned[w] = true; say('Hours of service: ' + w, 'hos'); mascot.say(`⏱ ${w}. Time to find a spot to rest.`, 'worried', 9000); }
   $('#hosLog').innerHTML = S.events.slice(-20).reverse().map(e => `<li>${new Date(e.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} — ${labelDuty(e.s)}${e.auto ? ' (auto)' : ''}</li>`).join('');
@@ -660,12 +662,13 @@ $('#navPickup').onclick = () => navTo('pickup'); $('#navDelivery').onclick = () 
 
 // ---------- Truck profile ----------
 const tf = $('#truckForm');
-function fillTruck() { for (const [k, v] of Object.entries(S.truck)) { const el = tf.elements[k]; if (!el) continue; el.type === 'checkbox' ? (el.checked = !!v) : (el.value = v); } }
+function fillTruck() { if (tf.elements.vehicle) tf.elements.vehicle.value = vehOf(S.truck); for (const [k, v] of Object.entries(S.truck)) { const el = tf.elements[k]; if (!el) continue; el.type === 'checkbox' ? (el.checked = !!v) : (el.value = v); } }
 fillTruck();
 setInterval(() => { if (S.truck.theme !== 'auto') return; const was = curTheme; applyTheme(); if (STYLES[curTheme] !== STYLES[was]) map.setStyle(STYLES[curTheme]); }, 60e3);
-tf.addEventListener('change', () => { const prevTheme = S.truck.theme;
+tf.addEventListener('change', e => { const prevTheme = S.truck.theme, prevVeh = S.truck.vehicle;
   for (const el of tf.elements) if (el.name) S.truck[el.name] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value);
-  LS.set('truck', S.truck); if (S.truck.theme !== prevTheme) { const was = curTheme; applyTheme(); if (STYLES[curTheme] !== STYLES[was]) map.setStyle(STYLES[curTheme]); }
+  if (e.target?.name === 'vehicle' && S.truck.vehicle !== prevVeh) { Object.assign(S.truck, VTYPES[vehOf(S.truck)].preset); fillTruck(); toast?.(VTYPES[vehOf(S.truck)].label + ' set — routes use ' + (costingFor(S.truck) === 'auto' ? 'car roads' : 'its size and weight')); if (S.dest) S.setDest?.(S.dest); }
+  applyVehicle(); LS.set('truck', S.truck); if (S.truck.theme !== prevTheme) { const was = curTheme; applyTheme(); if (STYLES[curTheme] !== STYLES[was]) map.setStyle(STYLES[curTheme]); }
   if (S.dest && S.pos && !S.nav) plan(); });
 const PRESETS = { 53: { heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 }, box: { heightFt: 12, heightIn: 0, weightLbs: 26000, lengthFt: 34, widthFt: 8.5, axles: 2 }, bob: { heightFt: 13, heightIn: 0, weightLbs: 20000, lengthFt: 22, widthFt: 8.5, axles: 3 } };
 $$('[data-preset]').forEach(b => b.onclick = () => { Object.assign(S.truck, PRESETS[b.dataset.preset]); fillTruck(); tf.dispatchEvent(new Event('change')); toast('Truck profile updated'); });
@@ -694,7 +697,11 @@ function setHud(v) { S.hud = v; $('#hud').classList.toggle('hidden', !v); if (v)
 updateHud = function () { if (!S.hud) return; $('#hudArrow').textContent = $('#bArrow').textContent; $('#hudDist').textContent = S.nav ? $('#bDist').textContent : '--'; $('#hudSpeed').textContent = $('#speed').textContent + ' mph'; }
 $('#hudBtn').onclick = () => setHud(true); $('#hudExit').onclick = () => setHud(false); S.setHud = setHud; S.updateHud = () => updateHud();
 S.toast = toast;
-S.setTruck = t => { Object.assign(S.truck, t); fillTruck(); LS.set('truck', S.truck); };
+S.setTruck = t => { Object.assign(S.truck, t); fillTruck(); LS.set('truck', S.truck); applyVehicle(); };
+S.costingFor = () => costingFor(S.truck); S.costingOptions = () => costingOptions(S.truck); S.truckUIOn = () => truckUIOn(S.truck); S.VEHICLES = VTYPES; S.vehOf = () => vehOf(S.truck);
+function applyVehicle() { const v = vehOf(S.truck), b = document.body.classList; for (const k of Object.keys(VTYPES)) b.toggle('veh-' + k, k === v); b.toggle('no-truckui', !truckUIOn(S.truck)); b.toggle('veh-commercial', !!VTYPES[v].commercial);
+  const ic = document.querySelector('#dock [data-panel=truckPanel]'); if (ic) ic.firstChild.textContent = VTYPES[v].icon; const tu = document.querySelector('#truckUIRow'); if (tu) tu.hidden = VTYPES[v].truckUI !== 'optional'; }
+applyVehicle();
 
 // ---------- Boot (resume after crash/reload) ----------
 setFollow(true);

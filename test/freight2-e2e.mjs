@@ -10,7 +10,7 @@ const { data: L } = await X.from('loads').insert({ driver: users.driver.id, ref:
 // dispatcher board
 const dc = await browser.newContext({ viewport: { width: 1100, height: 1200 } }), d = await dc.newPage(); d.on('pageerror', e => { console.log('DISP', e.message); fails++; });
 await d.goto(BASE + 'dispatch.html'); await d.waitForFunction(() => document.querySelector('#sbIn').onclick); await d.fill('#sbEmail', users.dispatcher.email); await d.fill('#sbPass', users.dispatcher.password); await d.click('#sbIn'); await d.waitForFunction(() => window.RRB, null, { timeout: 30000 });
-await d.fill('#bSearch', REF); await d.waitForTimeout(300); ok((await d.$$('[data-bload]')).length === 1, 'board search by ref finds exactly that load');
+await d.fill('#bSearch', REF); await d.waitForSelector('[data-bload]', { timeout: 15000 }).catch(async () => console.log('board:', (await d.textContent('#bBoard')).slice(0, 200), '| msg:', await d.textContent('#bMsg'))); { const n = await d.$$eval('[data-bload]', e => e.map(x => x.querySelector('header b')?.textContent)); ok(n.length === 1, 'board search by ref finds exactly that load: ' + JSON.stringify(n)); }
 // driver parked at the pickup gate
 const vc = await browser.newContext({ ...devices['iPhone 13'], geolocation: { latitude: PU.lat + 0.0006, longitude: PU.lng }, permissions: ['geolocation'] }); const p = await vc.newPage(); p.on('pageerror', e => { console.log('APP', e.message); fails++; });
 await p.goto(BASE); await p.waitForFunction(() => TruckNav?.accountReady && TruckNav.backendReady, null, { timeout: 40000 }); await p.evaluate(() => document.querySelector('#splash')?.remove());

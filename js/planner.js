@@ -60,7 +60,7 @@ export function init(S, H) {
   $('#plMic').onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return toast('Voice entry not supported in this browser'); const r = new SR(); r.lang = 'en-US';
     r.onresult = async ev => { const q = ev.results[0][0].transcript; $('#plQ').value = q; try { const g = (await geocode(q))[0]; if (g) { addStop(g); say?.('Added ' + g.name, 'info'); } else toast('Not found: ' + q); } catch { toast('Search needs signal'); } }; r.start(); toast('Say the address…'); };
   // ---------- optimize ----------
-  async function matrix(pts) { try { const locs = pts.map(p => ({ lat: p.lat, lon: p.lon })); const body = { sources: locs, targets: locs, costing: 'truck', costing_options: S.truck && H.truckCosting ? { truck: H.truckCosting(S.truck) } : undefined };
+  async function matrix(pts) { try { const locs = pts.map(p => ({ lat: p.lat, lon: p.lon })); const body = { sources: locs, targets: locs, costing: S.costingFor?.() || 'truck', costing_options: S.costingOptions?.() || (S.truck && H.truckCosting ? { truck: H.truckCosting(S.truck) } : undefined) };
       const r = await fetch(MATRIX, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) }); const j = await r.json(); if (!j.sources_to_targets) throw 0;
       const fb = haversineMatrix(pts); const time = j.sources_to_targets.map((row, a) => row.map((c, b) => c.time ?? fb.time[a][b])), dist = j.sources_to_targets.map((row, a) => row.map((c, b) => c.distance != null ? c.distance * 1000 : fb.dist[a][b]));
       return { time, dist, source: 'Valhalla truck' }; } catch { return haversineMatrix(pts); } }

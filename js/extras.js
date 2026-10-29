@@ -80,7 +80,7 @@ export function init(S, h) {
 
   async function loadLanes(r) { S.lanes = []; S.lanesDone = false; try {
       const locs = [r.line[0], ...S.stops.map(s => [s.lon, s.lat]), r.line.at(-1)].map(([lon, lat]) => ({ lon, lat }));
-      const body = { locations: locs, costing: 'truck', costing_options: { truck: (await import('./logic.js')).truckCosting(S.truck) }, format: 'osrm', banner_instructions: true };
+      const body = { locations: locs, costing: S.costingFor?.() || 'truck', costing_options: S.costingOptions?.() || {}, format: 'osrm', banner_instructions: true };
       const j = await (await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) })).json();
       const ro = j.routes?.[0]; if (!ro || S.route !== r) return;
       S.lanes = laneIntersections(ro).map(x => { const sn = snapToRoute(x.loc, r.line, r.cum, 0); return { ...x, along: sn.along, off: sn.dist }; }).filter(x => x.off < 30).sort((a, b) => a.along - b.along);

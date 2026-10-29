@@ -315,3 +315,20 @@ export const isDaylight = (lat, lon, date = new Date(), wasDay = null) => { cons
 // Camera bearing smoothing (app_polish_ideas §3: gradual rotation, never snaps). Shortest-arc EMA; returns degrees 0..360.
 export function smoothBearing(prev, next, alpha = 0.35, maxStep = 25) { if (next == null || isNaN(next)) return prev; if (prev == null || isNaN(prev)) return ((next % 360) + 360) % 360;
   let d = ((next - prev + 540) % 360) - 180; d = Math.max(-maxStep, Math.min(maxStep, d * alpha)); return (((prev + d) % 360) + 360) % 360; }
+
+// ===== Vehicle types (car / vans / box / semi) =====
+export const VEHICLES = {
+  car: { label: 'Car', icon: '🚗', costing: 'auto', truckUI: 'off', preset: { heightFt: 5, heightIn: 0, widthFt: 6, lengthFt: 16, weightLbs: 4000, axles: 2, hazmat: false } },
+  van: { label: 'Cargo Van', icon: '🚐', costing: 'truck', truckUI: 'optional', commercial: true, preset: { heightFt: 9, heightIn: 0, widthFt: 7, lengthFt: 20, weightLbs: 9000, axles: 2, hazmat: false } },
+  reefervan: { label: 'Reefer Van', icon: '🧊', costing: 'truck', truckUI: 'optional', commercial: true, reefer: true, preset: { heightFt: 9, heightIn: 6, widthFt: 7, lengthFt: 22, weightLbs: 10000, axles: 2, hazmat: false } },
+  box: { label: 'Box Truck', icon: '📦', costing: 'truck', truckUI: 'on', preset: { heightFt: 12, heightIn: 6, widthFt: 8, lengthFt: 26, weightLbs: 26000, axles: 2 } },
+  semi: { label: 'Semi', icon: '🚛', costing: 'truck', truckUI: 'on', preset: { heightFt: 13, heightIn: 6, widthFt: 8.5, lengthFt: 70, weightLbs: 80000, axles: 5 } },
+};
+export const vehOf = t => VEHICLES[t?.vehicle] ? t.vehicle : 'semi';
+export const costingFor = t => VEHICLES[vehOf(t)].costing;
+// truck-only UI (HOS, weigh stations, truck stops): semis/box always, cars never, vans only if the driver turns it on
+export const truckUIOn = t => { const m = VEHICLES[vehOf(t)].truckUI; return m === 'on' || (m === 'optional' && !!t?.truckUI); };
+// Valhalla options per vehicle: cars get plain auto costing; vans use truck costing with their small dims but don't prefer truck routes.
+export function costingOptions(t) { const v = vehOf(t); if (VEHICLES[v].costing === 'auto') return {}; const o = truckCosting(t);
+  if (VEHICLES[v].commercial) { o.use_truck_route = 0.2; o.low_class_penalty = 15; o.hazmat = false; }
+  return { truck: o }; }
