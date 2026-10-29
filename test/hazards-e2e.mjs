@@ -38,8 +38,8 @@ const got = await B.waitForFunction(ids => ids.every(x => TruckNav.hz.visible().
 ok(got, `driver B (1.7 km south) received all 3 over the relays within ${((Date.now() - ts) / 1000).toFixed(1)} s of A's first tap (limit ${N} s)`);
 await B.evaluate(() => { const m = TruckNav.map; m.jumpTo({ center: [TruckNav.pos.lon, TruckNav.pos.lat + 0.008], zoom: 14.3 }); });
 await B.clock.runFor(3000); await B.waitForTimeout(600);
-const heldB = await B.evaluate(ids => ({ held: ids.every(x => TruckNav.hz.isHeld(TruckNav.hz.byId.get(x.id))), alert: TruckNav.hzAhead?.length || 0, unconf: [...document.querySelectorAll('.hz-pin.held')].length }), aIds);
-ok(heldB.held && heldB.alert === 0 && heldB.unconf >= 1, `new driver A's reports are held on B (pins marked unconfirmed: ${heldB.unconf}, no alert) until someone confirms`);
+const heldB = await B.evaluate(ids => ({ held: ids.every(x => TruckNav.hz.isHeld(TruckNav.hz.byId.get(x.id))), alert: (TruckNav.hzAhead || []).filter(h => ids.some(x => x.id === h.id)).length, alertAll: TruckNav.hzAhead?.length || 0, unconf: [...document.querySelectorAll('.hz-pin.held')].length }), aIds);
+ok(heldB.held && heldB.alert === 0 && heldB.unconf >= 1, `new driver A's reports are held on B (pins marked unconfirmed: ${heldB.unconf}, no alert for them; other alerts: ${heldB.alertAll}) until someone confirms`);
 // another driver confirms (vote from a different key, as it arrives over the relays) -> released
 await B.evaluate(ids => { for (const x of ids) { const r = TruckNav.hz.byId.get(x.id); r.ups = ['confirmer-key']; r.up = 1; } }, aIds);
 await B.clock.runFor(6000); await B.waitForTimeout(800);
