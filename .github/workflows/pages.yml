@@ -17,6 +17,11 @@ jobs:
       - run: node scripts/build-closures.mjs || true
       - run: node scripts/build-eia.mjs || true
       - run: mkdir -p _site && cp -r index.html dispatch.html privacy.html terms.html docs manifest.webmanifest sw.js css js icons data fonts _site/ && rm -f _site/data/*.sh _site/data/*.log _site/data/raw*.json
+      - name: Inject TomTom browser key (GitHub secret; key is domain-restricted to ace9x.github.io)
+        env: { TOMTOM_KEY: '${{ secrets.TOMTOM_KEY }}' }
+        run: |
+          [ -n "$TOMTOM_KEY" ] || { echo "TOMTOM_KEY secret missing - traffic tiles off"; exit 0; }
+          node -e "const f='_site/js/keys.js',fs=require('fs');const s=fs.readFileSync(f,'utf8');const o=s.replace(/tomtom: ''/,'tomtom: '+JSON.stringify(process.env.TOMTOM_KEY));if(o===s)process.exit(1);fs.writeFileSync(f,o)"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: _site }
