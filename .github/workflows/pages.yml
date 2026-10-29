@@ -16,7 +16,7 @@ jobs:
       - run: node --test test/unit.test.js test/offline.test.js
       - run: node scripts/build-closures.mjs || true
       - run: node scripts/build-eia.mjs || true
-      - run: mkdir -p _site && cp -r index.html dispatch.html privacy.html terms.html docs manifest.webmanifest sw.js css js icons data fonts _site/ && rm -f _site/data/*.sh _site/data/*.log _site/data/raw*.json
+      - run: mkdir -p _site && cp -r index.html dispatch.html privacy.html terms.html docs manifest.webmanifest sw.js css js icons data fonts i18n _site/ && rm -f _site/data/*.sh _site/data/*.log _site/data/raw*.json
       - name: Inject TomTom browser key (GitHub secret; key is domain-restricted to ace9x.github.io)
         env: { TOMTOM_KEY: '${{ secrets.TOMTOM_KEY }}' }
         run: |
