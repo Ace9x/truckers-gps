@@ -146,8 +146,8 @@ let puckAnim = null;
 function movePuck(lon, lat, heading) { if (!truckMarker._map) { truckMarker.setLngLat([lon, lat]).setRotation(heading).addTo(map); return; }
   const from = truckMarker.getLngLat(), r0 = truckMarker.getRotation(), dr = ((heading - r0) % 360 + 540) % 360 - 180, t0 = performance.now(), D = S.demo ? 950 : 800;
   if (Math.abs(from.lng - lon) + Math.abs(from.lat - lat) > 0.02 || document.hidden) { truckMarker.setLngLat([lon, lat]).setRotation(heading); return; }
-  cancelAnimationFrame(puckAnim); const step = now => { const k = Math.min(1, (now - t0) / D), e = k * (2 - k);
-    truckMarker.setLngLat([from.lng + (lon - from.lng) * e, from.lat + (lat - from.lat) * e]).setRotation(r0 + dr * e); if (k < 1) puckAnim = requestAnimationFrame(step); };
+  cancelAnimationFrame(puckAnim); const step = now => { const k = Math.min(1, (now - t0) / D), e = k * (2 - k), kr = Math.min(1, (now - t0) / 300), er = 1 - (1 - kr) ** 3; // heading: ≤300 ms ease-out (design_v2 #15)
+    truckMarker.setLngLat([from.lng + (lon - from.lng) * e, from.lat + (lat - from.lat) * e]).setRotation(r0 + dr * er); if (k < 1) puckAnim = requestAnimationFrame(step); };
   puckAnim = requestAnimationFrame(step); }
 S.movePuck = movePuck;
 function onFix(f) {
@@ -301,7 +301,7 @@ function dangerAlerts() {
     if (!tier || a[tier] || (!major && tier !== 'q' && (d.sev === 'info' || tier === 'two'))) continue;
     a[tier] = true; if (tier !== 'two') a.two = true; if (tier === 'q') a.one = true;
     const where = tier === 'q' ? (ahead < 150 ? 'just ahead' : 'in a quarter mile') : tier === 'one' ? 'in one mile' : 'in two miles';
-    say(d.text.replace(' ahead', ' ' + where), 'danger'); alertBanner(`${DICON[d.kind] || '⚠'} ${d.short} · ${fmtDist(ahead, U())}`); if (['height', 'weight', 'length'].includes(d.kind)) try { navigator.vibrate?.([200, 100, 200]); } catch {} // low bridge / limit: voice + haptic, no flashing
+    say(d.text.replace(' ahead', ' ' + where), 'danger'); alertBanner(`${DICON[d.kind] || '⚠'} ${d.short} · ${fmtDist(ahead, U())}`, ['height', 'weight', 'length'].includes(d.kind) ? 'hazard' : 'warn'); if (['height', 'weight', 'length'].includes(d.kind)) try { navigator.vibrate?.([200, 100, 200]); } catch {} // low bridge / limit: voice + haptic, no flashing
     if (d.sev === 'stop' && !S.rerouting && Date.now() - S.lastReroute > 15000) { S.avoids.push({ lat: pointAlong(S.route.line, S.route.cum, d.along)[1], lon: pointAlong(S.route.line, S.route.cum, d.along)[0], type: d.kind === 'weight' ? 'weight' : d.kind === 'notrucks' ? 'notrucks' : 'clearance', t: Date.now(), auto: true });
       LS.set('avoids', S.avoids); S.rerouting = true; S.lastReroute = Date.now(); S.rerouteCount++; plan(true).finally(() => S.rerouting = false); }
   }
@@ -366,7 +366,7 @@ function navTick() {
   const idx = currentStep(r.maneuvers, sn.seg), m = r.maneuvers[idx];
   const toM = Math.max(0, r.cum[Math.min(m.begin_shape_index, r.cum.length - 1)] - sn.along); S.toNext = idx > 0 ? toM : 1e9; mascot.watchBusy();
   if (idx !== S.step) { S.step = idx; $$('#steps li').forEach(li => li.classList.toggle('cur', +li.dataset.i === idx)); }
-  $('#bArrow').textContent = arrow(m.type); $('#bDist').textContent = fmtDist(toM, U()); $('#bInstr').textContent = m.street_names?.join(' / ') || m.instruction;
+  $('#bArrow').textContent = arrow(m.type); $('#banner')?.classList.toggle('near', idx > 0 && toM <= 152.4); $('#bDist').textContent = fmtDist(toM, U()); $('#bInstr').textContent = m.street_names?.join(' / ') || m.instruction;
   const nx = r.maneuvers[idx + 1], tb = $('#thenBox');
   if (nx && m.length * 1000 < 400 && idx > 0) { tb.textContent = `Then ${arrow(nx.type)} ${nx.instruction}`; tb.classList.remove('hidden'); } else tb.classList.add('hidden');
   const sm = etaSmooth.update(etaRemaining(r, idx, toM) + (S.trafficDelay || 0)), remT = sm.remSec; S.remT = remT; // remaining-leg times + traffic, smoothed (UX P6/C7)
@@ -392,7 +392,7 @@ function weighAlerts() {
     for (const [k, d, txt] of [['2', 2 * MI, 'two miles'], ['1', MI, 'one mile']]) if (ahead <= d && ahead > d - 0.6 * MI && !a[k]) { a[k] = true; a['2'] = true;
       mascot.say(`Weigh station in ${k} mile${k === '1' ? '' : 's'}! Have your paperwork handy.`, 'wow'); say(`Weigh station in ${txt}. ${p.name !== 'Weigh station' ? p.name + '.' : ''}${status}`, 'weigh'); alertBanner(`⚖️ Weigh station in ${k} mi${status}`); } }
 }
-function alertBanner(txt) { const el = document.createElement('div'); el.className = 'alert warn'; el.textContent = txt; $('#alerts').appendChild(el); setTimeout(() => el.remove(), 12000); }
+function alertBanner(txt, kind = 'warn') { const el = document.createElement('div'); el.className = 'alert ' + kind; el.setAttribute('role', 'alert'); el.textContent = txt; $('#alerts').appendChild(el); setTimeout(() => el.remove(), 12000); }
 
 // ---------- Last-mile facility mode ----------
 function lastMile(remaining) {

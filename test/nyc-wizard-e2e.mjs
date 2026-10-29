@@ -27,11 +27,12 @@ ok(await p.evaluate(() => TruckNav.nycTruckStatus === 'off'), 'status off while 
 await p.evaluate(() => { TruckNav.pos = { lat: 40.85480, lon: -73.90645, speed: 10, acc: 5 }; }); await p.waitForTimeout(2500); ok(await p.evaluate(() => TruckNav.nycTruckStatus === 'on'), 'status back on Jerome Ave');
 await p.evaluate(() => { TruckNav.nav = false; });
 // 6. wizard: 4 steps, 64px steppers, saves truck
-await p.evaluate(() => TruckNav.truckWizard()); await p.waitForSelector('#truckWiz [data-vtype]'); await p.click('#truckWiz .wz-next'); await p.waitForSelector('#truckWiz .wz-stepper');
+await p.evaluate(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; }); await p.waitForTimeout(600); await p.evaluate(() => TruckNav.truckWizard()); await p.waitForSelector('#truckWiz [data-vtype]'); await p.click('#truckWiz .wz-next'); await p.waitForSelector('#truckWiz .wz-stepper');
 const h = await p.$eval('.wz-stepper button', b => b.getBoundingClientRect().height); ok(h >= 64, 'stepper buttons are 64px: ' + h);
 for (let i = 0; i < 6; i++) await p.click('.wz-stepper [data-d="-1"]'); ok((await p.textContent('.wz-stepper output')) === '13′0″', 'height stepped 13′6″ → 13′0″');
 await p.screenshot({ path: '/workspace/truckers-gps-shots/r4/390-wizard-height.png' });
 await p.click('.wz-next'); await p.click('.wz-stepper [data-d="-1"]'); await p.click('.wz-next'); await p.click('.wz-next'); await p.click('[data-hz="1"]'); await p.screenshot({ path: '/workspace/truckers-gps-shots/r4/390-wizard-hazmat.png' }); await p.click('.wz-next');
+ok(/Spoken directions/.test(await p.textContent('#truckWiz')), 'first run continues to the voice step (design_v2 #16)'); await p.click('[data-vo="1"]'); await p.click('.wz-next');
 await p.waitForSelector('.wz-saved'); ok(/13′0″/.test(await p.textContent('.wz-saved')), 'saved confirmation states the height');
 const t = await p.evaluate(() => ({ ...TruckNav.truck, ls: JSON.parse(localStorage.getItem('tn_truck')) })); ok(t.heightFt === 13 && t.heightIn === 0 && t.weightLbs === 79000 && t.hazmat && t.ls.heightIn === 0, 'truck profile saved & persisted');
 await p.screenshot({ path: '/workspace/truckers-gps-shots/r4/390-wizard-saved.png' }); await p.click('.wz-next'); ok(!(await p.$('#truckWiz')), 'wizard closed');

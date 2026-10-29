@@ -1,0 +1,52 @@
+/* design_v2 Part 2 (RigRoute): calm cockpit. Fonts are self-hosted, SIL OFL 1.1 (fonts/LICENSES.md). */
+@font-face{font-family:Inter;src:url(../fonts/inter-latin-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url(../fonts/jetbrains-mono-latin-500-normal.woff2) format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:"Space Grotesk";src:url(../fonts/space-grotesk-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+:root{--d2-bg:#0F172A;--d2-surface:#1E293B;--d2-text:#F1F5F9;--d2-route:#FF9500;--d2-hazard:#F87171;--d2-lane-off:#475569;--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+#splash h1,#splash .brand,.brand-name{font-family:"Space Grotesk",var(--font)}
+/* #17 maneuver text ≥7:1 and sized in rem so the OS / browser text size setting applies */
+#banner{background:var(--d2-bg);color:var(--d2-text)}
+#bInstr{color:var(--d2-text);font-size:1.25rem;font-weight:700}
+body.st-nav #bDist{font-size:3rem;font-weight:800}
+body.st-nav #bArrow{font-size:2.125rem}
+/* #4 tabular figures for every number that counts down */
+#bDist,#tEta,#tLeft,#tDist,#speed,#hudDist,#hudSpeed,#dockHos,.trc-big b,#hDrive,#hWin,#hBreak,#hCycle{font-variant-numeric:tabular-nums;font-feature-settings:"tnum","cv11"}
+/* #3 the arrow turns orange within 500 ft — the only change */
+#banner.near #bArrow,#banner.near #bArrow svg{color:var(--d2-route);fill:var(--d2-route)}
+/* #1 drive mode: only maneuver, distance, ETA and a hazard slot while moving */
+body.moving.st-nav #topbar,body.moving.st-nav #dock,body.moving.st-nav #thenBox,body.moving.st-nav #restrictRail,body.moving.st-nav #tfBanner .x,body.moving.st-nav #sideBtns>:not(#muteBtn):not(#followBtn){display:none!important}
+/* #2 motion lock: while moving, only short opacity fades; nothing slides */
+html body.moving *:not(.maplibregl-canvas):not(.maplibregl-marker):not(.maplibregl-marker *),html body.moving *::before,html body.moving *::after{transition-property:opacity!important;transition-duration:120ms!important;animation:none!important;scroll-behavior:auto!important}
+/* #5 day/night cross-fade only when stopped */
+body:not(.moving){transition:background-color 2s ease,color 2s ease}
+/* #6 clearance / weight hazards: full-width, calm, never pulsing */
+#alerts .alert.hazard{position:relative;left:0;right:0;width:100%;box-sizing:border-box;background:rgba(248,113,113,.2);border:2px solid var(--d2-hazard);color:var(--d2-text);font:800 1.25rem/1.3 var(--font);animation:none!important;backdrop-filter:blur(6px)}
+/* #7 physical-feeling big buttons */
+html body #sideBtns button,html body #dock button,html body #goBtn,html body #endBtn,html body .wz-nav button,html body .wz-stepper button,html body #mtLock button{min-height:64px!important;min-width:64px;border-bottom:2px solid rgba(0,0,0,.4)!important}
+html body #sideBtns button:active,html body #dock button:active,html body #goBtn:active,html body #endBtn:active,html body .wz-nav button:active,html body .wz-stepper button:active,html body #mtLock button:active{transform:translateY(1px)}
+/* #8 recenter only after the map was panned (fades in 150 ms) */
+#followBtn{transition:opacity 150ms var(--ease-out,ease-out)}
+html body.following #followBtn{opacity:0;pointer-events:none}
+/* #9 route overview container transform when parked */
+#banner{view-transition-name:maneuver}
+#routePanel{view-transition-name:route-overview}
+::view-transition-group(maneuver),::view-transition-group(route-overview){animation-duration:280ms;animation-timing-function:cubic-bezier(.2,0,0,1)}
+/* #10 route options sheet: 2 snaps */
+#routePanel{transition:max-height 200ms var(--ease-out,ease-out)}
+#routePanel.snap-half{max-height:46vh!important;overflow:auto}
+#routePanel.snap-full{max-height:88vh!important;overflow:auto}
+.d2-handle{display:block;width:100%;height:28px;border:0;background:transparent;cursor:grab;touch-action:none}
+.d2-handle::before{content:"";display:block;margin:10px auto;width:44px;height:5px;border-radius:3px;background:#64748b}
+/* #11 truck profile values in JetBrains Mono, with steppers */
+#truckForm input[type=number],.wz-stepper output{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.d2-step{display:inline-flex;align-items:center;gap:6px}.d2-step button{min-width:48px;min-height:48px;font:800 22px var(--font)}
+/* #12 search palette sections + fuel chips */
+.d2-pal h4{margin:10px 0 4px;font:700 12px var(--font);letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
+.d2-pal button{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:52px;text-align:left;gap:8px}
+.d2-chip{flex:none;font:700 12px var(--mono);padding:3px 8px;border-radius:999px;background:#ff950022;color:#fdba74}
+/* #13 lane guidance */
+.lane{color:var(--d2-lane-off)}.lane.ok{color:var(--d2-route)}
+/* #14 GPS accuracy chip, never hidden */
+#gpsChip{position:fixed;top:calc(8px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:60;font:700 .8125rem var(--font);padding:4px 10px;border-radius:999px;background:#f59e0b;color:#111;pointer-events:none}
+#gpsChip[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){::view-transition-group(*){animation-duration:1ms!important}}

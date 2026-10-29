@@ -11,7 +11,7 @@ ok(await p.evaluate(() => TruckNav.vehOf() === 'semi'), 'editing other truck set
 // wizard: pick Car -> one step, saves
 await p.evaluate(() => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); TruckNav.truckWizard(); }); await p.waitForSelector('#truckWiz [data-vtype]');
 ok((await p.$$('#truckWiz [data-vtype]')).length === 5, 'wizard offers 5 vehicle types'); await p.click('#truckWiz [data-vtype="car"]');
-ok(/Step 1 of 1/.test(await p.textContent('#truckWiz')), 'car: wizard needs only the vehicle step'); await p.screenshot({ path: SH + '/veh-wizard-car.png' }); await p.click('#truckWiz .wz-next');
+ok(/Step 1 of 2/.test(await p.textContent('#truckWiz')), 'car: wizard needs only the vehicle step + voice'); await p.screenshot({ path: SH + '/veh-wizard-car.png' }); await p.click('#truckWiz .wz-next'); await p.waitForSelector('#truckWiz [data-vo]'); await p.click('#truckWiz .wz-next');
 ok(await p.evaluate(() => TruckNav.vehOf() === 'car' && TruckNav.costingFor() === 'auto'), 'car saved → auto costing');
 ok(await p.evaluate(() => document.body.classList.contains('no-truckui') && getComputedStyle(document.querySelector('#dock [data-panel=hosPanel]')).display === 'none'), 'car: HOS hidden from the dock');
 const route = async () => { reqs.length = 0; await p.evaluate(() => { TruckNav.pos = { lat: 40.7769, lon: -73.8740, speed: 0, acc: 10 }; TruckNav.dest = { lat: 40.7140, lon: -73.8310, name: 'Kew Gardens' }; return TruckNav.plan(); });

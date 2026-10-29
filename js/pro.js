@@ -7,7 +7,7 @@ import { routeGradient } from './trafficlogic.js';
 import { freshness, ageHTML, receipt, receiptCSV } from './fresh.js';
 import { privacyHTML, wirePrivacy, NOT_ELD } from './privacy.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
-import * as NYCT from './nyctruck.js'; import * as WIZ from './wizard.js'; import * as FX from './freight.js'; import * as JOBS from './jobs.js'; import * as GROWTH from './growth.js'; import * as FLEETD from './fleetdriver.js'; NYCT.start(); WIZ.start(); FX.start(); JOBS.start(); GROWTH.start(); FLEETD.start();
+import * as NYCT from './nyctruck.js'; import * as WIZ from './wizard.js'; import * as D2 from './design2.js'; import * as FX from './freight.js'; import * as JOBS from './jobs.js'; import * as GROWTH from './growth.js'; import * as FLEETD from './fleetdriver.js'; NYCT.start(); WIZ.start(); FX.start(); JOBS.start(); GROWTH.start(); FLEETD.start();
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
 const svg = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="${cls}">${n}</svg>`;
 
@@ -327,3 +327,5 @@ setInterval(hosEta, 1000);
 // Layout state follows nav end immediately (no 1 s lag hiding the dock after Exit)
 { const wrap = () => { const pe = S.endNav; if (!pe || pe.__pro) return !!pe; const f = (...a) => { const r = pe(...a); try { state(); } catch {} return r; }; f.__pro = true; S.endNav = f; return true; };
   if (!wrap()) { const t = setInterval(() => wrap() && clearInterval(t), 300); } }
+
+try { D2.start(); } catch (e) { console.warn('design2', e); }
