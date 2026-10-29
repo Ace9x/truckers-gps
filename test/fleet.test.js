@@ -10,3 +10,5 @@ test('stats: revenue, on-time %', () => { const now = Date.parse('2026-10-29T00:
 test('schedule picks today (NY) stops sorted', () => { const l = { id: 'x', status: 'accepted', stops: [{ kind: 'pickup', appt: '2026-10-28T18:00:00Z' }, { kind: 'drop', appt: '2026-10-29T15:00:00Z' }] }; const s = schedule([l], new Date('2026-10-28T20:00:00Z')); assert.equal(s.length, 1); assert.equal(s[0].idx, 0); });
 test('PIN hash matches the server formula (sha256 hex of rr-pin:id:pin)', async () => { const h = await pinHashHex('id-1', ' 0420 '); assert.equal(h, createHash('sha256').update('rr-pin:id-1:0420').digest('hex')); });
 test('vehicle costing', () => { assert.equal(VCOST('car'), 'auto'); assert.equal(VCOST('van'), 'truck'); });
+
+test('schedule includes the next 12 h after late-night (NY) — dispatchers working past midnight', () => { const l = { id: 'y', status: 'accepted', stops: [{ kind: 'pickup', appt: '2026-10-29T05:00:00Z' }, { kind: 'drop', appt: '2026-10-29T20:00:00Z' }] }; assert.equal(schedule([l], new Date('2026-10-29T03:30:00Z')).length, 1); });

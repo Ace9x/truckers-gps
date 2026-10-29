@@ -16,6 +16,7 @@
 #rcReview{max-width:900px;width:95vw;background:#1c1f26;color:#eee;border:1px solid #445;border-radius:12px}#rcReview::backdrop{background:#0008}.rc-stop{border:1px solid #445;border-radius:8px;margin:6px 0}
 .rc-high input,.rc-high select,.rc-high textarea{border:2px solid #2a8a4a}.rc-med input,.rc-med select,.rc-med textarea{border:2px solid #c90}.rc-low input,.rc-low select,.rc-low textarea{border:2px solid #c33}.rc-none input,.rc-none textarea{border:2px dashed #666}
 span.rc-high{color:#5c5}span.rc-med{color:#fb3}span.rc-low{color:#f66}span.rc-none{color:#999}.rc-warn{color:#fb3}
+.fx-flash{outline:3px solid #f80;transition:outline .3s}
 </style></head><body>
 <h1>📋 RigRoute Dispatch <small style="color:#aaa">· loads, live status, proof of delivery</small></h1>
 <section id="sbSec"><h3>☁️ RigRoute server dispatch <small style="color:#888">(dispatcher account; driver signs in to RigRoute with their email)</small></h3>
@@ -34,7 +35,7 @@ span.rc-high{color:#5c5}span.rc-med{color:#fb3}span.rc-low{color:#f66}span.rc-no
 <button id="bSend">Send load to driver</button> <span id="bMsg"></span>
 <details><summary>★ Address book</summary><div id="bBook"></div></details>
 <h3>Live board <small class="muted" id="bCount"></small></h3><div class="row"><input id="bSearch" placeholder="Search ref / PO / address"><select id="bStatusF" aria-label="Filter by status"><option value="">All statuses</option><option value="offered">Offered</option><option value="active">Active</option><option value="delivered">Delivered</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option></select><button id="bNotify" class="ghost">🔔 Enable alerts</button></div><div id="bAlerts" class="b-alert" hidden role="status"></div><div id="bBoard"></div></div></div></section>
-<details class="legacy" open><summary>Quick pair (no account): code / QR over encrypted relays</summary>
+<details class="legacy" id="quickDispatch" open><summary>⚡ <b>Quick dispatch</b> — no account needed: pair a driver by code/QR and send loads over encrypted relays</summary><p class="small muted">Use this for a one-off driver who has no RigRoute account. Nothing is stored on our server: no fleet, invoices, documents, PIN sharing or analytics. For those, use the account console above.</p>
 <section><label>Dispatcher name <input id="dName" placeholder="Your company name"></label> <button id="newCode">Show pairing code</button> <div id="relays" class="small"></div>
 <div id="codeBox" hidden><p>Driver: open RigRoute → 📋 Loads → enter code, or scan:</p><div class="code" id="code"></div><img id="qr" width="150" height="150" style="background:#fff" alt="Pairing QR"><p id="codeExp" style="color:#888"></p></div></section>
 <section><h3>Drivers</h3><div id="drivers">None paired yet.</div></section>

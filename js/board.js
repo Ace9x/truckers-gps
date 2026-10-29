@@ -61,11 +61,22 @@ async function refreshEvents() { events = await cloud.loadEvents(loads.map(l => 
 export function alertText(l, e) { const ref = l.ref || 'load'; if (e.kind === 'message') return `💬 ${ref}: ${e.body.text}`; if (e.kind === 'note' && e.body.exception) return `⚠ ${ref}: ${e.body.exception} at stop ${e.body.stop + 1}`;
   if (e.kind === 'note' && e.body.detention_soon) return `⏱ ${ref}: detention in ${e.body.detention_soon} min`; if (e.kind === 'temp' && tempStatus(e.body.f, l.reefer) !== 'ok') return `❄️ ${ref}: reefer ${e.body.f}°F out of range`;
   if (e.kind === 'doc' && e.body.type === 'pod') return `📦 ${ref}: delivered stop ${e.body.stop + 1} (${e.body.receiver})`; return null; }
-function alertOn(l, e) { const t = alertText(l, e); if (!t) return; window.RRB.alerts.push(t); try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; g.gain.value = 0.08; o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 0.18); } catch {}
-  try { if (Notification.permission === 'granted' && document.hidden) new Notification('RigRoute Dispatch', { body: t, tag: e.load_id + e.kind }); } catch {} const el = $('#bAlerts'); if (el) { el.textContent = t; el.hidden = false; clearTimeout(alertOn.t); alertOn.t = setTimeout(() => el.hidden = true, 10000); } }
-export async function refresh() { try { loads = (await (window.RRF?.loadsQuery?.() || cloud.myLoads())).filter(l => l.dispatcher === me || window.RRF?.isStaff?.(l.fleet)); loadErr = ''; } catch (e) { loadErr = e.message || 'network error'; } loaded = true; await refreshEvents(); drawBoard(); if (loadErr) msg('⚠ Could not refresh loads: ' + loadErr + ' — showing last known'); }
+function alertOn(l, e) { const t = alertText(l, e); if (t) notify(t, e.load_id + e.kind + (e.id || ''), l.id); }
+const STATUS_T = { accepted: '✅ accepted', declined: '❌ declined', in_transit: '🚚 picked up — in transit', delivered: '📦 delivered', cancelled: '🚫 cancelled' };
+let prevStatus = null;
+// one path for every dispatcher alert: banner + beep + system notification (service worker when available, so it works on Android too); click opens the load card
+export async function notify(t, tag, loadId) { window.RRB.alerts.push(t); try { const a = new AudioContext(), o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; g.gain.value = 0.08; o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 0.18); } catch {}
+  const el = $('#bAlerts'); if (el) { el.textContent = t; el.hidden = false; clearTimeout(notify.t); notify.t = setTimeout(() => el.hidden = true, 10000); }
+  if (!(window.Notification && Notification.permission === 'granted') || (!document.hidden && document.hasFocus())) return false;
+  const opt = { body: t, tag, icon: 'icons/icon-192.png', data: { url: location.pathname + (loadId ? '#load=' + loadId : '') } };
+  try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) { await reg.showNotification('RigRoute Dispatch', opt); return true; } } catch {}
+  try { const n = new Notification('RigRoute Dispatch', opt); n.onclick = () => { window.focus(); if (loadId) location.hash = 'load=' + loadId; n.close(); }; return true; } catch { return false; } }
+function statusAlerts() { const now = Object.fromEntries(loads.map(l => [l.id, l.status])); if (prevStatus) for (const l of loads) { const was = prevStatus[l.id]; if (was && was !== l.status && STATUS_T[l.status]) notify(`${l.ref || 'Load'}: ${STATUS_T[l.status]}`, l.id + l.status, l.id); } prevStatus = now; }
+function focusHash() { const m = /load=([\w-]+)/.exec(location.hash); if (!m) return; const c = document.querySelector(`[data-bload="${CSS.escape(m[1])}"]`); if (c) { c.scrollIntoView({ block: 'center' }); c.classList.add('fx-flash'); setTimeout(() => c.classList.remove('fx-flash'), 2500); } }
+window.addEventListener('hashchange', focusHash);
+export async function refresh() { try { loads = (await (window.RRF?.loadsQuery?.() || cloud.myLoads())).filter(l => l.dispatcher === me || window.RRF?.isStaff?.(l.fleet)); loadErr = ''; } catch (e) { loadErr = e.message || 'network error'; } loaded = true; await refreshEvents(); if (!loadErr) statusAlerts(); drawBoard(); focusHash(); if (loadErr) msg('⚠ Could not refresh loads: ' + loadErr + ' — showing last known'); }
 let loaded = false, loadErr = '';
-export async function start() { me = await cloud.uid(); if (!me) return; window.RRB = { alerts: [], refresh, redraw: () => drawBoard(), get loads() { return loads; }, get events() { return events; }, get draft() { return draft; }, fromNY,
+export async function start() { me = await cloud.uid(); if (!me) return; window.RRB = { alerts: [], refresh, redraw: () => drawBoard(), get loads() { return loads; }, get events() { return events; }, get draft() { return draft; }, fromNY, notify,
     setDraft: arr => { draft = arr.map(({ _apptEnd, ...x }) => ({ ...blank(x.kind), ...x, appt: x._appt ? fromNY(x._appt) : null, ...(_apptEnd ? { appt_end: fromNY(_apptEnd) } : {}) })); if (draft.length < 2) draft.push(blank('drop')); drawDraft(); } };
   book = await cloud.addressBook().catch(() => []); drawBook(); draft = [blank('pickup'), blank('drop')]; drawDraft();
   $('#bAdd').onclick = () => { draft.splice(draft.length - 1, 0, blank('drop')); drawDraft(); };

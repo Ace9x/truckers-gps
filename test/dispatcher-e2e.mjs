@@ -10,7 +10,7 @@ for (const C of [X, Y]) { const { data } = await C.from('fleets').select('id,nam
 await X.from('loads').delete().like('ref', 'FL-%');
 const TS = Date.now().toString(36).toUpperCase(), FNAME = 'E2E Fleet ' + TS, REF = 'FL-' + TS;
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
-const dc = await browser.newContext({ viewport: { width: 1280, height: 1000 }, acceptDownloads: true }), d = await dc.newPage(); d.on('pageerror', e => { console.log('DISP PAGE ERROR', e.message); fails++; });
+const dc = await browser.newContext({ viewport: { width: 1280, height: 1000 }, acceptDownloads: true, permissions: ['notifications'] }), d = await dc.newPage(); d.on('pageerror', e => { console.log('DISP PAGE ERROR', e.message); fails++; });
 d.on('console', m => { if (/Refused to|Content Security Policy/.test(m.text())) { console.log('CSP', m.text().slice(0, 160)); fails++; } });
 await d.goto(BASE + 'dispatch.html'); await d.waitForFunction(() => document.querySelector('#sbIn').onclick); await d.fill('#sbEmail', users.dispatcher.email); await d.fill('#sbPass', users.dispatcher.password); await d.click('#sbIn');
 await d.waitForFunction(() => window.RRB && window.RRF, null, { timeout: 30000 });
@@ -75,6 +75,7 @@ ok(((await Y.from('profiles').select('id').limit(50)).data || []).length === 1, 
 const { data: pp } = await X.rpc('peer_profiles', { p_ids: [users.driver.id] }); ok(pp?.length === 1 && pp[0].unit === '7' && !('truck' in pp[0]) && !('points' in pp[0]), 'fleet-mate visible via peer_profiles with minimal fields (name, unit, vehicle)');
 ok(((await X.rpc('peer_profiles', { p_ids: ['00000000-0000-0000-0000-000000000001'] })).data || []).length === 0 && (await A.rpc('peer_profiles', { p_ids: [users.driver.id] })).data?.length !== 1, 'strangers and anonymous get nothing from peer_profiles');
 await d.screenshot({ path: SH + '/dispatcher-docs.png', fullPage: true });
+await d.evaluate(() => { window.__shown = []; document.hasFocus = () => false; const rec = (t, o) => window.__shown.push(o?.body || t); if (window.ServiceWorkerRegistration) ServiceWorkerRegistration.prototype.showNotification = async function (t, o) { rec(t, o); }; window.Notification = class { static permission = 'granted'; constructor(t, o) { rec(t, o); } }; });
 // 6. driver: accept, arrive, PIN gate on leaving the pickup (app UI)
 await p.evaluate(() => document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden'))); await p.click('#loadsBtn'); const C = `[data-cload="${L.id}"]`; await p.waitForSelector(C + ' [data-cs="accepted"]', { timeout: 30000 }); await p.click(C + ' [data-cs="accepted"]');
 await p.waitForSelector(C + ' [data-fx] [data-farr="0"]', { timeout: 20000 }); await p.click(C + ' [data-fx] [data-farr="0"]'); await p.waitForSelector(C + ' [data-fx] [data-fdep="0"]', { timeout: 20000 });
@@ -82,6 +83,7 @@ await p.evaluate(w => { window.prompt = () => w; }, PIN === '0000' ? '1111' : '0
 let { data: L2 } = await X.from('loads').select('stops').eq('id', L.id).single(); ok(!L2.stops[0].departed_at, 'wrong pickup PIN: server refuses to mark loaded');
 await p.evaluate(w => { window.prompt = () => w; }, PIN); await p.click(C + ' [data-fx] [data-fdep="0"]'); await p.waitForTimeout(3000);
 ({ data: L2 } = await X.from('loads').select('stops,status').eq('id', L.id).single()); ok(!!L2.stops[0].departed_at && L2.status === 'in_transit', 'right PIN: left the pickup, load in transit');
+await d.evaluate(() => window.RRB.refresh()); ok(await d.waitForFunction(r => window.__shown.some(t => t.includes(r) && /in transit/.test(t)), REF, { timeout: 20000 }).then(() => true, () => false), 'system notification when the load is picked up (status change)');
 // 7. ETA from Valhalla for the driver's vehicle
 await p.evaluate(() => TruckNav.fleetDriver.tick(true)); await d.evaluate(() => RRF.refresh?.()); await d.evaluate(() => window.RRB.refresh());
 ok(await d.waitForFunction(id => /ETA stop \d+: .+Valhalla (truck|auto)/.test(document.querySelector(`[data-bload="${id}"] [data-ceta]`)?.textContent || ''), L.id, { timeout: 40000 }).then(() => true, () => false), 'load card shows a real Valhalla ETA: ' + (await d.textContent(card + ' [data-ceta]').catch(() => '')));

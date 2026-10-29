@@ -16,7 +16,7 @@ export function stats(loads, now = Date.now(), days = 30) { const since = now - 
   const rev = del.reduce((s, l) => s + (+l.rate_usd || 0), 0); return { loads: L.length, delivered: del.length, active: L.filter(l => ['accepted', 'in_transit'].includes(l.status)).length, revenue: +rev.toFixed(2), detention: +det.toFixed(2), onTimePct: otN ? Math.round(ot / otN * 100) : null, onTimeN: otN, perLoad: del.length ? +(rev / del.length).toFixed(2) : 0 }; }
 // today's schedule in New York time: every stop with an appointment today, sorted
 export function schedule(loads, day = new Date(), tz = 'America/New_York') { const key = d => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d), k = key(day), out = [];
-  for (const l of loads) { if (['declined', 'cancelled'].includes(l.status)) continue; stopsOf(l).forEach((s, i) => { if (s.appt && key(new Date(s.appt)) === k) out.push({ load: l, idx: i, stop: s, t: T(s.appt), done: !!s.departed_at, here: !!s.arrived_at && !s.departed_at }); }); }
+  for (const l of loads) { if (['declined', 'cancelled'].includes(l.status)) continue; stopsOf(l).forEach((s, i) => { if (s.appt && (key(new Date(s.appt)) === k || (T(s.appt) >= day.getTime() && T(s.appt) - day.getTime() <= 12 * 3600e3))) out.push({ load: l, idx: i, stop: s, t: T(s.appt), done: !!s.departed_at, here: !!s.arrived_at && !s.departed_at }); }); }
   return out.sort((a, b) => a.t - b.t); }
 export const nextStop = l => { const st = stopsOf(l); const i = st.findIndex(s => !s.departed_at); return i < 0 ? null : { i, s: st[i] }; };
 export const VCOST = v => v === 'car' ? 'auto' : 'truck';
