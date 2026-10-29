@@ -212,3 +212,13 @@ test('hazmat tunnel bans: Holland/Lincoln/QM/Carey flagged only when hauling haz
   const edges = [{ way_id: 1, along: 900, names: ['Holland Tunnel'], tunnel: true }];
   assert.ok(_da2(edges, {}, { heightM: 4.1, weightT: 36, lengthM: 21, hazmat: true }).some(d => d.kind === 'hazmat' && d.sev === 'stop' && /Holland Tunnel/.test(d.text)));
   assert.ok(!_da2(edges, {}, { heightM: 4.1, weightT: 36, lengthM: 21, hazmat: false }).some(d => d.kind === 'hazmat')); });
+import { limitInfo, defaultLimitMph, STATE_DEFAULTS } from '../js/trip.js';
+test('speed limit: exact edge, NYC 25 default, never truck-max 65 on a street', () => {
+  const ad = [{ state_code: 'NY' }], e = [{ along: 0, length: 500, speed_limit: 80, road_class: 'motorway', end_node: { admin_index: 0 } }, { along: 500, length: 300, road_class: 'residential', end_node: { admin_index: 0 } }];
+  const bc = [-73.7556, 40.5960]; // Beach Channel Dr, Far Rockaway (25 mph)
+  let i = limitInfo(e, 600, ad, bc, 65); assert.equal(i.mph, 25); assert.ok(i.est); // untagged street beside a highway: 25, not 65 / not carried-over 50
+  i = limitInfo(e, 200, ad, bc, 65); assert.equal(i.mph, 50); assert.ok(!i.est);
+  assert.equal(defaultLimitMph('primary', 'NY', [-73.79, 40.73]), 25); // Queens arterial untagged
+  assert.equal(defaultLimitMph('primary', 'NY', [-73.76, 42.65]), 55); // upstate
+  assert.equal(defaultLimitMph('motorway', 'TX', null), 70); assert.equal(limitInfo([], 0, [], null, 65).mph, 25);
+  assert.equal(Object.keys(STATE_DEFAULTS).length, 52); });

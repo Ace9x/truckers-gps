@@ -460,3 +460,4 @@ html[dir=rtl] input,html[dir=rtl] select,html[dir=rtl] textarea{text-align:right
 .panel p,.panel label{font-size:max(1em,15px)}
 #routePanel .phead h2::before{content:'🧭 '} #hosPanel .phead h2::before{content:'⏱ '} #loadPanel .phead h2::before{content:'📦 '} #truckPanel .phead h2::before{content:'🚛 '}
 #reportPanel .phead h2::before{content:'📣 '} #facPanel .phead h2::before{content:'🏭 '} #mePanel .phead h2::before{content:'😎 '} #layersPanel .phead h2::before{content:'🗺 '}
+html body #limitSign.est{opacity:.72;border-style:dashed}html body #limitSign.est #limitSrc{font-style:italic}

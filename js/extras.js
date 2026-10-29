@@ -2,7 +2,7 @@
 // toll roads on route, fuel-stop planner, multi-stop trips, NWS severe weather, runaway ramps, SOS, driving lockout, fatigue reminders, accessibility.
 import { snapToRoute, sampleLine, haversine, pointAlong } from './logic.js';
 import { eiaFor, latestPrices, bestFuel, ageText } from './trip.js';
-import { milesByState, tollMiles, tollSegments, limitAt, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, periodAt, wxRisk, fatigueDue, remainingStops } from './trip.js';
+import { milesByState, tollMiles, tollSegments, limitAt, limitInfo, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, periodAt, wxRisk, fatigueDue, remainingStops } from './trip.js';
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route';
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
 
@@ -105,11 +105,11 @@ export function init(S, h) {
   let lastSpeedWarn = 0, moveSince = null, stopSince = null, fatigueTier = 0;
   S.onFixHook = (f, mph) => {
     // speed limit
-    let lim = null, posted = null;
-    if (S.nav && S.route && S.edges?.length) { posted = limitAt(S.edges, S.along); }
-    lim = S.nav ? effectiveLimitMph(posted, S.opts.maxMph) : null; S.limitMph = lim; S.postedKph = posted;
-    const sign = $('#limitSign'); if (lim) { sign.classList.remove('hidden'); $('#limitVal').textContent = U() === 'km' ? Math.round(lim * 1.609) : lim; $('#limitSrc').textContent = posted && (Math.round(posted / 1.609344 / 5) * 5) > lim ? 'truck max' : posted ? 'posted' : 'truck max'; } else sign.classList.add('hidden');
-    const over = isSpeeding(mph, lim); $('#speedBox').classList.toggle('over', over);
+    let lim = null, posted = null, info = null;
+    if (S.nav && S.route) { posted = limitAt(S.edges || [], S.along); info = limitInfo(S.edges || [], S.along, S.admins, [f.lon, f.lat], S.opts.maxMph); lim = info.mph; }
+    S.limitMph = lim; S.postedKph = posted; S.limitInfo = info;
+    const sign = $('#limitSign'); if (lim) { sign.classList.remove('hidden'); sign.classList.toggle('est', !!info.est); $('#limitVal').textContent = U() === 'km' ? Math.round(lim * 1.609) : lim; $('#limitSrc').textContent = info.src; } else sign.classList.add('hidden');
+    const over = !info?.est && isSpeeding(mph, lim); $('#speedBox').classList.toggle('over', over);
     if (over && Date.now() - lastSpeedWarn > 60000) { lastSpeedWarn = Date.now(); say(`Slow down. Limit ${lim}.`, 'danger'); }
     // lanes: show within 1 km before a lane intersection
     const L = $('#lanes'); const nx = S.nav && (S.lanes || []).find(x => x.along > S.along && x.along - S.along < 1000);

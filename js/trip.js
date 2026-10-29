@@ -15,9 +15,25 @@ export function tollSegments(edges) { const runs = []; let cur = null;
   for (const e of edges) { if (e.toll) { if (!cur) { cur = { along: e.along, miles: 0, names: new Set() }; runs.push(cur); } cur.miles += (e.length || 0) / MI; (e.names || []).forEach(n => cur.names.add(n)); } else cur = null; }
   return runs.map(r => ({ along: r.along, miles: Math.round(r.miles * 10) / 10, names: [...r.names].slice(0, 2) })); }
 
-// Posted speed limit (kph from OSM via Valhalla) at a distance along the route
-export function limitAt(edges, along) { let lim = null; for (const e of edges) { if (e.along > along) break; if (e.along + (e.length || 0) >= along - 1) lim = e.speed_limit || null; else lim = e.speed_limit ? lim : lim; if (e.along <= along && e.along + (e.length || 0) >= along) return e.speed_limit || null; } return lim; }
+// Posted speed limit (kph from OSM via Valhalla) on the exact edge at a distance along the route. No carry-over from other edges.
+export function edgeAt(edges, along) { let best = null; for (const e of edges) { if (e.along > along + 1) break; if (e.along + (e.length || 0) >= along - 1) best = e; } return best; }
+export function limitAt(edges, along) { return edgeAt(edges, along)?.speed_limit || null; }
 export const kphToMph = k => Math.round(k / 1.609344 / 5) * 5 || Math.round(k / 1.609344);
+// Statutory default limits (mph) when a road has no posted tag: [residential/urban street, other non-limited road, rural interstate/motorway].
+// Summarized from state vehicle codes; always shown as an estimate ("est.").
+export const STATE_DEFAULTS = { AL:[25,55,70],AK:[25,55,65],AZ:[25,55,75],AR:[30,55,75],CA:[25,55,70],CO:[30,55,75],CT:[25,55,65],DE:[25,50,65],DC:[25,25,55],FL:[30,55,70],GA:[30,55,70],HI:[25,45,60],ID:[35,55,75],IL:[30,55,70],IN:[30,55,70],IA:[25,55,70],KS:[30,55,75],KY:[35,55,70],LA:[25,55,70],ME:[25,45,75],MD:[30,50,70],MA:[30,40,65],MI:[25,55,70],MN:[30,55,70],MS:[25,55,70],MO:[25,55,70],MT:[25,70,80],NE:[25,55,75],NV:[25,55,80],NH:[30,55,65],NJ:[25,50,65],NM:[30,55,75],NY:[30,55,65],NC:[35,55,70],ND:[25,55,75],OH:[25,55,70],OK:[25,65,75],OR:[25,55,65],PA:[35,55,70],RI:[25,50,65],SC:[30,55,70],SD:[25,65,80],TN:[30,55,70],TX:[30,60,70],UT:[25,55,80],VT:[25,50,65],VA:[25,55,70],WA:[25,50,70],WV:[25,55,70],WI:[25,55,70],WY:[30,65,80],PR:[25,45,65] };
+export const inNYC = (lon, lat) => lat > 40.495 && lat < 40.917 && lon > -74.259 && lon < -73.70 && !(lon < -74.05 && lat > 40.65); // 5 boroughs (excludes Hudson/NJ side)
+// Default when untagged. NYC: 25 on every street unless posted (VTL §1642), 50 on untagged expressways.
+export function defaultLimitMph(roadClass, state, pt) { const rc = String(roadClass || ''), nyc = pt && inNYC(pt[0], pt[1]);
+  if (nyc) return /motorway/.test(rc) ? 50 : 25;
+  const d = STATE_DEFAULTS[state] || [25, 55, 65];
+  if (/motorway/.test(rc)) return d[2]; if (/trunk|primary|secondary/.test(rc)) return d[1]; if (/tertiary/.test(rc)) return Math.min(d[1], 45); return d[0]; }
+// Always returns a limit: {mph, est, src}. Tagged posted value wins; else statutory default for road class + place. Truck max caps both.
+export function limitInfo(edges, along, admins, pt, truckMaxMph) { const e = edgeAt(edges || [], along);
+  const state = e && admins?.[e.end_node?.admin_index]?.state_code;
+  let mph, est = false, src = 'posted'; if (e?.speed_limit) mph = kphToMph(e.speed_limit); else { mph = defaultLimitMph(e?.road_class, state, pt); est = true; src = 'est.'; }
+  if (truckMaxMph && truckMaxMph < mph) { mph = truckMaxMph; src = 'truck max'; est = false; }
+  return { mph, est, src, state: state || null, roadClass: e?.road_class || null }; }
 // Effective limit for this truck = min(posted, truck max). Speeding when > limit + tolerance for a while.
 export function effectiveLimitMph(postedKph, truckMaxMph) { const p = postedKph ? kphToMph(postedKph) : null; if (p && truckMaxMph) return Math.min(p, truckMaxMph); return p || truckMaxMph || null; }
 export function isSpeeding(mph, limitMph, tol = 5) { return !!limitMph && mph > limitMph + tol; }
