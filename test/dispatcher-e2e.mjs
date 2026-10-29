@@ -54,6 +54,27 @@ ok(!JSON.stringify(L).includes('"' + PIN + '"'), 'plain PIN never stored on the 
 const card = `[data-bload="${L.id}"]`; await d.waitForSelector(card + ' [data-cpin]', { timeout: 15000 }); ok((await d.textContent(card + ' [data-cpin]')).includes(PIN), 'PIN on the load card');
 // rate con PDF
 const [dl] = await Promise.all([d.waitForEvent('download', { timeout: 30000 }), d.click(card + ' [data-ratecon]')]); const pdf = fs.readFileSync(await dl.path()); ok(pdf.slice(0, 4).toString() === '%PDF' && pdf.length > 1500, `rate confirmation PDF downloaded (${dl.suggestedFilename()}, ${pdf.length} bytes)`);
+// fleet-shared PIN (server table load_pins; staff only)
+await d.evaluate(() => localStorage.removeItem('rr_cloud_pins')); await d.evaluate(() => window.RRB.refresh()); await d.waitForTimeout(1500);
+ok(((await d.textContent(card + ' [data-cpin]').catch(() => '')) || '').includes(PIN), 'PIN still on the card with no local copy (served from load_pins to fleet staff)');
+ok(((await X.from('load_pins').select('pin').eq('load_id', L.id)).data || [])[0]?.pin === PIN, 'dispatcher reads the PIN from load_pins');
+ok(((await Y.from('load_pins').select('pin').eq('load_id', L.id)).data || []).length === 0, 'driver cannot read the PIN (RLS)');
+ok(((await A.from('load_pins').select('pin')).data || []).length === 0, 'anonymous cannot read PINs');
+// per-load documents (Storage bucket load-docs)
+await d.waitForTimeout(1500); const rc = await X.storage.from('load-docs').list(L.id); ok((rc.data || []).some(f => /^ratecon-\d+\.pdf$/.test(f.name)), 'rate con PDF filed to the load documents');
+await d.click(card + ' [data-docs]'); await d.waitForSelector(`[data-docbox="${L.id}"] [data-docfile]`, { timeout: 15000 }); await d.selectOption(`[data-docbox="${L.id}"] [data-dockind]`, 'bol');
+fs.writeFileSync('/tmp/bol-test.pdf', pdf); await d.setInputFiles(`[data-docbox="${L.id}"] [data-docfile]`, '/tmp/bol-test.pdf');
+ok(await d.waitForFunction(id => /BOL ·/.test(document.querySelector(`[data-docbox="${id}"]`)?.textContent || ''), L.id, { timeout: 20000 }).then(() => true, () => false), 'BOL uploaded from the load card and listed');
+const yl = await Y.storage.from('load-docs').list(L.id); ok((yl.data || []).length >= 2, 'assigned driver can see the load documents');
+const yd = await Y.storage.from('load-docs').remove([L.id + '/' + yl.data[0].name]); ok(!yd.data?.length, 'driver cannot delete documents');
+ok(((await A.storage.from('load-docs').list(L.id)).data || []).length === 0, 'anonymous cannot list load documents');
+ok((await Y.storage.from('load-docs').upload(crypto.randomUUID() + '/bol-1.pdf', new Blob([pdf], { type: 'application/pdf' }))).error != null, 'cannot upload to a load you are not party to');
+// profile privacy
+ok(((await Y.from('profiles').select('*').eq('id', users.dispatcher.id)).data || []).length === 0, 'profiles: another user\'s full row is not readable');
+ok(((await Y.from('profiles').select('id').limit(50)).data || []).length === 1, 'profiles: a user sees only their own row');
+const { data: pp } = await X.rpc('peer_profiles', { p_ids: [users.driver.id] }); ok(pp?.length === 1 && pp[0].unit === '7' && !('truck' in pp[0]) && !('points' in pp[0]), 'fleet-mate visible via peer_profiles with minimal fields (name, unit, vehicle)');
+ok(((await X.rpc('peer_profiles', { p_ids: ['00000000-0000-0000-0000-000000000001'] })).data || []).length === 0 && (await A.rpc('peer_profiles', { p_ids: [users.driver.id] })).data?.length !== 1, 'strangers and anonymous get nothing from peer_profiles');
+await d.screenshot({ path: SH + '/dispatcher-docs.png', fullPage: true });
 // 6. driver: accept, arrive, PIN gate on leaving the pickup (app UI)
 await p.evaluate(() => document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden'))); await p.click('#loadsBtn'); const C = `[data-cload="${L.id}"]`; await p.waitForSelector(C + ' [data-cs="accepted"]', { timeout: 30000 }); await p.click(C + ' [data-cs="accepted"]');
 await p.waitForSelector(C + ' [data-fx] [data-farr="0"]', { timeout: 20000 }); await p.click(C + ' [data-fx] [data-farr="0"]'); await p.waitForSelector(C + ' [data-fx] [data-fdep="0"]', { timeout: 20000 });

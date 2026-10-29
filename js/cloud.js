@@ -15,7 +15,7 @@ export const toRow = r => ({ id: r.id, type: r.type, lat: r.lat, lng: r.lon, not
 export async function friendsList() { const c = await sb(), me = await uid(); if (!me) return { friends: [], incoming: [], outgoing: [] };
   const rows = must(await c.from('friendships').select('*').order('created_at', { ascending: false }));
   const ids = [...new Set(rows.map(r => r.requester === me ? r.addressee : r.requester))];
-  const profs = ids.length ? must(await c.from('profiles').select('id,display_name,username,truck').in('id', ids)) : []; const P = Object.fromEntries(profs.map(p => [p.id, p]));
+  const profs = ids.length ? must(await c.rpc('peer_profiles', { p_ids: ids })) : []; const P = Object.fromEntries(profs.map(p => [p.id, { ...p, truck: { vehicle: p.vehicle } }]));
   const wrap = r => { const other = r.requester === me ? r.addressee : r.requester; return { ...r, other, name: P[other]?.display_name || 'Driver', username: P[other]?.username || '', truck: P[other]?.truck || {} }; };
   const all = rows.map(wrap);
   return { friends: all.filter(r => r.status === 'accepted'), incoming: all.filter(r => r.status === 'pending' && r.addressee === me), outgoing: all.filter(r => r.status === 'pending' && r.requester === me), blocked: all.filter(r => r.status === 'blocked') }; }
@@ -67,3 +67,6 @@ export async function addressBook() { const c = await sb(); return must(await c.
 export async function saveAddress(a) { const c = await sb(); return must(await c.from('address_book').upsert(a).select().single()); }
 export async function deleteAddress(id) { const c = await sb(); must(await c.from('address_book').delete().eq('id', id)); }
 export async function stopUndo(id) { const c = await sb(); return must(await c.rpc('driver_stop_undo', { p_id: id })); }
+
+// per-load document storage (bucket load-docs; RLS: any load party may read/add, staff delete)
+export async function uploadLoadDoc(id, kind, blob, ext) { const c = await sb(); const path = `${id}/${kind}-${Date.now()}.${ext}`; const r = await c.storage.from('load-docs').upload(path, blob, { contentType: blob.type }); if (r.error) throw new Error(r.error.message); return path; }
