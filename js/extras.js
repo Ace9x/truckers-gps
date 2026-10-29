@@ -47,7 +47,7 @@ export function init(S, h) {
   function renderStops() { $('#stopList').innerHTML = S.stops.length ? S.stops.map((s, i) => `<li>${esc(s.name)} <button class="small-btn" data-rs="${i}">✕</button></li>`).join('') : '<li class="muted">No extra stops — add pickups, fuel or breaks on the way.</li>';
     $$('[data-rs]').forEach(b => b.onclick = () => { S.stops.splice(+b.dataset.rs, 1); LS.set('stops', S.stops); renderStops(); if (S.dest && S.pos) plan(); }); }
   async function stopSearch() { const q = $('#stopQ').value.trim(); if (q.length < 3) return; const near = S.pos || { lat: 40.81, lon: -73.88 };
-    try { const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=en&lat=${near.lat}&lon=${near.lon}`)).json();
+    try { const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${near.lat}&lon=${near.lon}`)).json();
       $('#stopRes').innerHTML = ''; for (const f of j.features) { const p = f.properties, li = document.createElement('li'); const name = p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.city;
         li.textContent = `${name} — ${[p.city, p.state].filter(Boolean).join(', ')}`; li.onclick = () => addStop({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], name }); $('#stopRes').appendChild(li); } }
     catch { $('#stopRes').innerHTML = '<li class="muted">Search unavailable</li>'; } }
@@ -83,7 +83,7 @@ export function init(S, h) {
       const fc = await (await fetch(pt.properties.forecastHourly, { headers: { Accept: 'application/geo+json' }, signal: AbortSignal.timeout(12000) })).json(); return { ...a, p: periodAt(fc.properties?.periods, a.t) }; } catch { return { ...a, p: null, err: true }; } }));
     if (S.route !== r) return; let fx = $('#wxFc'); if (!fx) { fx = document.createElement('div'); fx.id = 'wxFc'; $('#wxBox').after(fx); }
     const ok = rows.filter(x => x.p); if (!ok.length) { fx.innerHTML = '<span class="muted small">NWS forecast unavailable here (US only, or the service did not answer).</span>'; return; }
-    fx.innerHTML = '<b>🌡 Forecast when you get there (NWS):</b><ul>' + rows.map(x => x.p ? `<li class="${wxRisk(x.p) ? 'bad' : ''}"><b>${x.n}</b> ~${new Date(x.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: ${esc(x.p.temperature)}°${esc(x.p.temperatureUnit)}, ${esc(x.p.shortForecast)}, wind ${esc(x.p.windSpeed)} ${esc(x.p.windDirection)}${wxRisk(x.p) ? ' — ⚠ ' + esc(wxRisk(x.p)) : ''}</li>` : `<li class="muted">${x.n}: no forecast</li>`).join('') + '</ul>';
+    fx.innerHTML = '<b>🌡 Forecast when you get there (NWS):</b><ul>' + rows.map(x => x.p ? `<li class="${wxRisk(x.p) ? 'bad' : ''}"><b>${x.n}</b> ~${new Date(x.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}: ${esc(x.p.temperature)}°${esc(x.p.temperatureUnit)}, <span translate="no">${esc(x.p.shortForecast)}</span>, ${esc(globalThis.RRI18N?.t?.('wind') ?? 'wind')} <span translate="no">${esc(x.p.windSpeed)} ${esc(x.p.windDirection)}</span>${wxRisk(x.p) ? ' — ⚠ ' + esc(wxRisk(x.p)) : ''}</li>` : `<li class="muted">${x.n}: no forecast</li>`).join('') + '</ul>';
     S.forecast = rows; const bad = ok.find(x => wxRisk(x.p)); if (bad) say(`Weather at ${bad.n.toLowerCase()}: ${wxRisk(bad.p)}.`, 'info'); }
 
   async function loadLanes(r) { S.lanes = []; S.lanesDone = false; try {
@@ -130,7 +130,7 @@ export function init(S, h) {
   $('#iAmPassenger').onclick = () => { S.passenger = true; $('#lockout').classList.add('hidden'); setTimeout(() => S.passenger = false, 10 * 60e3); $('#searchBtn').click(); };
   $('#voiceDest').onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { toast('Voice input not supported in this browser — pull over to type'); return; }
     const rec = new SR(); rec.lang = 'en-US'; rec.onresult = async e => { const q = e.results[0][0].transcript; $('#lockout').classList.add('hidden'); toast('Searching: ' + q);
-      try { const near = S.pos; const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=en&lat=${near.lat}&lon=${near.lon}`)).json(); const f = j.features[0];
+      try { const near = S.pos; const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${near.lat}&lon=${near.lon}`)).json(); const f = j.features[0];
         if (!f) { say('No result for ' + q, 'info'); return; } const name = f.properties.name || q; say('Adding stop ' + name, 'info'); addStop({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], name }); } catch { say('Search failed', 'info'); } };
     rec.onerror = () => toast('Did not catch that'); rec.start(); say('Where to?', 'info'); };
 

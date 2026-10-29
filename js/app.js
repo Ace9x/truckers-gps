@@ -1,3 +1,4 @@
+import { t, valhallaLang, locale as uiLocale } from './i18n.js';
 import { locGate } from './privacy.js';
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting, VEHICLES as VTYPES, vehOf, costingFor, costingOptions, truckUIOn,
   hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, truckDetour, DETOUR_RELAX, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
@@ -172,9 +173,9 @@ $('#q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTime
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(qTimer); search(); } });
 async function geocode(q) {
   const near = S.pos || { lat: 40.81, lon: -73.88 };
-  try { const r = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=7&lang=en&lat=${near.lat}&lon=${near.lon}`); if (!r.ok) throw 0; const j = await r.json();
+  try { const r = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=7&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${near.lat}&lon=${near.lon}`); if (!r.ok) throw 0; const j = await r.json();
     return j.features.map(f => { const p = f.properties; return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], name: p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.city, sub: [p.street, p.city, p.state, p.postcode].filter(Boolean).join(', ') }; });
-  } catch { const r = await fetch(`${NOMINATIM}?format=jsonv2&limit=6&q=${encodeURIComponent(q)}`); const j = await r.json(); return j.map(x => ({ lon: +x.lon, lat: +x.lat, name: x.name || x.display_name.split(',')[0], sub: x.display_name })); }
+  } catch { const r = await fetch(`${NOMINATIM}?format=jsonv2&limit=6&accept-language=${globalThis.RRI18N?.geoLang?.() || 'en'}&q=${encodeURIComponent(q)}`); const j = await r.json(); return j.map(x => ({ lon: +x.lon, lat: +x.lat, name: x.name || x.display_name.split(',')[0], sub: x.display_name })); }
 }
 async function search() {
   const q = $('#q').value.trim(), ul = $('#results'); if (q.length < 3) { ul.innerHTML = ''; return; }
@@ -204,7 +205,7 @@ function mergeLegs(trip, costing) {
 }
 async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [], exclude = [], relax = null } = {}) {
   const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
-  const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: 'en-US', directions_options: { units: 'kilometers' } };
+  const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: valhallaLang(), directions_options: { units: 'kilometers', language: valhallaLang() } };
   if (costing === 'truck') { body.costing_options = costingOptions(S.truck); if (relax) body.costing_options.truck = { ...body.costing_options.truck, ...relax }; }
   { const ex = [...(avoid ? excludePolys(from, to) : []), ...exclude]; if (ex.length) body.exclude_polygons = ex; } // exclude: e.g. a live traffic jam
   if (alternates && !stops.length) body.alternates = alternates;
@@ -257,7 +258,7 @@ function renderRoute() {
   const r = S.route, c = S.carRoute;
   $('#routeSummary').innerHTML = `Truck routes for ${S.truck.heightFt}'${S.truck.heightIn}" · ${Math.round(S.truck.weightLbs / 1000)}k lbs · ${S.truck.lengthFt}'${S.truck.hazmat ? ' · HAZMAT' : ''}${S.avoids.length ? ` · avoiding ${S.avoids.length} reported road(s)` : ''}`;
   const labels = labelAlternatives(S.routes, c);
-  $('#alts').innerHTML = S.routes.map((x, i) => `<div class="alt ${i === S.sel ? 'sel' : ''}" data-i="${i}"><b>${i === S.sel ? '✔ ' : ''}Route ${i + 1}: ${fmtDur(x.time)} · ${fmtDist(x.length, U())}</b><div>via ${esc(viaNames(x))}</div><div class="why">${x.restricted ? '<b class="warn">⚠ Crosses mapped truck restrictions — verify signs/permit</b> · ' : ''}${labels[i].map(esc).join(' · ')}</div></div>`).join('')
+  $('#alts').innerHTML = S.routes.map((x, i) => `<div class="alt ${i === S.sel ? 'sel' : ''}" data-i="${i}"><b>${i === S.sel ? '✔ ' : ''}Route ${i + 1}: ${fmtDur(x.time)} · ${fmtDist(x.length, U())}</b><div>${esc(t('via'))} <span translate="no">${esc(viaNames(x))}</span></div><div class="why">${x.restricted ? '<b class="warn">⚠ Crosses mapped truck restrictions — verify signs/permit</b> · ' : ''}${labels[i].map(x => esc(t(x))).join(' · ')}</div></div>`).join('')
     + (S.routes.length < 3 ? `<div class="muted small">${S.routes.length === 1 ? 'Only one truck‑legal route found for this trip.' : 'Only ' + S.routes.length + ' truck‑legal options found.'}</div>` : '');
   $$('.alt').forEach(el => el.onclick = () => selectRoute(+el.dataset.i));
   const dn = S.detour; $('#detourWarn')?.remove(); if (dn) { const w = document.createElement('div'); w.id = 'detourWarn'; w.className = 'detour-warn'; w.setAttribute('role', 'alert');
@@ -376,7 +377,7 @@ function navTick() {
   if (idx !== S.step) { S.step = idx; $$('#steps li').forEach(li => li.classList.toggle('cur', +li.dataset.i === idx)); }
   $('#bArrow').textContent = arrow(m.type); $('#banner')?.classList.toggle('near', idx > 0 && toM <= 152.4); $('#bDist').textContent = fmtDist(toM, U()); $('#bInstr').textContent = m.street_names?.join(' / ') || m.instruction;
   const nx = r.maneuvers[idx + 1], tb = $('#thenBox');
-  if (nx && m.length * 1000 < 400 && idx > 0) { tb.textContent = `Then ${arrow(nx.type)} ${nx.instruction}`; tb.classList.remove('hidden'); } else tb.classList.add('hidden');
+  if (nx && m.length * 1000 < 400 && idx > 0) { tb.innerHTML = `${esc(t('Then'))} ${arrow(nx.type)} <span translate="no">${esc(nx.instruction)}</span>`; tb.classList.remove('hidden'); } else tb.classList.add('hidden');
   const sm = etaSmooth.update(etaRemaining(r, idx, toM) + (S.trafficDelay || 0)), remT = sm.remSec; S.remT = remT; // remaining-leg times + traffic, smoothed (UX P6/C7)
   $('#tEta').textContent = new Date(sm.arrival).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   $('#tLeft').textContent = fmtDur(remT); $('#tDist').textContent = U() === 'km' ? (remaining / 1000).toFixed(1) : (remaining / MI).toFixed(1);

@@ -1,3 +1,4 @@
+import './i18n.js'; import { picker, firstRun } from './langui.js';
 
 import { DispatcherConsole, STATUS_LABEL } from './dispatch.js'; import { bus, hex, unhex, newSecret, uid } from './link.js';
 const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -77,3 +78,6 @@ import * as cloud from './cloud.js';
 
 document.querySelector('#quickDispatch > summary')?.addEventListener('click', e => { e.currentTarget.parentElement.dataset.touched = '1'; });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// Language picker in the console tab bar + first-run chooser
+{ const nav = document.querySelector('.fx-tabs'); if (nav) { const p = picker('langSelD'); p.classList.add('lang-disp'); nav.after(p); } firstRun(); }

@@ -40,7 +40,7 @@ export function init(S, H) {
   function openP() { document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden')); sec.classList.remove('hidden'); render(); }
   $('#plClose').onclick = () => sec.classList.add('hidden');
   // ---------- geocoding ----------
-  async function geocode(q) { const n = S.pos || { lat: 40.81, lon: -73.88 }; const r = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=5&lang=en&lat=${n.lat}&lon=${n.lon}`, { signal: AbortSignal.timeout(12000) }); const j = await r.json();
+  async function geocode(q) { const n = S.pos || { lat: 40.81, lon: -73.88 }; const r = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=5&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${n.lat}&lon=${n.lon}`, { signal: AbortSignal.timeout(12000) }); const j = await r.json();
     return j.features.map(f => { const p = f.properties; return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], name: p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.city, sub: [p.housenumber && p.street ? p.housenumber + ' ' + p.street : p.street, p.city, p.state].filter(Boolean).join(', ') }; }); }
   const mkStop = o => ({ id: uidS(), name: o.name || o.address, address: o.sub || o.address || '', lat: o.lat, lon: o.lon, tw: o.tw || null, priority: o.priority || 2, service: o.service ?? 300, notes: o.notes || '', packages: o.packages || 0, phone: o.phone || '', status: 'pending' });
   function addStop(o) { P.plan.stops.push(mkStop(o)); P.result = null; save(); render(); }

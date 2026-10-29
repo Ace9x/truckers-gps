@@ -1,0 +1,24 @@
+{
+ "ar": {
+  "name": "العربية",
+  "dir": "rtl",
+  "locale": "ar-u-nu-latn",
+  "speech": "ar-SA",
+  "valhalla": "en-US",
+  "coverage": 1
+ },
+ "en": {
+  "name": "English",
+  "locale": "en-US",
+  "speech": "en-US",
+  "valhalla": "en-US",
+  "coverage": 1
+ },
+ "es": {
+  "name": "Español",
+  "locale": "es-US",
+  "speech": "es-US",
+  "valhalla": "es-ES",
+  "coverage": 1
+ }
+}

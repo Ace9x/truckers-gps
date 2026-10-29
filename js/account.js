@@ -101,7 +101,7 @@ export async function init(S, h) {
     F.querySelectorAll('[data-cfr]').forEach(c => { c.querySelectorAll('[data-cfa]').forEach(b => b.onclick = async () => { try { const a = b.dataset.cfa, id = +c.dataset.cfr;
         if (a === 'remove') { if (!confirm('Remove?')) return; await cloud.friendRemove(id); } else await cloud.friendRespond(id, a); refreshCloudFriends(); } catch (e) { toast(e.message); } });
       const sh = c.querySelector('[data-cfloc]'); if (sh) sh.onclick = () => { const L = cLocs.find(x => x.user_id === c.dataset.cuser); if (L) { closePanels(); map.flyTo({ center: [L.lng, L.lat], zoom: 13 }); } else toast('Not sharing right now'); }; }); }
-  auth.onChange(() => { Object.values(fMarkers).forEach(m => m.remove()); fMarkers = {}; wire(); });
+  auth.onChange(() => { dispatchEvent(new CustomEvent('rr-auth', { detail: auth.user })); Object.values(fMarkers).forEach(m => m.remove()); fMarkers = {}; wire(); });
   const badge = (b, n) => { const e = b.querySelector('.badge'); e.textContent = n; e.classList.toggle('hidden', !n); };
   const seenLoads = new Set(LS.get('seenLoads', []));
   function notifyLoads() { for (const l of dd.allLoads()) if (l.state === 'offered' && !seenLoads.has(l.load.id)) { seenLoads.add(l.load.id); LS.set('seenLoads', [...seenLoads]); say(`New load from ${l.dispatcher?.name || 'dispatch'}: ${l.load.pickup.name || 'pickup'} to ${l.load.drop.name || 'delivery'}.`, 'info'); toast('📋 New load offer'); } }

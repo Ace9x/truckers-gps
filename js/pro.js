@@ -1,3 +1,4 @@
+import { t as T_ } from './i18n.js'; import * as LUI from './langui.js';
 // RigRoute GPS — Pro UI layer: SVG icon set (replaces emoji glyphs visually, keeps text for screen readers/tests),
 // trucking map style, splash, help button, first-run tour with Ace. Styling/markup only — no feature logic.
 import { ICONS } from './iconset.js';
@@ -266,15 +267,14 @@ function routeSheet() { const panel = $('#routePanel'); if (!panel) return;
   const rs = $('#routeSummary'); if (rs) rs.classList.toggle('dup-truck', /^Truck routes for/.test(rs.textContent)); // same profile as #rpTruck → hide
   const alts = [...panel.querySelectorAll('#alts .alt')];
   let noLive = alts.length > 0, noteSrc = '';
-  for (const el of alts) { const row = el.querySelector('.tf-row'), live = row && !/no live data/.test(row.textContent); if (live) noLive = false;
+  for (const el of alts) { const row = el.querySelector('.tf-row'), live = row && !row.textContent.includes(T_('no live data for this area')) && !/no live data/.test(row.textContent); if (live) noLive = false;
     el.classList.toggle('tf-none', true); // traffic folds into one chip on line 2; source shown once in #tfOnce
     if (live) { const d = row.querySelector('b')?.textContent?.trim() || ''; const src = (row.textContent.match(/\(([^)]+)\)\s*$/) || [])[1]; if (src) noteSrc = src;
-      let c = el.querySelector('.rc-tf'); if (!c) { c = document.createElement('span'); c.className = 'rc-chip rc-tf'; } const lbl = d === 'no delay' ? 'No delay' : d + ' traffic'; if (c.textContent !== lbl) c.textContent = lbl; c.style.background = row.querySelector('b')?.style.background || '';
+      let c = el.querySelector('.rc-tf'); if (!c) { c = document.createElement('span'); c.className = 'rc-chip rc-tf'; } const lbl = d === 'no delay' || d === T_('no delay') ? T_('No delay') : T_('{0} traffic').replace('{0}', d); if (c.textContent !== lbl) c.textContent = lbl; c.style.background = row.querySelector('b')?.style.background || '';
       const why = el.querySelector('.why'); if (why && c.parentElement !== why) why.prepend(c); }
     const why = el.querySelector('.why'); if (why && !why.dataset.chips) { const parts = why.textContent.split(' · ').map(x => x.trim()).filter(Boolean);
-      const keep = parts.filter(x => /^(Fastest|Shortest|Has tolls|No tolls|Fewest turns)$|^[+−-]\d+ min/.test(x))
-      .filter(x => !/Fewest turns/.test(x)).slice(0, 2);
-      why.dataset.chips = '1'; why.title = why.textContent; why.innerHTML = (/Crosses mapped truck restrictions/.test(why.textContent) ? '<span class="rc-chip warn">⚠ Restricted roads — verify signs</span>' : '') + keep.map(x => `<span class="rc-chip">${x.replace('Has tolls', 'Tolls')}</span>`).join(''); }
+      const CH = ['Fastest', 'Shortest', 'Has tolls', 'No tolls'].map(T_); const keep = parts.filter(x => CH.includes(x) || /^(Fastest|Shortest|Has tolls|No tolls)$|^[+−-]\d+ min/.test(x)).slice(0, 2);
+      why.dataset.chips = '1'; why.title = why.textContent; why.innerHTML = (/Crosses mapped truck restrictions/.test(why.textContent) || why.textContent.includes(T_('Crosses mapped truck restrictions — verify signs/permit')) ? `<span class="rc-chip warn">⚠ ${T_('Restricted roads — verify signs')}</span>` : '') + keep.map(x => `<span class="rc-chip">${x === 'Has tolls' || x === T_('Has tolls') ? T_('Tolls') : x}</span>`).join(''); }
     const via = el.querySelector(':scope > div:not(.why):not(.tf-row)'); if (via) via.classList.add('rc-via'); }
   let note = $('#tfOnce'); if (!note && $('#alts')) { note = document.createElement('div'); note.id = 'tfOnce'; note.className = 'muted small'; $('#alts').before(note); }
   if (note) { const nt = noLive ? 'No live traffic for this area — times use normal speeds' : `Live traffic${noteSrc ? ' · ' + noteSrc : ''} included in times`; note.hidden = !alts.length; if (note.textContent !== nt) note.textContent = nt; }
@@ -329,3 +329,6 @@ setInterval(hosEta, 1000);
   if (!wrap()) { const t = setInterval(() => wrap() && clearInterval(t), 300); } }
 
 try { D2.start(); } catch (e) { console.warn('design2', e); }
+
+// Language: picker in Me, first-run chooser (before the truck wizard / tour)
+{ const go = () => { LUI.mount(); LUI.firstRun(); }; if (document.readyState === 'loading') addEventListener('DOMContentLoaded', go); else setTimeout(go, 0); }
