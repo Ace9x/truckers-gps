@@ -1,6 +1,6 @@
 import { locGate } from './privacy.js';
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting, VEHICLES as VTYPES, vehOf, costingFor, costingOptions, truckUIOn,
-  hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
+  hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, truckDetour, DETOUR_RELAX, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
@@ -202,10 +202,10 @@ function mergeLegs(trip, costing) {
     ln.push(...pts); man.push(...ms); }
   return { line: ln, cum: cumulative(ln), maneuvers: man, length: trip.summary.length * 1000, time: trip.summary.time, summary: trip.summary, costing };
 }
-async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [], exclude = [] } = {}) {
+async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [], exclude = [], relax = null } = {}) {
   const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
   const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: 'en-US', directions_options: { units: 'kilometers' } };
-  if (costing === 'truck') body.costing_options = costingOptions(S.truck);
+  if (costing === 'truck') { body.costing_options = costingOptions(S.truck); if (relax) body.costing_options.truck = { ...body.costing_options.truck, ...relax }; }
   { const ex = [...(avoid ? excludePolys(from, to) : []), ...exclude]; if (ex.length) body.exclude_polygons = ex; } // exclude: e.g. a live traffic jam
   if (alternates && !stops.length) body.alternates = alternates;
   const r = await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
@@ -237,6 +237,11 @@ async function plan(isReroute = false) {
       S.lastRerouteVias = vias.length; setRoute(tr); return tr;
     }
     const [alts, car] = await Promise.all([valhalla(from, to, costingFor(S.truck), { alternates: 2 }), costingFor(S.truck) === 'auto' ? null : valhalla(from, to, 'auto', { avoid: false }).catch(() => null)]);
+    // Detour check: truck route > 1.5× the car route -> try a relaxed second pass (flagged, never auto-picked) and warn the driver
+    S.detour = null; const dt = truckDetour(alts[0], car);
+    if (dt?.detour) { S.detour = dt; const rx = await valhalla(from, to, 'truck', { relax: DETOUR_RELAX }).catch(() => null);
+      if (rx && rx.length < alts[0].length * 0.8) { rx.restricted = true; dt.relaxed = { length: rx.length, time: rx.time }; alts.push(rx); }
+      say(`Heads up. The truck route is ${dt.ratio.toFixed(1)} times the car route. Check the route panel.`); }
     S.routes = alts; S.carRoute = car; S.sel = 0; setRoute(alts[0]); S.chosen = alts[0];
     LS.set('routes', alts.map(r => ({ ...r, cum: undefined }))); LS.set('carRoute', car ? { ...car, cum: undefined } : null); LS.set('sel', 0);
     renderRoute(); fitRoute(); ['#goBtn', '#demoBtn', '#facBtn', '#offlineBtn'].forEach(s => $(s).disabled = false);
@@ -244,7 +249,7 @@ async function plan(isReroute = false) {
   } catch (e) { if (!isReroute) $('#routeSummary').textContent = '⚠ ' + (navigator.onLine ? e.message : 'Offline — routing needs a connection'); else toast('Reroute failed: ' + e.message); }
 }
 function setRoute(r) { S.route = r; S.etaSmooth?.reset(); S.hint = 0; S.spoken = {}; S.off.reset(); S.step = 0; S.dangers = []; S.dangerSpoken = {}; LS.set('route', { ...r, cum: undefined }); drawRoute(); renderSteps(); analyzeRoute(r); }
-function selectRoute(i) { S.sel = i; S.chosen = S.routes[i]; LS.set('sel', i); setRoute(S.routes[i]); renderRoute(); S.pois = []; S.poiDone = false; clearPois(); }
+function selectRoute(i) { if (S.routes[i]?.restricted && !confirm('This shorter route crosses roads mapped as restricted for your rig (no trucks, weight, height or length limit). Only use it if you have verified the signs or hold a permit. Use it?')) return; S.sel = i; S.chosen = S.routes[i]; LS.set('sel', i); setRoute(S.routes[i]); renderRoute(); S.pois = []; S.poiDone = false; clearPois(); }
 S.plan = plan; S.setDest = setDest; S.selectRoute = selectRoute;
 function fitRoute() { const b = new maplibregl.LngLatBounds(); S.routes.forEach(r => r.line.forEach(c => b.extend(c))); setFollow(false); map.fitBounds(b, { padding: { top: 80, bottom: window.innerHeight * 0.5, left: 40, right: 80 }, pitch: 0, bearing: 0 }); }
 
@@ -252,9 +257,12 @@ function renderRoute() {
   const r = S.route, c = S.carRoute;
   $('#routeSummary').innerHTML = `Truck routes for ${S.truck.heightFt}'${S.truck.heightIn}" · ${Math.round(S.truck.weightLbs / 1000)}k lbs · ${S.truck.lengthFt}'${S.truck.hazmat ? ' · HAZMAT' : ''}${S.avoids.length ? ` · avoiding ${S.avoids.length} reported road(s)` : ''}`;
   const labels = labelAlternatives(S.routes, c);
-  $('#alts').innerHTML = S.routes.map((x, i) => `<div class="alt ${i === S.sel ? 'sel' : ''}" data-i="${i}"><b>${i === S.sel ? '✔ ' : ''}Route ${i + 1}: ${fmtDur(x.time)} · ${fmtDist(x.length, U())}</b><div>via ${esc(viaNames(x))}</div><div class="why">${labels[i].map(esc).join(' · ')}</div></div>`).join('')
+  $('#alts').innerHTML = S.routes.map((x, i) => `<div class="alt ${i === S.sel ? 'sel' : ''}" data-i="${i}"><b>${i === S.sel ? '✔ ' : ''}Route ${i + 1}: ${fmtDur(x.time)} · ${fmtDist(x.length, U())}</b><div>via ${esc(viaNames(x))}</div><div class="why">${x.restricted ? '<b class="warn">⚠ Crosses mapped truck restrictions — verify signs/permit</b> · ' : ''}${labels[i].map(esc).join(' · ')}</div></div>`).join('')
     + (S.routes.length < 3 ? `<div class="muted small">${S.routes.length === 1 ? 'Only one truck‑legal route found for this trip.' : 'Only ' + S.routes.length + ' truck‑legal options found.'}</div>` : '');
   $$('.alt').forEach(el => el.onclick = () => selectRoute(+el.dataset.i));
+  const dn = S.detour; $('#detourWarn')?.remove(); if (dn) { const w = document.createElement('div'); w.id = 'detourWarn'; w.className = 'detour-warn'; w.setAttribute('role', 'alert');
+    w.textContent = `⚠ Long detour: the truck route is ${dn.ratio.toFixed(1)}× the car route (+${fmtDist(dn.extraMi * 1609.344, U())}). ` + (dn.relaxed ? `A shorter option (${fmtDist(dn.relaxed.length, U())}) is listed but crosses roads mapped as restricted for your rig — check signs, your truck settings, or a permit before using it.` : 'No shorter truck-legal option was found — double-check your height/weight/length settings.');
+    $('#restrictNote').before(w); }
   $('#restrictNote').textContent = c ? (Math.abs(r.length - c.length) > 300 ? `Car route: ${fmtDist(c.length, U())}. Truck route differs to stay on roads mapped as legal for your rig (clearance, weight, length, truck bans). Check “Show car route” to see where.` : 'Truck route matches the car route — no truck restrictions in the way.') : '';
   renderSteps();
 }

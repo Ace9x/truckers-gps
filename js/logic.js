@@ -150,6 +150,17 @@ export function pointAlong(line, cum, d) { const i = cum.findIndex(c => c >= d);
 export function detourMinutes(offM) { return Math.max(1, Math.round((2 * offM) / 11.2 / 60 + (offM > 150 ? 2 : 0))); }
 
 // Label route alternatives: why would a driver pick this one?
+// Unreasonable truck detour: the truck route is > k× the car route (length or time). Short trips (< 1 mi by car) never count.
+export const DETOUR_K = 1.5;
+export function truckDetour(truck, car, k = DETOUR_K) {
+  if (!truck || !car || !(car.length >= 1609) || !(car.time > 0)) return null;
+  const lr = truck.length / car.length, tr = truck.time / car.time, ratio = Math.max(lr, tr);
+  return { ratio: +ratio.toFixed(2), lenRatio: +lr.toFixed(2), timeRatio: +tr.toFixed(2), extraMi: +((truck.length - car.length) / MI).toFixed(1), detour: ratio > k };
+}
+// Second-pass costing when the truck route is a detour: mapped no-truck/weight/height limits become a soft penalty instead of a wall,
+// so Valhalla can show the shorter road. That route may break a mapped restriction, so it is never auto-selected and is always flagged.
+export const DETOUR_RELAX = { hgv_no_access_penalty: 2000, use_truck_route: 0.3 };
+
 export function labelAlternatives(routes, car) {
   if (!routes.length) return [];
   const fastest = Math.min(...routes.map(r => r.time)), shortest = Math.min(...routes.map(r => r.length)), turns = Math.min(...routes.map(r => r.maneuvers.length));

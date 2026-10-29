@@ -274,7 +274,7 @@ function routeSheet() { const panel = $('#routePanel'); if (!panel) return;
     const why = el.querySelector('.why'); if (why && !why.dataset.chips) { const parts = why.textContent.split(' · ').map(x => x.trim()).filter(Boolean);
       const keep = parts.filter(x => /^(Fastest|Shortest|Has tolls|No tolls|Fewest turns)$|^[+−-]\d+ min/.test(x))
       .filter(x => !/Fewest turns/.test(x)).slice(0, 2);
-      why.dataset.chips = '1'; why.title = why.textContent; why.innerHTML = keep.map(x => `<span class="rc-chip">${x.replace('Has tolls', 'Tolls')}</span>`).join(''); }
+      why.dataset.chips = '1'; why.title = why.textContent; why.innerHTML = (/Crosses mapped truck restrictions/.test(why.textContent) ? '<span class="rc-chip warn">⚠ Restricted roads — verify signs</span>' : '') + keep.map(x => `<span class="rc-chip">${x.replace('Has tolls', 'Tolls')}</span>`).join(''); }
     const via = el.querySelector(':scope > div:not(.why):not(.tf-row)'); if (via) via.classList.add('rc-via'); }
   let note = $('#tfOnce'); if (!note && $('#alts')) { note = document.createElement('div'); note.id = 'tfOnce'; note.className = 'muted small'; $('#alts').before(note); }
   if (note) { const nt = noLive ? 'No live traffic for this area — times use normal speeds' : `Live traffic${noteSrc ? ' · ' + noteSrc : ''} included in times`; note.hidden = !alts.length; if (note.textContent !== nt) note.textContent = nt; }

@@ -139,3 +139,5 @@ body.veh-car .route-safety{display:none}
 #truckForm .span2{grid-column:1/-1}
 #truckUIRow{display:flex;align-items:center;gap:8px}
 body.veh-car #hazBtn, body.veh-car label.chk:has(#cmpCar), body.no-truckui #weighBtn, body.veh-commercial #hazBtn{display:none!important}
+.detour-warn{background:#3a2a00;border:1px solid #ffb74d;color:#ffe0a3;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.35}.alt .why .warn{color:#ffb74d}
+.rc-chip.warn{background:#5a3b00;color:#ffd38a;border:1px solid #ffb74d}
