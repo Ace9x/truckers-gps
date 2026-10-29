@@ -308,7 +308,7 @@ function hosEta() { const rp = $('#routePanel'); if (!rp || !S.route) return; le
   const tm = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + (new Date(t).toDateString() !== new Date().toDateString() ? ' ' + new Date(t).toLocaleDateString([], { weekday: 'short' }) : '');
   const br = p.breaks.length ? p.breaks.map(b => b.kind === '10h' ? '10-hr rest' : '30-min break').join(' + ') : 'no break needed';
   let ap = ''; if (appt && !isNaN(appt)) { const spare = (appt - arr) / 1000; ap = spare >= 0 ? `<div class="he-appt ok">✓ Makes your ${tm(appt)} appointment · ${hmS(spare)} spare</div>` : `<div class="he-appt late">✕ Misses your ${tm(appt)} appointment by ${hmS(-spare)} — call the receiver</div>`; }
-  const html = `<div class="he-row"><span>Arrive with HOS breaks</span><b>${tm(arr)}</b></div><div class="he-sub">${br} · planning aid, not an ELD</div>${ap}`;
+  const html = `<div class="he-row"><span>Arrive with HOS breaks</span><b>${tm(arr)}</b></div><div class="he-sub">${br} · <span class="eld-note">Not an ELD · informational only</span></div>${ap}`;
   if (el.innerHTML !== html) el.innerHTML = html;
   const c = truckCosting(S.truck || {}); let ts = $('#rpUsed'); if (!ts) { ts = document.createElement('div'); ts.id = 'rpUsed'; ts.className = 'small muted'; $('#rpTruck')?.after(ts); }
   const tx = `Router uses ${c.height} m high · ${c.weight} t · ${c.length} m long · ${c.width} m wide · ${c.axle_count} axles${c.hazmat ? ' · hazmat' : ''}`; if (ts.textContent !== tx) ts.textContent = tx; }

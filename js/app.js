@@ -45,7 +45,7 @@ const applyTheme = () => { curTheme = effTheme(); document.body.classList.toggle
 applyTheme(); $('#ver').textContent = 'v' + VERSION;
 
 // ---------- Map ----------
-const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true } });
+const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true, customAttribution: ['Routing <a href="https://github.com/valhalla/valhalla" target="_blank" rel="noopener">Valhalla</a>', 'NYC truck routes &amp; speeds: <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC DOT</a>', '<a href="terms.html" target="_blank">Terms &amp; safety</a> · <a href="privacy.html" target="_blank">Privacy</a>'] } });
 S.map = map;
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
@@ -641,12 +641,12 @@ const hm = ms => { const m = Math.max(0, Math.floor(ms / 60e3)); return `${Math.
 function hosRender() {
   const h = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70, ...(S.hosOpts?.() || {}) }); S.hos = h;
   $('#hCycle').textContent = hm(h.cycleLeft); $('#hCycleLbl').textContent = `Left on ${S.truck.cycle || 70}‑hour / ${+S.truck.cycle === 60 ? 7 : 8}‑day cycle (34‑h restart resets)`;
-  $('#hDrive').textContent = hm(h.driveLeft); $('#hWin').textContent = hm(h.windowLeft); $('#hBreak').textContent = h.breakLeft === Infinity ? 'exempt' : hm(h.breakLeft); $('#dockHos').textContent = hm(Math.min(h.driveLeft, h.breakLeft));
+  $('#hDrive').textContent = hm(h.driveLeft); $('#hWin').textContent = hm(h.windowLeft); $('#hBreak').textContent = h.breakLeft === Infinity ? 'exempt' : hm(h.breakLeft); $('#dockHos').title = 'Hours estimate — not an ELD, informational only'; $('#dockHos').textContent = hm(Math.min(h.driveLeft, h.breakLeft));
   $$('[data-duty]').forEach(b => b.classList.toggle('on', b.dataset.duty === h.status));
   $('#hosWarn').innerHTML = h.warnings.map(w => `<div class="alert ${/soon|under/i.test(w) ? 'warn' : ''}">${w}</div>`).join('');
   $$('#alerts .hosA').forEach(e => e.remove());
   if (!truckUIOn(S.truck)) return;
-  if (h.status === 'drive') for (const w of h.warnings) { const el = document.createElement('div'); el.className = 'alert hosA ' + (/soon|under/i.test(w) ? 'warn' : ''); el.textContent = '⏱ ' + w; $('#alerts').prepend(el); }
+  if (h.status === 'drive') for (const w of h.warnings) { const el = document.createElement('div'); el.className = 'alert hosA ' + (/soon|under/i.test(w) ? 'warn' : ''); el.textContent = '⏱ ' + w; const n = document.createElement('small'); n.className = 'eld-note'; n.textContent = ' Not an ELD · informational only'; el.appendChild(n); $('#alerts').prepend(el); }
   for (const w of h.warnings) if (!S.warned[w] && h.status === 'drive') { S.warned[w] = true; say('Hours of service: ' + w, 'hos'); mascot.say(`⏱ ${w}. Time to find a spot to rest.`, 'worried', 9000); }
   $('#hosLog').innerHTML = S.events.slice(-20).reverse().map(e => `<li>${new Date(e.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} — ${labelDuty(e.s)}${e.auto ? ' (auto)' : ''}</li>`).join('');
 }
