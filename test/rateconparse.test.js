@@ -1,0 +1,10 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { execSync } from 'node:child_process'; import fs from 'node:fs';
+import { parseRateCon, parseTimes, parseDate, vehicleOf } from '../js/rateconparse.js';
+const FX = new URL('./fixtures/ratecons/', import.meta.url).pathname, truth = JSON.parse(fs.readFileSync(FX + 'truth.json'));
+let hasPdftotext = true; try { execSync('pdftotext -v', { stdio: 'ignore' }); } catch { hasPdftotext = false; }
+for (const f of ['a_summit.pdf', 'b_blueridge.pdf', 'c_hudson.pdf']) test('parses ' + f, { skip: !hasPdftotext }, () => { const T = truth[f], r = parseRateCon(execSync(`pdftotext -layout ${FX + f} -`).toString(), { year: 2026 });
+  assert.equal(r.ref.v, T.ref); assert.equal(r.customer.v, T.customer); assert.equal(r.rate_usd.v, T.rate_usd); assert.equal(r.weight_lb.v, T.weight_lb); assert.equal(r.vehicle.v, T.vehicle); assert.equal(r.stops.length, T.stops.length);
+  T.stops.forEach((s, i) => { assert.equal(r.stops[i].kind.v, s.kind); assert.equal(r.stops[i].address.v, s.address); assert.equal(r.stops[i].appt.v, s.appt); assert.equal(r.stops[i].appt_end?.v ?? null, s.appt_end); }); });
+test('never invents fields from unrelated text', () => { const r = parseRateCon('Lunch menu: soup, grilled cheese, coffee.\nOpen daily 8 to 4.'); for (const k of ['customer', 'ref', 'commodity', 'weight_lb', 'equipment', 'vehicle', 'rate_usd', 'detention', 'notes']) assert.equal(r[k], null, k); assert.equal(r.stops.length, 0); assert.ok(r.warnings.length); });
+test('times, dates, vehicles', () => { assert.deepEqual(parseTimes('Time: 8:00 AM - 2:30 PM'), ['08:00', '14:30']); assert.deepEqual(parseTimes('Appt: 0700-0900', true), ['07:00', '09:00']); assert.equal(parseTimes('Phone 555-0142'), null);
+  assert.equal(parseDate('Nov 3, 2026').d, '2026-11-03'); assert.equal(parseDate('11/02/26').d, '2026-11-02'); assert.equal(vehicleOf("53' Reefer"), 'semi'); assert.equal(vehicleOf('Sprinter cargo van'), 'van'); assert.equal(vehicleOf('26ft box truck'), 'box'); assert.equal(vehicleOf('unknown'), null); });

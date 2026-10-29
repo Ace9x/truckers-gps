@@ -1,0 +1,147 @@
+{
+ "a_summit.pdf": {
+  "customer": "Summit Freight Brokerage, LLC",
+  "ref": "SFB-448812",
+  "commodity": "Paper products",
+  "weight_lb": 38500,
+  "vehicle": "semi",
+  "equipment": "53' Dry Van",
+  "rate_usd": 2210,
+  "reefer_setpoint": null,
+  "stops": [
+   {
+    "kind": "pickup",
+    "name": "Hunts Point Cooperative Market",
+    "address": "355 Food Center Dr, Bronx, NY 10474",
+    "appt": "2026-11-02T08:00",
+    "appt_end": "2026-11-02T12:00",
+    "phone": "(718) 555-0142"
+   },
+   {
+    "kind": "drop",
+    "name": "Port Newark Container Terminal",
+    "address": "241 Calcutta St, Newark, NJ 07114",
+    "appt": "2026-11-02T14:00",
+    "appt_end": "2026-11-02T16:00",
+    "phone": "(973) 555-0199"
+   }
+  ],
+  "accessorials": [
+   "fuel",
+   "lumper",
+   "detention"
+  ],
+  "detention_rate": 50,
+  "detention_free_min": 120,
+  "notes_has": "call 1 hour before"
+ },
+ "b_blueridge.pdf": {
+  "customer": "Blue Ridge Logistics Inc.",
+  "ref": "BRL-20391",
+  "commodity": "Fresh produce (palletized)",
+  "weight_lb": 42000,
+  "vehicle": "semi",
+  "equipment": "53' Reefer",
+  "rate_usd": 3325,
+  "reefer_setpoint": 34,
+  "stops": [
+   {
+    "kind": "pickup",
+    "name": "Restaurant Depot",
+    "address": "1524 132nd St, College Point, NY 11356",
+    "appt": "2026-11-03T07:00",
+    "appt_end": "2026-11-03T09:00",
+    "phone": "718-555-0177"
+   },
+   {
+    "kind": "drop",
+    "name": "Whole Foods Market Distribution",
+    "address": "100 Metroplex Dr, Edison, NJ 08817",
+    "appt": "2026-11-03T13:00",
+    "appt_end": null,
+    "phone": "732-555-0120"
+   }
+  ],
+  "accessorials": [
+   "stop",
+   "detention"
+  ],
+  "detention_rate": 40,
+  "detention_free_min": 120,
+  "notes_has": "Pulp temps"
+ },
+ "c_hudson.pdf": {
+  "customer": "Hudson Valley Dispatch Co",
+  "ref": "HV-7781",
+  "commodity": "Building materials",
+  "weight_lb": 9200,
+  "vehicle": "box",
+  "equipment": "26' Box Truck w/ liftgate",
+  "rate_usd": 1275,
+  "reefer_setpoint": null,
+  "stops": [
+   {
+    "kind": "pickup",
+    "name": "Home Depot RDC",
+    "address": "400 Cabot Dr, Hamburg, PA 19526",
+    "appt": "2026-11-04T09:00",
+    "appt_end": "2026-11-04T11:00",
+    "phone": "610-555-0101"
+   },
+   {
+    "kind": "drop",
+    "name": "Home Depot #1203",
+    "address": "2750 Route 22, Union, NJ 07083",
+    "appt": "2026-11-04T15:30",
+    "appt_end": null,
+    "phone": "908-555-0144"
+   },
+   {
+    "kind": "drop",
+    "name": "Home Depot #1251",
+    "address": "400 Park Pl, Secaucus, NJ 07094",
+    "appt": "2026-11-04T18:00",
+    "appt_end": "2026-11-04T20:00",
+    "phone": "201-555-0133"
+   }
+  ],
+  "accessorials": [
+   "tonu"
+  ],
+  "detention_rate": null,
+  "detention_free_min": null,
+  "notes_has": "Liftgate required"
+ },
+ "d_scan.pdf": {
+  "customer": "Keystone Transport Brokers",
+  "ref": "KTB-90215",
+  "commodity": "General merchandise",
+  "weight_lb": 24000,
+  "vehicle": "semi",
+  "equipment": "53' Dry Van",
+  "rate_usd": 1480,
+  "reefer_setpoint": null,
+  "stops": [
+   {
+    "kind": "pickup",
+    "name": "Amazon Fulfillment Center",
+    "address": "1 Centerpoint Blvd, Carteret, NJ 07008",
+    "appt": "2026-11-05T06:00",
+    "appt_end": "2026-11-05T10:00",
+    "phone": "(732) 555-0161"
+   },
+   {
+    "kind": "drop",
+    "name": "Walmart Distribution Center",
+    "address": "7562 Industrial Blvd, Allentown, PA 18106",
+    "appt": "2026-11-05T15:00",
+    "appt_end": null,
+    "phone": "(610) 555-0188"
+   }
+  ],
+  "accessorials": [],
+  "detention_rate": null,
+  "detention_free_min": null,
+  "notes_has": "Drop and hook"
+ }
+}
