@@ -120,7 +120,7 @@ const la2 = await T(async () => { TruckNav.off.reset(); TruckNav.dangerSpoken = 
 ok(la2.said.some(t => /Low clearance 11 foot \d+ (just ahead|in a quarter mile|in half a mile)\. Your truck is 13 foot 6\. Rerouting/.test(t)) && la2.rerouted && la2.len > 3000, `danger announced + rerouted around it (${(la2.len / 1609).toFixed(1)} mi): ${JSON.stringify(la2.said[0])}`);
 await T(() => { TruckNav.avoids.length = 0; localStorage.setItem('tn_avoids', '[]'); TruckNav.setTruck({ heightFt: 13, heightIn: 6 }); });
 // Garage (parked: speed 0, otherwise the >5 mph multi-tap lock correctly hides panels)
-await T(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; }); await page.waitForTimeout(600);
+await T(() => { TruckNav.pos = { ...TruckNav.pos, speed: 0 }; document.querySelector('#trcDone')?.click(); }); await page.waitForTimeout(600);
 await page.click('#meBtn'); await page.evaluate(() => { document.querySelector('#funBox').open = true; }); await page.waitForSelector('#garage button');
 const gar = await T(() => { const locked = document.querySelectorAll('#garage button.lock').length; document.querySelector('[data-veh=box]').click(); document.querySelector('[data-col=green]').click(); return { locked, total: document.querySelectorAll('#garage button').length, ride: TruckNav.ride, svg: document.querySelector('.truck-marker svg') ? true : false }; });
 ok(gar.total >= 8 && gar.locked > 0 && gar.ride.type === 'box' && gar.ride.color === 'green' && gar.svg, `garage: ${gar.total} vehicles (${gar.locked} locked by level), picked green box truck as map icon`);
