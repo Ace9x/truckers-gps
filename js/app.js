@@ -551,7 +551,7 @@ function drawReports() {
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
     return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
 }
-async function vote(r, dir) { const uid = profile.p.uid || 'me'; let res = null; try { res = await backend.vote(r.id, dir, uid); } catch (e) { if (backend.name === 'supabase') return toast('Sign in (👤) to confirm reports'); } if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
+async function vote(r, dir) { if (!backend) return toast('Still connecting, try again in a second'); const uid = profile.p.uid || 'me'; let res = null; try { res = await backend.vote(r.id, dir, uid); } catch (e) { if (backend.name === 'supabase') return toast('Sign in (👤) to confirm reports'); } if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
 S.vote = vote; S.drawReports = drawReports; S.drawRoute = drawRoute;
 $('#reportBtn').onclick = () => openPanel('reportPanel');
 
@@ -578,9 +578,9 @@ async function renderMe() {
   $('#moodPick').innerHTML = ['😎', '😀', '😴', '😤', '🤠', '☕'].map(a => `<button class="${a === p.mood ? 'on' : ''}" data-md="${a}">${a}</button>`).join('');
   $$('[data-av]').forEach(b => b.onclick = () => { p.avatar = b.dataset.av; profile.save(backend); renderMe(); });
   $$('[data-md]').forEach(b => b.onclick = () => { p.mood = b.dataset.md; profile.save(backend); renderMe(); renderDock(); });
-  const lb = await backend.leaderboard(weekKey(), p).catch(() => []);
+  const lb = backend ? await backend.leaderboard(weekKey(), p).catch(() => []) : []; // backend may still be loading when Me opens
   $('#leader').innerHTML = lb.map(x => `<li>${esc(x.name)}${x.you ? ' (you)' : ''} — ${+x.points || 0} pts</li>`).join('') || '<li class="muted">No points yet this week</li>';
-  $('#leaderNote').textContent = backend.name === 'local' ? 'Shared leaderboard and community confirmations go live once accounts are connected to the server. Right now points are kept on this phone.' : 'Live weekly leaderboard.';
+  $('#leaderNote').textContent = !backend ? 'Loading leaderboard…' : backend.name === 'local' ? 'Shared leaderboard and community confirmations go live once accounts are connected to the server. Right now points are kept on this phone.' : 'Live weekly leaderboard.';
   renderGarage(); $('#mascotOn').checked = mascot.enabled; renderAcct(); renderVoiceUI();
 }
 function renderGarage() { const lv = profile.level.index;

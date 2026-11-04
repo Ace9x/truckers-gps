@@ -25,7 +25,7 @@ export const HELP = {
   truckPanel: ['Your truck', 'Enter how tall, heavy, and long your truck is. We use this to keep you off roads that are too low or not allowed for trucks.', 'Pick a truck type or enter your sizes.'],
   reportPanel: ['Report a problem', 'Tap a picture to tell other drivers about a crash, police, road work, or a closed road just ahead of you.', 'You have not blocked any roads yet.'],
   facPanel: ['Gate and notes', 'Move the map so the + is on the truck gate. Then tap Set truck entrance. Next time, the route goes right to that gate.', 'No notes yet. Add the gate code or dock number.'],
-  mePanel: ['Me', 'See your points and badges. Change your name, language, and voice here.', 'No badges yet. Drive and report problems to earn them.'],
+  mePanel: ['Me', 'See your points and badges. Change your name, language, and voice here. Found a problem or have an idea? Open Report a Bug / Suggestion at the bottom.', 'No badges yet. Drive and report problems to earn them.'],
   dispatch: ['Dispatch console', 'Add your drivers. Make a load with a pickup and a drop-off, then send it to a driver. You can see where each driver is and if the load is done.', 'No loads yet. Tap New load to make one.'],
   layersPanel: ['Map layers', 'Turn things on or off on the map, like traffic, fuel, and driver reports.', ''],
 };
