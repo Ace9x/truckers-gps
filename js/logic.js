@@ -215,6 +215,11 @@ export function truckCosting(p) {
     use_truck_route: 0.8,      // prefer designated truck routes
     low_class_penalty: 60,     // keep big rigs off residential/service roads
     hgv_no_access_penalty: 1e6,
+    // local streets: long rigs can't swing tight corners, so each turn costs more (Valhalla default 5 s) and
+    // living streets / service alleys are avoided; keeps trucks on wider through-streets with fewer turns.
+    maneuver_penalty: (p.lengthFt || 0) >= 60 ? 30 : (p.lengthFt || 0) >= 35 ? 15 : 5,
+    use_living_streets: 0,
+    service_penalty: (p.lengthFt || 0) >= 35 ? 300 : 60,
   };
   return o;
 }
@@ -340,6 +345,9 @@ export const costingFor = t => VEHICLES[vehOf(t)].costing;
 // truck-only UI (HOS, weigh stations, truck stops): semis/box always, cars never, vans only if the driver turns it on
 export const truckUIOn = t => { const m = VEHICLES[vehOf(t)].truckUI; return m === 'on' || (m === 'optional' && !!t?.truckUI); };
 // Valhalla options per vehicle: cars get plain auto costing; vans use truck costing with their small dims but don't prefer truck routes.
-export function costingOptions(t) { const v = vehOf(t); if (VEHICLES[v].costing === 'auto') return {}; const o = truckCosting(t);
+// NYC: trucks must stay on the designated truck route network (NYC Traffic Rules §4-13), so prefer it fully there.
+export const inNYCBox = p => !!p && p.lat > 40.49 && p.lat < 40.92 && p.lon > -74.27 && p.lon < -73.68;
+export function costingOptions(t, ctx = {}) { const v = vehOf(t); if (VEHICLES[v].costing === 'auto') return {}; const o = truckCosting(t);
   if (VEHICLES[v].commercial) { o.use_truck_route = 0.2; o.low_class_penalty = 15; o.hazmat = false; }
+  else if (ctx.from && ctx.to && (inNYCBox(ctx.from) || inNYCBox(ctx.to))) o.use_truck_route = 1;
   return { truck: o }; }

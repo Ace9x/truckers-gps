@@ -225,8 +225,11 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       const cand = alts.map(r => ({ r, time: r.time, delay: T.routeTraffic(r, 0).delay })).filter(c => Math.abs(c.r.length - (S.route.length - (S.along || 0))) > 200 || c.r.time < cur.time - 60);
       const best = rerouteDecision(cur, cand, { minDelay: T.thresholdMin * 60 }); T.suggestion = best ? { save: best.save, delay: best.delay, len: best.r.length } : { none: true, delay: tr.delay };
       if (!best) return; const min = Math.round(best.save / 60);
-      say(`Traffic ahead. A faster truck-safe route saves about ${min} minutes. Tap switch to take it.`, 'traffic', true);
-      showBanner(`<div class="t">⚡ Faster truck‑safe route<div class="d">saves ~${min} min · avoids ${Math.round(tr.delay / 60)} min delay · still checked for your ${S.truck.heightFt}'${S.truck.heightIn}" / ${Math.round(S.truck.weightLbs / 1000)}k lbs rig</div></div>`, '', [['Switch', () => { S.routes = [best.r]; S.sel = 0; S.chosen = best.r; S.selectRoute?.(0); say('Switched to the faster truck route.', 'info', true); refresh(); }], ['Keep', null, true]]);
+      say(`Traffic ahead. A faster truck-safe route saves about ${min} minutes. Switching in 10 seconds unless you tap keep.`, 'traffic', true);
+      showBanner(`<div class="t">⚡ Faster truck‑safe route<div class="d">saves ~${min} min · avoids ${Math.round(tr.delay / 60)} min delay · still checked for your ${S.truck.heightFt}'${S.truck.heightIn}" / ${Math.round(S.truck.weightLbs / 1000)}k lbs rig</div></div>`, '', [['Switch', () => take()], ['Keep', () => clearInterval(cd), true]]);
+      // Waze-style: if the driver doesn't answer, take the faster truck-legal route after 10 s (hands stay on the wheel). Big savings only.
+      function take() { clearInterval(cd); S.routes = [best.r]; S.sel = 0; S.chosen = best.r; S.selectRoute?.(0); say('Switched to the faster truck route.', 'info', true); refresh(); }
+      let n = 10; const bb = banner, sw = bb?.querySelector('button:not(.x)'); const cd = best.save >= 300 && S.nav ? setInterval(() => { if (!bb.isConnected) return clearInterval(cd); n--; if (sw) sw.textContent = `Switch (${n})`; if (n <= 0) { bb.remove(); take(); } }, 1000) : null;
     } catch (e) { T.suggestion = { error: e.message }; } finally { suggesting = false; } }
   T.suggest = suggest;
   const sq = ([lon, lat], m) => { const dy = m / 111320, dx = dy / Math.cos(lat * Math.PI / 180); return [[lon - dx, lat - dy], [lon + dx, lat - dy], [lon + dx, lat + dy], [lon - dx, lat + dy], [lon - dx, lat - dy]]; };

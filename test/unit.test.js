@@ -65,7 +65,7 @@ test('route alternatives labels', () => { const mk = (len, time, toll, n) => ({ 
   const L = labelAlternatives([mk(40000, 3000, true, 20), mk(38000, 3300, false, 12)], mk(39000, 2800, false, 10));
   assert.ok(L[0].includes('Fastest') && L[0].includes('Has tolls')); assert.ok(L[1].includes('Shortest') && L[1].includes('No tolls') && L[1].includes('Fewest turns') && L[1].includes('+5 min')); });
 test('offline tiles cover corridor', () => { const t = tilesForLine([[-73.88, 40.81], [-74.16, 40.69]], [14], 1); assert.ok(t.length > 30 && t.length < 400, t.length); assert.ok(t.every(x => x.startsWith('14/'))); });
-test('truck costing tuned', () => { const c = truckCosting({ heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 }); assert.equal(c.use_truck_route, 0.8); assert.equal(c.low_class_penalty, 60); assert.equal(c.axle_load, 9.07); });
+test('truck costing tuned', () => { const c = truckCosting({ heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 }); assert.equal(c.use_truck_route, 0.8); assert.equal(c.low_class_penalty, 60); assert.equal(c.maneuver_penalty, 30); assert.equal(c.use_living_streets, 0); assert.equal(c.axle_load, 9.07); });
 test('levels, badges, streak, week', () => { assert.equal(levelFor(0).name, 'Rookie'); assert.equal(levelFor(650).name, 'Gear Jammer'); assert.ok(Math.abs(levelFor(400).progress - 0.5) < 1e-9);
   assert.deepEqual(earnedBadges({ reports: 1, miles: 150, confirmed: 0, onTime: 0, breaks: 0, safeTrips: 0, streak: 0 }), ['first_report', 'miles100']);
   const s = {}; const d0 = Date.UTC(2026, 9, 19, 12); updateStreak(s, d0); updateStreak(s, d0 + 864e5); updateStreak(s, d0 + 864e5 + 3600e3); assert.equal(s.streak, 2); updateStreak(s, d0 + 4 * 864e5); assert.equal(s.streak, 1);
@@ -222,3 +222,5 @@ test('speed limit: exact edge, NYC 25 default, never truck-max 65 on a street', 
   assert.equal(defaultLimitMph('primary', 'NY', [-73.76, 42.65]), 55); // upstate
   assert.equal(defaultLimitMph('motorway', 'TX', null), 70); assert.equal(defaultLimitMph('motorway', 'NY', [-73.76, 42.65]), 55); assert.equal(defaultLimitMph('residential', 'VA', null), 25); assert.equal(limitInfo([], 0, [], null, 65).mph, 25);
   assert.equal(Object.keys(STATE_DEFAULTS).length, 52); });
+test('NYC trips fully prefer the truck route network', async () => { const { costingOptions } = await import('../js/logic.js'); const t = { vehicle: 'semi', heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 };
+  assert.equal(costingOptions(t, { from: { lat: 40.72, lon: -73.84 }, to: { lat: 40.75, lon: -73.94 } }).truck.use_truck_route, 1); assert.equal(costingOptions(t, { from: { lat: 41.5, lon: -75 }, to: { lat: 42, lon: -76 } }).truck.use_truck_route, 0.8); });
