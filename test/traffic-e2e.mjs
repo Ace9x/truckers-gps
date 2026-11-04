@@ -52,5 +52,8 @@ ok(/traffic/i.test(st.alert || '') && /delay/.test(st.alert), `jam alert spoken:
 ok(sug && sug.save > 0, `faster truck-safe reroute suggested: ${sug ? (sug.save ? `saves ${Math.round(sug.save / 60)} min` : JSON.stringify(sug)) : 'none'}; banner "${st.banner}"`);
 ok(st.delay > 0, `traffic-aware ETA includes +${st.delay} min delay (time left ${st.eta})`);
 await A.evaluate(() => TruckNav.map.jumpTo({ zoom: 13.2, pitch: 0 })); await A.waitForTimeout(1200); await A.screenshot({ path: `${SHOTS}/04-jam-ahead-reroute-suggestion.png` });
-if (sug?.save) { await A.click('#tfBanner button'); await A.waitForTimeout(1500); const after = await A.evaluate(() => Math.round(TruckNav.trafficDelay / 60)); ok(after < st.delay, `after Switch: remaining delay ${after} min (was ${st.delay})`); await A.screenshot({ path: `${SHOTS}/05-after-switch.png` }); }
+if (sug?.save) { await A.evaluate(() => { window.__rc = TruckNav.chosen; }); await A.waitForTimeout(16000);
+  const kept = await A.evaluate(() => ({ same: TruckNav.chosen === window.__rc, banner: !!document.querySelector('#tfBanner[data-sug]') }));
+  ok(kept.same, `no auto-switch: still on the original route after 16 s without tapping (offer still shown: ${kept.banner})`);
+  await A.click('#tfBanner[data-sug] button').catch(() => A.click('#tfBanner button')); await A.waitForTimeout(1500); const after = await A.evaluate(() => Math.round(TruckNav.trafficDelay / 60)); ok(after < st.delay, `after Switch: remaining delay ${after} min (was ${st.delay})`); await A.screenshot({ path: `${SHOTS}/05-after-switch.png` }); }
 console.log(`\n${fails ? fails + ' FAILED' : 'ALL PASSED'} (${((Date.now() - t0) / 1000).toFixed(0)} s)`); await browser.close(); process.exit(fails ? 1 : 0);
