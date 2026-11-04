@@ -210,7 +210,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   function showBanner(html, cls, buttons = [], sug = false) { if (!sug && banner?.isConnected && banner.dataset.sug) return; // a reroute offer outranks repeat jam alerts
     banner?.remove(); banner = document.createElement('div'); banner.id = 'tfBanner'; banner.className = cls || ''; if (sug) banner.dataset.sug = '1'; banner.innerHTML = html;
     for (const [lbl, fn, x] of buttons) { const b = document.createElement('button'); b.textContent = lbl; if (x) b.className = 'x'; b.onclick = () => { banner.remove(); fn?.(); }; banner.appendChild(b); }
-    document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), 20000); }
+    document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), sug ? 60000 : 20000); } // reroute offer stays 60 s, then dismisses (route never changes on its own)
   function ahead() { const tr = T.cur, along = S.along || 0; if (!tr) return;
     const s = tr.slowdowns.find(x => x.end > along && x.start - along < 8 * MI && (x.level !== 'slow' || x.delay > 60)); T.ahead = s || null;
     if (s) { const d = s.start - along, stage = d < 800 ? 2 : 1, key = Math.round(s.start / 500); if ((warned.get(key) || 0) < stage) { warned.set(key, stage); const txt = jamText(s, along); T.lastAlert = txt; say(txt + '.', 'traffic', true);
@@ -228,7 +228,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       if (!best) return; const min = Math.round(best.save / 60);
       say(`Traffic ahead. A faster truck-safe route saves about ${min} minutes. Tap switch to take it, or keep to stay.`, 'traffic', true);
       showBanner(`<div class="t">⚡ Faster truck‑safe route<div class="d">saves ~${min} min · avoids ${Math.round(tr.delay / 60)} min delay · still checked for your ${S.truck.heightFt}'${S.truck.heightIn}" / ${Math.round(S.truck.weightLbs / 1000)}k lbs rig</div></div>`, '', [['Switch', () => take()], ['Keep', null, true]], true);
-      // never switches by itself: driver must tap Switch; no answer = stay on current route (offer dismisses after 20 s)
+      // never switches by itself: driver must tap Switch; no answer = stay on current route (offer dismisses after 60 s)
       function take() { S.routes = [best.r]; S.sel = 0; S.chosen = best.r; S.selectRoute?.(0); say('Switched to the faster truck route.', 'info', true); refresh(); }
     } catch (e) { T.suggestion = { error: e.message }; } finally { suggesting = false; } }
   T.suggest = suggest;
