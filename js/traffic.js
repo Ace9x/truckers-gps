@@ -207,7 +207,8 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   new MutationObserver(() => { if ([...$('#alts').querySelectorAll('.alt')].some(e => !e.querySelector('.tf-row'))) renderPanel(); }).observe($('#alts'), { childList: true });
   // ---------- while driving: jam alerts + reroute suggestion ----------
   const warned = new Map(); let banner, lastCheck = 0, suggesting = false;
-  function showBanner(html, cls, buttons = []) { banner?.remove(); banner = document.createElement('div'); banner.id = 'tfBanner'; banner.className = cls || ''; banner.innerHTML = html;
+  function showBanner(html, cls, buttons = [], sug = false) { if (!sug && banner?.isConnected && banner.dataset.sug) return; // a reroute offer outranks repeat jam alerts
+    banner?.remove(); banner = document.createElement('div'); banner.id = 'tfBanner'; banner.className = cls || ''; if (sug) banner.dataset.sug = '1'; banner.innerHTML = html;
     for (const [lbl, fn, x] of buttons) { const b = document.createElement('button'); b.textContent = lbl; if (x) b.className = 'x'; b.onclick = () => { banner.remove(); fn?.(); }; banner.appendChild(b); }
     document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), 20000); }
   function ahead() { const tr = T.cur, along = S.along || 0; if (!tr) return;
@@ -226,7 +227,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
       const best = rerouteDecision(cur, cand, { minDelay: T.thresholdMin * 60 }); T.suggestion = best ? { save: best.save, delay: best.delay, len: best.r.length } : { none: true, delay: tr.delay };
       if (!best) return; const min = Math.round(best.save / 60);
       say(`Traffic ahead. A faster truck-safe route saves about ${min} minutes. Switching in 10 seconds unless you tap keep.`, 'traffic', true);
-      showBanner(`<div class="t">⚡ Faster truck‑safe route<div class="d">saves ~${min} min · avoids ${Math.round(tr.delay / 60)} min delay · still checked for your ${S.truck.heightFt}'${S.truck.heightIn}" / ${Math.round(S.truck.weightLbs / 1000)}k lbs rig</div></div>`, '', [['Switch', () => take()], ['Keep', () => clearInterval(cd), true]]);
+      showBanner(`<div class="t">⚡ Faster truck‑safe route<div class="d">saves ~${min} min · avoids ${Math.round(tr.delay / 60)} min delay · still checked for your ${S.truck.heightFt}'${S.truck.heightIn}" / ${Math.round(S.truck.weightLbs / 1000)}k lbs rig</div></div>`, '', [['Switch', () => take()], ['Keep', () => clearInterval(cd), true]], true);
       // Waze-style: if the driver doesn't answer, take the faster truck-legal route after 10 s (hands stay on the wheel). Big savings only.
       function take() { clearInterval(cd); S.routes = [best.r]; S.sel = 0; S.chosen = best.r; S.selectRoute?.(0); say('Switched to the faster truck route.', 'info', true); refresh(); }
       let n = 10; const bb = banner, sw = bb?.querySelector('button:not(.x)'); const cd = best.save >= 300 && S.nav ? setInterval(() => { if (!bb.isConnected) return clearInterval(cd); n--; if (sw) sw.textContent = `Switch (${n})`; if (n <= 0) { bb.remove(); take(); } }, 1000) : null;
