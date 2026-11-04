@@ -44,7 +44,10 @@ function sheet(title, body, extra = '') {
   document.body.appendChild(d); $('.hs-close', d).focus(); return d;
 }
 export function showHelp(id) { const h = HELP[id]; if (!h) return;
-  const d = sheet(h[0], h[1], `<button type="button" class="small-btn hs-tour">▶ <span>Show me how (tour)</span></button>`);
+  const d = sheet(h[0], h[1], `<button type="button" class="small-btn hs-tour">▶ <span>Show me how (tour)</span></button> <button type="button" class="small-btn hs-walk">🗺️ <span>Show me around</span></button>
+    <form class="hs-ask" style="display:flex;gap:6px;margin-top:8px"><input class="hs-q" placeholder="${t('Ask RigRoute a question')}" aria-label="${t('Ask RigRoute a question')}" style="flex:1;min-height:44px;font-size:16px"><button class="small-btn">${t('Ask')}</button></form><p class="hs-a small"></p>`);
+  $('.hs-walk', d).onclick = () => { d.remove(); document.querySelector('.panel:not(.hidden) .close')?.click(); window.TruckNav?.walk?.(); };
+  $('.hs-ask', d).onsubmit = async e => { e.preventDefault(); const G = await import('./guide.js'); const a = G.answer($('.hs-q', d).value, await G.changelog()); $('.hs-a', d).textContent = a ? `${a.t}: ${a.b}` : t('Sorry, I don\'t know that yet. Try Report a Bug in Me, or tap Show me around.'); };
   $('.hs-tour', d).onclick = () => { d.remove(); document.querySelector('.panel:not(.hidden) .close')?.click(); window.TruckNav?.startTour?.(); }; }
 export function explain(term) { const k = Object.keys(TERMS).find(x => x.toLowerCase() === term.toLowerCase()); if (k) sheet(k, TERMS[k]); }
 

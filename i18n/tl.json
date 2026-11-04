@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Sa kalahating milya, manatili sa kanan para sa ruta ng trak. Mababang tulay sa unahan: 12 talampakan 6.",
 "live reports: reconnecting": "live na ulat: muling kumokonekta",
 "live reports: offline": "live na ulat: offline",
-"live reports: live (mqtt)": "live na ulat: live (mqtt)"
+"live reports: live (mqtt)": "live na ulat: live (mqtt)",
+"Help RigRoute grow": "Tulungang lumago ang RigRoute",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "Ibahagi ang iyong lungsod/estado, hindi kailanman ang eksaktong lugar mo, para madala namin ang RigRoute at tulong sa dispatch sa mas maraming driver na malapit sa iyo.",
+"Yes, share my city": "Oo, ibahagi ang lungsod ko",
+"No thanks": "Huwag na, salamat",
+"What's new": "Ano ang bago",
+"Show me around": "Ipakita sa akin ang app",
+"Email us": "I-email kami"
 }

@@ -29,9 +29,10 @@ function mount() { const me = $('#mePanel'); if (!me || $('#bugBox')) return;
     <label>Screenshot (optional, PNG/JPG/WebP, up to 5MB)<input id="bugShot" type="file" accept="image/png,image/jpeg,image/webp"></label>
     <label>Contact (optional, email or phone if you want a reply)<input id="bugContact" maxlength="200" autocomplete="email"></label>
     <input id="bugHp" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-    <button id="bugSend" class="big" type="submit">Send report</button><p id="bugMsg" class="small" role="status"></p>
+    <button id="bugSend" class="big" type="submit">Send report</button><button id="bugMail" class="big" type="button">✉️ Email us</button><p id="bugMsg" class="small" role="status"></p>
   </form><div id="bugMine" class="small"></div></details>`);
   $('#bugPage').value = location.href;
+  $('#bugMail').onclick = async () => { const { SUPPORT_EMAIL } = await import('./config.js'); location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('RigRoute help')}`; };
   $('#bugShot').addEventListener('change', e => { const m = checkShot(e.target.files[0]); $('#bugMsg').textContent = m || ''; if (m) e.target.value = ''; });
   const listMine = async () => { try { const r = await myReports(); $('#bugMine').innerHTML = r.length ? '<b>Your reports</b><ul>' + r.map(x => `<li>${esc(x.kind)} · ${esc(x.status)} · ${esc(x.description.slice(0, 60))}</li>`).join('') + '</ul>' : ''; } catch { } };
   $('#bugBox').addEventListener('toggle', listMine);

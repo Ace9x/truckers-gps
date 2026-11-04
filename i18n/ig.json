@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "N'ọkara maịl, nọrọ n'aka nri maka ụzọ gwongworo. Akwa mmiri dị ala n'ihu: ụkwụ 12 na 6.",
 "live reports: reconnecting": "akụkọ ugbu a: na-ejikọ ọzọ",
 "live reports: offline": "akụkọ ugbu a: na-enweghị ịntanetị",
-"live reports: live (mqtt)": "akụkọ ugbu a: na-arụ ọrụ (mqtt)"
+"live reports: live (mqtt)": "akụkọ ugbu a: na-arụ ọrụ (mqtt)",
+"Help RigRoute grow": "Nyere RigRoute aka ka o too",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "Kesaa obodo/steeti gị, ọ bụghị ebe ị nọ kpọmkwem, ka anyị wetara RigRoute na enyemaka dispatch nye ọtụtụ ndị ọkwọ ụgbọala nọ gị nso.",
+"Yes, share my city": "Ee, kesaa obodo m",
+"No thanks": "Mba, daalụ",
+"What's new": "Gịnị dị ọhụrụ",
+"Show me around": "Gosi m ngwa a",
+"Email us": "Zitere anyị email"
 }

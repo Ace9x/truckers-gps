@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nus mayl kadib, midig ku sii jir waddada gaadiidka. Buundo hoose ayaa hor taal: 12 cagood iyo 6.",
 "live reports: reconnecting": "warbixinada tooska ah: dib u xiriirinaya",
 "live reports: offline": "warbixinada tooska ah: internet la'aan",
-"live reports: live (mqtt)": "warbixinada tooska ah: toos (mqtt)"
+"live reports: live (mqtt)": "warbixinada tooska ah: toos (mqtt)",
+"Help RigRoute grow": "Ka caawi RigRoute inay korto",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "La wadaag magaaladaada/gobolkaaga, weligaa ha la wadaagin meesha saxda ah, si aan RigRoute iyo caawimada dirista ugu keenno darawallo badan oo kuu dhow.",
+"Yes, share my city": "Haa, la wadaag magaaladayda",
+"No thanks": "Maya, mahadsanid",
+"What's new": "Maxaa cusub",
+"Show me around": "I tus app-ka",
+"Email us": "Noo soo dir email"
 }

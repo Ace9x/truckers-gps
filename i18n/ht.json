@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Nan mwatye mil, rete adwat pou wout kamyon an. Pon ba devan: 12 pye 6.",
 "live reports: reconnecting": "rapò an dirèk: ap rekonekte",
 "live reports: offline": "rapò an dirèk: san entènèt",
-"live reports: live (mqtt)": "rapò an dirèk: an dirèk (mqtt)"
+"live reports: live (mqtt)": "rapò an dirèk: an dirèk (mqtt)",
+"Help RigRoute grow": "Ede RigRoute grandi",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "Pataje vil/eta ou, janm kote egzak ou ye a, pou nou ka pote RigRoute ak èd dispatch bay plis chofè toupre ou.",
+"Yes, share my city": "Wi, pataje vil mwen",
+"No thanks": "Non mèsi",
+"What's new": "Sa ki nouvo",
+"Show me around": "Montre m aplikasyon an",
+"Email us": "Voye yon imèl ban nou"
 }

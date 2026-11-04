@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "आधा माइलपछि ट्रक बाटोका लागि दायाँ रहनुहोस्। अगाडि होचो पुल: १२ फिट ६।",
 "live reports: reconnecting": "लाइभ रिपोर्ट: फेरि जोडिँदै",
 "live reports: offline": "लाइभ रिपोर्ट: अफलाइन",
-"live reports: live (mqtt)": "लाइभ रिपोर्ट: लाइभ (mqtt)"
+"live reports: live (mqtt)": "लाइभ रिपोर्ट: लाइभ (mqtt)",
+"Help RigRoute grow": "RigRoute लाई बढ्न मद्दत गर्नुहोस्",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "आफ्नो सहर/राज्य साझा गर्नुहोस्, कहिल्यै ठ्याक्कै ठाउँ होइन, ताकि हामी RigRoute र डिस्प्याच मद्दत तपाईंनजिकका थप चालकसम्म पुर्‍याउन सकौँ।",
+"Yes, share my city": "हो, मेरो सहर साझा गर्नुहोस्",
+"No thanks": "पर्दैन, धन्यवाद",
+"What's new": "नयाँ के छ",
+"Show me around": "मलाई एप देखाउनुहोस्",
+"Email us": "हामीलाई इमेल गर्नुहोस्"
 }

@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "반 마일 앞에서 트럭 경로로 오른쪽을 유지하세요. 앞에 낮은 다리: 12피트 6.",
 "live reports: reconnecting": "실시간 신고: 다시 연결 중",
 "live reports: offline": "실시간 신고: 오프라인",
-"live reports: live (mqtt)": "실시간 신고: 연결됨 (mqtt)"
+"live reports: live (mqtt)": "실시간 신고: 연결됨 (mqtt)",
+"Help RigRoute grow": "RigRoute 성장 돕기",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "정확한 위치가 아닌 도시/주만 공유하세요. 그러면 근처의 더 많은 기사님께 RigRoute와 배차 도움을 드릴 수 있어요.",
+"Yes, share my city": "네, 도시 공유",
+"No thanks": "괜찮아요",
+"What's new": "새로운 기능",
+"Show me around": "앱 둘러보기",
+"Email us": "이메일 보내기"
 }

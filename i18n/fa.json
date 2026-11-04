@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "نیم مایل دیگر، برای مسیر کامیون سمت راست بمانید. پل کوتاه جلوتر: ۱۲ فوت و ۶.",
 "live reports: reconnecting": "گزارش زنده: اتصال دوباره",
 "live reports: offline": "گزارش زنده: آفلاین",
-"live reports: live (mqtt)": "گزارش زنده: روشن (mqtt)"
+"live reports: live (mqtt)": "گزارش زنده: روشن (mqtt)",
+"Help RigRoute grow": "به رشد RigRoute کمک کنید",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "شهر/ایالت خود را به اشتراک بگذارید، هرگز مکان دقیق را، تا RigRoute و کمک دیسپچ را به رانندگان بیشتری نزدیک شما برسانیم.",
+"Yes, share my city": "بله، شهرم را به اشتراک بگذار",
+"No thanks": "نه، ممنون",
+"What's new": "تازه‌ها",
+"Show me around": "برنامه را نشانم بده",
+"Email us": "به ما ایمیل بزنید"
 }

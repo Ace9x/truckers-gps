@@ -1,4 +1,4 @@
-import * as ACTIVE from './active.js'; setTimeout(() => ACTIVE.ping(), 5000);
+import * as GUIDE from './guide.js'; import * as WNEW from './whatsnew.js'; import * as ACTIVE from './active.js'; import * as AREAOPT from './areaopt.js'; AREAOPT.start(); setTimeout(() => ACTIVE.ping(), 5000);
 import { t as T_ } from './i18n.js'; import * as LUI from './langui.js'; import * as HELPUI from './help.js';
 // RigRoute GPS — Pro UI layer: SVG icon set (replaces emoji glyphs visually, keeps text for screen readers/tests),
 // trucking map style, splash, help button, first-run tour with Ace. Styling/markup only — no feature logic.
@@ -65,14 +65,7 @@ document.addEventListener('click', e => { if (e.target.closest('.panel .close'))
 const side = $('#sideBtns'); if (side && !$('#helpBtn')) side.insertAdjacentHTML('beforeend', '<button id="helpBtn" class="round" title="Help & tour" aria-label="Help and tour">?</button>');
 const STEPS = [ // plain-language first-run walkthrough: 9 picture cards (skippable, replay from ? Help or Me)
   { pic: '👋', t: 'Hi, I\'m Ace', b: 'I will show you how to use RigRoute. It takes one minute. Tap Skip any time.' },
-  { pic: '🚛', sel: '[data-panel=truckPanel]', t: 'Tell us about your truck', b: 'Tap Truck. Enter how tall, heavy, and long it is. Then we keep you away from low bridges and roads trucks can\'t use.' },
-  { pic: '🔍', sel: '#searchBtn', t: 'Pick where to go', b: 'Tap here and type an address or a company name. Then tap Start. The phone tells you every turn out loud.' },
-  { pic: '🧭', sel: '[data-panel=routePanel]', t: 'Route: your trip', b: 'Tap Route to see your way there, how long it takes, tolls and fuel stops. You can save maps here for places with no signal.' },
-  { pic: '⏱', sel: '[data-panel=hosPanel]', t: 'HOS: your driving clock', b: 'Tap HOS to see how many hours you can still drive today and when your break is due. It is a helper, not your legal log.' },
-  { pic: '📦', sel: '[data-panel=loadPanel]', t: 'Load: your job', b: 'Tap Load for your pickup, drop-off, times and papers like the BOL. Loads your dispatcher sends you show up here.' },
-  { pic: '📣', sel: '#reportBtn', t: 'Warn other drivers', b: 'See a crash, police, or road work? Tap here. Other drivers will see it on their map.' },
-  { pic: '😎', sel: '#meBtn', t: 'Me: you and your settings', b: 'Tap Me for your points, friends, account, language and voice. Something broken or have an idea? Use Report a Bug / Suggestion there.' },
-  { pic: '❓', sel: '#helpBtn', t: 'Need help?', b: 'Tap ? on any screen. It tells you what the screen does, and it can read it out loud. Tap a small ? next to a word like HOS to learn what it means.' },
+  ...GUIDE.tourSteps(), // generated from js/guide.js (same text as Show me around + Ask RigRoute)
   { ask: true, pic: '🤝', t: 'Want to keep me riding along?', b: 'I can give tips while you drive. You can change this any time under Me.' },
 ];
 export function startTour() {
@@ -90,7 +83,7 @@ export function startTour() {
 function endTour() { ['#tourDim', '#tourRing', '#tourCard'].forEach(s => $(s)?.remove()); }
 function finish(keep) { endTour(); LS.set('tourDone', true); LS.set('mascot', keep); if (S.mascot) { S.mascot.enabled = keep; if (!keep) S.mascot.hide(); else S.mascot.say('Great, I\'ll ride along. Tap ? anytime for help.', 'happy', 4000); }
   const c = $('#mascotOn'); if (c) c.checked = keep; S.tourResult = keep ? 'kept' : 'off'; }
-S.startTour = startTour;
+S.startTour = startTour; S.walk = () => GUIDE.walk(S); WNEW.start(S);
 $('#helpBtn')?.addEventListener('click', () => { const open = document.querySelector('.panel:not(.hidden)'); if (open && window.RRHelp?.HELP[open.id]) window.RRHelp.showHelp(open.id); else startTour(); });
 $('#replayTour')?.addEventListener('click', () => { document.querySelector('.panel:not(.hidden) .close')?.click(); startTour(); });
 // First run: Ace is on as the onboarding guide; afterwards the user's choice (default off) rules.

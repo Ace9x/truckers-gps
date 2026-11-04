@@ -1,0 +1,9 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
+globalThis.document ??= { documentElement: { lang: 'en' }, addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; } }; globalThis.addEventListener ??= () => {}; globalThis.localStorage ??= { getItem: () => null, setItem() {} };
+const G = await import('../js/guide.js');
+test('every tour step has a walkthrough entry (same source)', () => { const walk = new Set(G.walkSteps().map(g => g.id)); for (const s of G.tourSteps()) { assert.ok(walk.has(s.id), s.id); assert.ok(s.sel && s.t && s.b, s.id); } });
+test('pro.js tour is generated from guide.js, not duplicated', () => { const src = fs.readFileSync('js/pro.js', 'utf8'); assert.match(src, /GUIDE\.tourSteps\(\)/); for (const g of G.GUIDE) assert.ok(!src.includes(g.b), 'duplicated text: ' + g.id); });
+test('walkthrough covers the whole app', () => { const ids = G.walkSteps().map(g => g.id); for (const k of ['truck', 'search', 'route', 'switch', 'hos', 'load', 'report', 'me', 'grow', 'bug', 'email']) assert.ok(ids.includes(k), k); });
+test('Ask RigRoute answers from the guide and changelog', () => { const log = JSON.parse(fs.readFileSync('data/changelog.json', 'utf8')); assert.equal(G.answer('how do I set my truck height', log).id, 'truck'); assert.match(G.answer('what changed?', log).t, /2026-11-04/); });
+test('SW version bump requires a changelog entry for that version', () => { const v = fs.readFileSync('sw.js', 'utf8').match(/tn-v([\d.]+)/)[1], log = JSON.parse(fs.readFileSync('data/changelog.json', 'utf8'));
+  assert.equal(log[0].version, v, `sw.js is v${v} but newest changelog entry is ${log[0].version} — add a data/changelog.json entry`); for (const e of log) assert.match(e.date, /^\d{4}-\d{2}-\d{2}$/); });

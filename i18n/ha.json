@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Bayan rabin mil, tsaya a dama don hanyar manyan motoci. Ƙaramin gada a gaba: ƙafa 12 da 6.",
 "live reports: reconnecting": "rahotanni kai-tsaye: ana sake haɗawa",
 "live reports: offline": "rahotanni kai-tsaye: ba tare da intanet ba",
-"live reports: live (mqtt)": "rahotanni kai-tsaye: suna aiki (mqtt)"
+"live reports: live (mqtt)": "rahotanni kai-tsaye: suna aiki (mqtt)",
+"Help RigRoute grow": "Taimaka RigRoute ya bunƙasa",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "Raba birninka/jiharka, ba wurin da kake daidai ba, domin mu kawo RigRoute da taimakon dispatch ga ƙarin direbobi kusa da kai.",
+"Yes, share my city": "Eh, raba birnina",
+"No thanks": "A'a, na gode",
+"What's new": "Me ya sabunta",
+"Show me around": "Nuna mini manhajar",
+"Email us": "Aiko mana imel"
 }

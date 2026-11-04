@@ -1020,5 +1020,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "En media milla, mantente a la derecha para la ruta de camiones. Puente bajo adelante: 12 pies 6.",
 "live reports: reconnecting": "reportes: reconectando",
 "live reports: offline": "reportes: sin señal",
-"live reports: live (mqtt)": "reportes: en vivo (mqtt)"
+"live reports: live (mqtt)": "reportes: en vivo (mqtt)",
+"Help RigRoute grow": "Ayuda a RigRoute a crecer",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "Comparte tu ciudad/estado, nunca tu lugar exacto, para que llevemos RigRoute y ayuda de despacho a más choferes cerca de ti.",
+"Yes, share my city": "Sí, compartir mi ciudad",
+"No thanks": "No, gracias",
+"What's new": "Novedades",
+"Show me around": "Muéstrame la app",
+"Email us": "Escríbenos"
 }

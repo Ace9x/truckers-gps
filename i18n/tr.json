@@ -1020,5 +1020,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "Yarım mil sonra kamyon rotası için sağdan devam et. İleride alçak köprü: 12 fit 6.",
 "live reports: reconnecting": "canlı bildirimler: yeniden bağlanıyor",
 "live reports: offline": "canlı bildirimler: çevrimdışı",
-"live reports: live (mqtt)": "canlı bildirimler: canlı (mqtt)"
+"live reports: live (mqtt)": "canlı bildirimler: canlı (mqtt)",
+"Help RigRoute grow": "RigRoute büyüsün",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "Şehrini/eyaletini paylaş, asla tam yerini değil; böylece RigRoute’u ve sevkiyat yardımını yakınındaki daha çok sürücüye ulaştıralım.",
+"Yes, share my city": "Evet, şehrimi paylaş",
+"No thanks": "Hayır, teşekkürler",
+"What's new": "Yenilikler",
+"Show me around": "Bana uygulamayı göster",
+"Email us": "Bize e-posta gönder"
 }

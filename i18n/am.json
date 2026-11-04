@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "በግማሽ ማይል ውስጥ ለጭነት መኪና መንገድ ወደ ቀኝ ይቆዩ። ከፊት ዝቅተኛ ድልድይ፦ 12 ጫማ 6።",
 "live reports: reconnecting": "ቀጥታ ሪፖርቶች: እንደገና በመገናኘት ላይ",
 "live reports: offline": "ቀጥታ ሪፖርቶች: ከመስመር ውጭ",
-"live reports: live (mqtt)": "ቀጥታ ሪፖርቶች: ቀጥታ (mqtt)"
+"live reports: live (mqtt)": "ቀጥታ ሪፖርቶች: ቀጥታ (mqtt)",
+"Help RigRoute grow": "RigRoute እንዲያድግ ያግዙ",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "ከተማዎን/ግዛትዎን ያጋሩ፤ ትክክለኛ ቦታዎን በፍጹም አይደለም። ይህም RigRouteን እና የመላኪያ እገዛን በአቅራቢያዎ ላሉ ብዙ ሾፌሮች እንድናደርስ ይረዳናል።",
+"Yes, share my city": "አዎ፣ ከተማዬን አጋራ",
+"No thanks": "አይ፣ አመሰግናለሁ",
+"What's new": "ምን አዲስ ነገር አለ",
+"Show me around": "መተግበሪያውን አሳየኝ",
+"Email us": "ኢሜይል ይላኩልን"
 }

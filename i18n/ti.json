@@ -1021,5 +1021,12 @@
 "In half a mile, keep right for the truck route. Low bridge ahead: 12 feet 6.": "ድሕሪ ፍርቂ ማይል ንመንገዲ ጽዕነት ብየማን ጽናሕ። ቅድሜኻ ትሑት ድልድል፦ 12 ጫማ 6።",
 "live reports: reconnecting": "ቀጥታ ጸብጻባት: ዳግማይ ይራኸብ",
 "live reports: offline": "ቀጥታ ጸብጻባት: ብዘይ ኢንተርነት",
-"live reports: live (mqtt)": "ቀጥታ ጸብጻባት: ቀጥታ (mqtt)"
+"live reports: live (mqtt)": "ቀጥታ ጸብጻባት: ቀጥታ (mqtt)",
+"Help RigRoute grow": "RigRoute ክዓቢ ሓግዝ",
+"Share your city/state, never your exact spot, so we can bring RigRoute and dispatch help to more drivers near you.": "ከተማኻ/ክፍለ ሃገርካ ኣካፍል፣ ልክዕ ዘለኻዮ ቦታ ግን ፈጺሙ ኣይኮነን፣ RigRouteን ሓገዝ ምልኣኽን ኣብ ጥቓኻ ንዘለዉ ብዙሓት መራሕቲ ንምብጻሕ።",
+"Yes, share my city": "እወ፣ ከተማይ ኣካፍል",
+"No thanks": "የለን፣ የቐንየለይ",
+"What's new": "እንታይ ሓድሽ ኣሎ",
+"Show me around": "ነቲ ኣፕ ኣርእየኒ",
+"Email us": "ኢመይል ስደደልና"
 }
