@@ -68,7 +68,7 @@ class SupabaseBackend { // shared community hazards on ace-platform (table "haza
   // If it fails (offline, rate limited, type not shareable) the report is kept on this phone and retried later.
   dev() { let d = localStorage.getItem('rr_dev'); if (!d) { d = crypto.randomUUID(); localStorage.setItem('rr_dev', d); } return d; }
   async guestAdd(r) { try { const { data, error } = await this.sb.rpc('guest_report_hazard', { p_device: this.dev(), p_type: r.type, p_lat: r.lat, p_lng: r.lon, p_note: r.note || null }); if (error) throw error;
-      return { ...r, id: data.id, mine: true, server: true, expires: Date.parse(data.expires_at) }; }
+      if (!data.dedup) { const m = get('myPins', []); m.push(data.id); set('myPins', m.slice(-300)); } return { ...r, id: data.id, mine: !data.dedup, server: true, expires: Date.parse(data.expires_at) }; }
     catch (e) { const g = get('guestReports', []).filter(x => (x.expires || x.t + 6 * 36e5) > Date.now()); g.push({ ...r, mine: true, local: true, err: String(e.message || e).slice(0, 80) }); set('guestReports', g.slice(-200)); return { ...r, mine: true, local: true }; } }
   async syncGuest() { const g = get('guestReports', []).filter(x => (x.expires || x.t + 6 * 36e5) > Date.now()); if (!g.length || !navigator.onLine) return; const keep = [];
     for (const r of g) { try { const { error } = await this.sb.rpc('guest_report_hazard', { p_device: this.dev(), p_type: r.type, p_lat: r.lat, p_lng: r.lon, p_note: r.note || null }); if (error && !/bad location/.test(error.message)) keep.push(r); /* unshareable types (e.g. amenity) stay on this phone */ } catch { keep.push(r); } }
@@ -77,9 +77,10 @@ class SupabaseBackend { // shared community hazards on ace-platform (table "haza
   async signIn(email) { const { error } = await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('#')[0] } }); if (error) throw error; return { message: 'Check your email for the sign-in link.' }; }
   async signOut() { await this.sb.auth.signOut(); }
   async listReports(b) { let q = this.sb.from('hazards').select('*').order('created_at', { ascending: false }).limit(500); if (b) q = q.gte('lng', b[0]).lte('lng', b[2]).gte('lat', b[1]).lte('lat', b[3]);
-    const { data, error } = await q; if (error) throw error; const mine = get('guestReports', []).filter(x => (x.expires || x.t + 6 * 36e5) > Date.now()); return (data || []).map(this.c.toReport).concat(mine); }
+    const { data, error } = await q; if (error) throw error; const mine = get('guestReports', []).filter(x => (x.expires || x.t + 6 * 36e5) > Date.now()); const own = new Set(get('myPins', [])), voted = get('myVotes', {}); return (data || []).map(this.c.toReport).map(r => own.has(r.id) ? { ...r, mine: true } : voted[r.id] ? { ...r, voted: voted[r.id] } : r).concat(mine); }
   async addReport(r) { if (!(await this.session())) return this.guestAdd(r); const { data, error } = await this.sb.from('hazards').insert(this.c.toRow(r)).select().single(); if (error) throw error; return this.c.toReport(data); }
-  async vote(id, dir) { const { data, error } = await this.sb.rpc('vote_hazard', { p_hazard_id: id, p_dir: dir }); if (error) throw error; return data ? { up: data.confirmations, down: data.dismissals } : null; }
+  async vote(id, dir) { if (!(await this.session())) { const { data, error } = await this.sb.rpc('guest_vote_hazard', { p_device: this.dev(), p_hazard_id: id, p_dir: dir }); if (error) throw error; const v = get('myVotes', {}); v[id] = dir; set('myVotes', v); return { up: data.up, down: data.down, gone: data.hidden }; }
+    const { data, error } = await this.sb.rpc('vote_hazard', { p_hazard_id: id, p_dir: dir }); if (error) throw error; return data ? { up: data.confirmations, down: data.dismissals } : null; }
   async reportAbuse(id, reason) { const { error } = await this.sb.rpc('report_hazard_abuse', { p_hazard_id: id, p_reason: reason || null }); if (error) throw error; }
   async saveProfile(p) { const s = await this.session(); if (!s) return; await this.sb.from('profiles').update({ avatar: p.avatar, mood: p.mood, points: p.points, stats: p.stats }).eq('id', s.id); }
   async addPoints(pts, why) { if (await this.session()) await this.sb.from('point_events').insert({ pts: Math.max(0, Math.min(50, pts)), why }); }
