@@ -1,0 +1,3 @@
+// Typed text follows its own direction: Arabic/Hebrew/Farsi/Urdu names and notes read right-to-left even in an English UI.
+const fix = root => root.querySelectorAll?.('input:not([type]),input[type=text],input[type=search],input[type=email],input[type=tel],textarea').forEach(e => { if (!e.hasAttribute('dir')) e.setAttribute('dir', 'auto'); });
+fix(document); new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { fix(n); if (n.matches?.('input,textarea')) fix(n.parentNode); } }).observe(document.documentElement, { childList: true, subtree: true });

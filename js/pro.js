@@ -1,4 +1,4 @@
-import * as GUIDE from './guide.js'; import * as WNEW from './whatsnew.js'; import * as ACTIVE from './active.js'; import * as AREAOPT from './areaopt.js'; AREAOPT.start(); setTimeout(() => ACTIVE.ping(), 5000);
+import './backnav.js'; import './bidi.js'; import * as GUIDE from './guide.js'; import * as WNEW from './whatsnew.js'; import * as ACTIVE from './active.js'; import * as AREAOPT from './areaopt.js'; AREAOPT.start(); setTimeout(() => ACTIVE.ping(), 5000);
 import { t as T_ } from './i18n.js'; import * as LUI from './langui.js'; import * as HELPUI from './help.js';
 // RigRoute GPS — Pro UI layer: SVG icon set (replaces emoji glyphs visually, keeps text for screen readers/tests),
 // trucking map style, splash, help button, first-run tour with Ace. Styling/markup only — no feature logic.

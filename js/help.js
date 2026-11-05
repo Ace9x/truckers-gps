@@ -45,9 +45,10 @@ function sheet(title, body, extra = '') {
 }
 export function showHelp(id) { const h = HELP[id]; if (!h) return;
   const d = sheet(h[0], h[1], `<button type="button" class="small-btn hs-tour">▶ <span>Show me how (tour)</span></button> <button type="button" class="small-btn hs-walk">🗺️ <span>Show me around</span></button>
-    <form class="hs-ask" style="display:flex;gap:6px;margin-top:8px"><input class="hs-q" placeholder="${t('Ask RigRoute a question')}" aria-label="${t('Ask RigRoute a question')}" style="flex:1;min-height:44px;font-size:16px"><button class="small-btn">${t('Ask')}</button></form><p class="hs-a small"></p>`);
+    <form class="hs-ask" style="display:flex;gap:6px;margin-top:8px"><input class="hs-q" maxlength="500" dir="auto" placeholder="${t('Ask RigRoute a question')}" aria-label="${t('Ask RigRoute a question')}" style="flex:1;min-height:44px;font-size:16px"><button class="small-btn">${t('Ask')}</button></form><p class="hs-a small"></p>`);
   $('.hs-walk', d).onclick = () => { d.remove(); document.querySelector('.panel:not(.hidden) .close')?.click(); window.TruckNav?.walk?.(); };
-  $('.hs-ask', d).onsubmit = async e => { e.preventDefault(); const G = await import('./guide.js'); $('.hs-a', d).textContent = '…'; const r = await G.askAI($('.hs-q', d).value, window.TruckNav); $('.hs-a', d).textContent = r.voiceOnly ? '🔊' : (r.ai ? '🤖 ' + t('AI answer') + ': ' : '') + r.text; };
+  let asking = false; $('.hs-ask', d).onsubmit = async e => { e.preventDefault(); const q = $('.hs-q', d).value.trim(); if (asking || !q) return; asking = true; const sb = $('.hs-ask button', d); if (sb) sb.disabled = true; /* double/triple tap sends one question */
+    try { const G = await import('./guide.js'); $('.hs-a', d).textContent = '…'; const r = await G.askAI(q.slice(0, 500), window.TruckNav); $('.hs-a', d).textContent = r.voiceOnly ? '🔊' : (r.ai ? '🤖 ' + t('AI answer') + ': ' : '') + r.text; } finally { asking = false; if (sb) sb.disabled = false; } };
   $('.hs-tour', d).onclick = () => { d.remove(); document.querySelector('.panel:not(.hidden) .close')?.click(); window.TruckNav?.startTour?.(); }; }
 export function explain(term) { const k = Object.keys(TERMS).find(x => x.toLowerCase() === term.toLowerCase()); if (k) sheet(k, TERMS[k]); }
 
