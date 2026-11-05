@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.29.3",
+  "date": "2026-11-04",
+  "items": [
+   "Sign in without a password: get a code by email. Google sign-in shows up as soon as it is turned on."
+  ]
+ },
+ {
   "version": "3.29.2",
   "date": "2026-11-04",
   "items": [
