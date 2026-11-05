@@ -26,3 +26,8 @@ test('short-haul: no 30-minute break, eligibility 150 air-mi / 14h', () => { con
 test('labelled as a planning aid, not an ELD', () => assert.match(hosEngine([], T).label, /not an ELD/));
 test('ETA plan inserts required breaks', () => { const st = { breakLeft: 2 * H, driveLeft: 5 * H }; const r = planBreaks(9 * 3600, st);
   assert.deepEqual(r.breaks.map(b => [b.kind, b.atSec / 3600]), [['30min', 2], ['10h', 5.5]]); assert.equal(r.totalSec, 9 * 3600 + 1800 + 36000); assert.deepEqual(planBreaks(3600, { breakLeft: Infinity, driveLeft: 11 * H }).breaks, []); });
+// BUG-001: duty buttons highlighted the PREVIOUS status (zero-length newest segment was skipped). 49 CFR 395.8 duty statuses: off, sleeper berth, driving, on duty.
+for (const s of ['off', 'sb', 'on', 'drive']) test(`status mapping: tapping ${s} makes ${s} the current status immediately (BUG-001)`, () => {
+  const ev = seq(['off', 10], ['drive', 2]); const now = at(['off', 10], ['drive', 2]); ev.push({ t: now, s }); assert.equal(hosEngine(ev, now).status, s); });
+test('status mapping: every order of taps reports the last one (BUG-001)', () => { const ev = []; let t = T; for (const s of ['off', 'sb', 'on', 'drive', 'off', 'drive', 'sb', 'on']) { ev.push({ t, s }); assert.equal(hosEngine(ev, t).status, s); t += 60e3; } });
+test('60-hour/7-day cycle (49 CFR 395.3(b)(1))', () => { const p = []; for (let d = 0; d < 6; d++) p.push(['off', 10], ['on', 3], ['drive', 7], ['off', 4]); const s = hosEngine(seq(...p), at(...p), { cycle: 60 }); assert.equal(s.cycleLeft, 0); });

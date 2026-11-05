@@ -26,7 +26,8 @@ const line = coords => ({ type: 'Feature', geometry: { type: 'LineString', coord
 
 const DEFAULT_TRUCK = { driverType: 'otr', cycle: 70, heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5, hazmat: false, avoidTolls: false, avoidWeigh: false, units: 'mi', theme: 'auto' };
 const S = {
-  truck: { ...DEFAULT_TRUCK, ...(LS.get('truck', null) || LS.get('truckBak', {})) }, // profile never silently resets (UX P15): backup copy kept by pro.js pos: LS.get('lastPos', null), dest: LS.get('dest', null),
+  truck: { ...DEFAULT_TRUCK, ...(LS.get('truck', null) || LS.get('truckBak', {})) }, /* profile never silently resets (UX P15): backup copy kept by pro.js */
+  pos: LS.get('lastPos', null), dest: LS.get('dest', null), // BUG-003: these were inside the comment above, so the destination was lost on reload
   route: null, routes: [], sel: 0, chosen: null, carRoute: null, nav: false, demo: null, follow: true,
   hint: 0, spoken: {}, off: new OffRouteDetector({ threshold: 50, needed: 3, minAccuracy: 30 }), rerouting: false, lastReroute: 0, rerouteCount: 0,
   step: 0, along: 0, pois: [], events: LS.get('hos', []), stoppedSince: null, warned: {}, avoids: LS.get('avoids', []), facilities: LS.get('facilities', {}),

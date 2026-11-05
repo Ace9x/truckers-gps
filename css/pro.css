@@ -461,3 +461,37 @@ html[dir=rtl] input,html[dir=rtl] select,html[dir=rtl] textarea{text-align:right
 #routePanel .phead h2::before{content:'🧭 '} #hosPanel .phead h2::before{content:'⏱ '} #loadPanel .phead h2::before{content:'📦 '} #truckPanel .phead h2::before{content:'🚛 '}
 #reportPanel .phead h2::before{content:'📣 '} #facPanel .phead h2::before{content:'🏭 '} #mePanel .phead h2::before{content:'😎 '} #layersPanel .phead h2::before{content:'🗺 '}
 html body #limitSign.est{opacity:.72;border-style:dashed}html body #limitSign.est #limitSrc{font-style:italic}
+
+/* BUG-002: multi-stop options — time on its own row, checkboxes inline with labels (iPhone Safari overlap) */
+#plannerPanel .pl-opts{display:flex;flex-direction:column;gap:8px;margin:8px 0}#plannerPanel .pl-time{display:flex;align-items:center;gap:10px;margin:0}#plannerPanel .pl-time input{width:auto;min-width:120px;min-height:44px;margin:0;padding:6px 10px}
+#plannerPanel .pl-checks{display:flex;flex-wrap:wrap;gap:4px 16px}#plannerPanel .pl-chk{display:inline-flex;flex-direction:row;align-items:center;gap:8px;min-height:44px;margin:0;white-space:nowrap}#plannerPanel .pl-chk input{width:22px;height:22px;min-height:22px;margin:0;padding:0;flex:none}
+/* BUG-004: map attribution sat under the bottom dock (links hidden behind Route/HOS/Load buttons, taps could land on them). Keep it just above the dock. */
+.maplibregl-ctrl-bottom-right{bottom:calc(92px + env(safe-area-inset-bottom))}body.st-nav .maplibregl-ctrl-bottom-right{bottom:calc(8px + env(safe-area-inset-bottom))}
+/* BUG-005: phone in landscape — the right-side map buttons ran off the bottom and under the dock. Lay them out in a row above the dock. */
+@media (orientation:landscape) and (max-height:500px){#sideBtns{top:auto!important;bottom:calc(96px + env(safe-area-inset-bottom));flex-direction:row}.maplibregl-ctrl-bottom-right{bottom:calc(160px + env(safe-area-inset-bottom))}}
+/* BUG-006: toasts floated over sheet buttons and swallowed taps (e.g. "Avoid scales" right after "Hazmat") */
+#toast{pointer-events:none}
+@media (orientation:landscape) and (max-height:500px){.maplibregl-ctrl-bottom-right{bottom:calc(172px + env(safe-area-inset-bottom))}}
+/* BUG-007: tap targets under 44px (WCAG 2.5.5 / Apple HIG) */
+.panel summary,details>summary{min-height:44px;display:flex;align-items:center;gap:6px;cursor:pointer}
+button.gl{min-width:44px;min-height:44px}
+#friendsBtn,#loadsBtn,#truckChip,#acctChips .chip{min-height:44px;min-width:44px}
+.panel input[type=range]{min-height:44px}
+.panel label.chk,.panel label:has(>input[type=checkbox]){min-height:44px;display:flex;align-items:center;gap:8px}
+#tfLegend{min-height:44px;display:flex;align-items:center}
+#plMic,.hs-walk,.hs-tour{min-width:44px;min-height:44px}
+#plannerPanel button,.hs-card .small-btn{min-height:44px}
+#friendsBtn,#loadsBtn,#truckChip{height:auto!important;min-height:44px!important}[data-pf]{min-width:44px}
+/* BUG-008: locked badges were 35% opacity (failed WCAG AA contrast). Show them dimmed but readable. */
+.badges span.locked{opacity:1;color:#9aa4af;background:#161b22;border:1px dashed #3a424d;filter:grayscale(1)}
+@media (orientation:landscape) and (max-height:500px){html body #tfLegend{bottom:calc(96px + var(--safe-b))!important}}
+/* BUG-009: landscape — "live reports" pill sat on top of the truck chip */
+@media (orientation:landscape) and (max-height:500px){#hzLive{bottom:calc(104px + var(--safe-b))!important;left:250px!important}}
+/* BUG-009/010: legend is now a 44px tap target, so the live-reports pill moves up one row; both sit under open sheets */
+html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(288px + var(--safe-b))!important}
+html body #tfLegend,html body #hzLive{z-index:4}
+@media (orientation:landscape) and (max-height:500px){html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(96px + var(--safe-b))!important;left:auto!important;right:12px!important;top:auto!important}html body #tfLegend{bottom:calc(96px + var(--safe-b))!important}}
+html body:has(#hzSheet) #tfLegend,html body:has(#hzSheet) #hzLive,html body:has(.panel:not(.hidden)) #tfLegend,html body:has(.panel:not(.hidden)) #hzLive,html body:has(#walkCard) #hzLive{display:none!important}
+html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(288px + var(--safe-b))!important;left:12px!important;right:auto!important}
+@media (orientation:landscape) and (max-height:500px){html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(172px + var(--safe-b))!important;left:auto!important;right:12px!important}}
+@media (orientation:landscape) and (max-height:500px){html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(104px + var(--safe-b))!important;left:216px!important;right:auto!important}}

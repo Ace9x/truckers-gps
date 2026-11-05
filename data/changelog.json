@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.29.8",
+  "date": "2026-11-04",
+  "items": [
+   "Fixed: HOS buttons now light up the status you tap right away. Fixed: the Multi-stop sheet lines up on iPhone, and the hint matches the Best order button. Your destination stays after a reload. Bigger buttons, and nothing on the map covers the controls."
+  ]
+ },
+ {
   "version": "3.29.7",
   "date": "2026-11-04",
   "items": [

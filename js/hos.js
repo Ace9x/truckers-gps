@@ -45,7 +45,8 @@ export function hosEngine(events, now = Date.now(), opts = {}) {
   if (shiftStart != null && windowLeft > 0 && windowLeft < H) warnings.push('14-hour window closes in under 1 hour');
   if (breakLeft <= 0) warnings.push('30-minute break required now'); else if (breakLeft < 0.5 * H) warnings.push('30-minute break due soon');
   if (cycleLeft > 0 && cycleLeft < 3 * H) warnings.push(`Under 3 hours left on your ${cycle}-hour cycle`);
-  const status = segs.length ? segs.at(-1).s : 'off';
+  // current status = the latest event at or before now (a status tapped this instant has a zero-length segment, which segments() skips — BUG-001)
+  const lastEv = events.filter(e => e.t <= now).sort((a, b) => a.t - b.t).at(-1), status = lastEv ? lastEv.s : 'off';
   return { status, driveUsed: drive, driveLeft, windowLeft, breakLeft, cycleUsed: onDuty, cycleLeft, shiftStarted: shiftStart, calcStart, split, adverse: !!opts.adverse, shortHaul: !!opts.shortHaul, warnings, label: 'Planning aid — not an ELD' }; }
 // Short-haul eligibility (395.1(e)(1)): within 150 air-miles of the work reporting location and released within 14h.
 export function shortHaulOk(maxAirMi, dutyHours) { return maxAirMi <= 150 && dutyHours <= 14; }
