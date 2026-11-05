@@ -1184,5 +1184,10 @@
 "Tap any icon on the map, like a red 🚘, to see what it is (for example Broken-down vehicle), who reported it and how long ago. A new Map key button in More lists every icon": "Toca cualquier ícono del mapa, como un 🚘 rojo, para ver qué es (por ejemplo Vehículo averiado), quién lo reportó y hace cuánto. El nuevo botón Leyenda del mapa en Más muestra cada ícono",
 "You already reported this: {0}": "Ya reportaste esto: {0}",
 "{0} was already reported here — added your 👍": "{0} ya estaba reportado aquí — se sumó tu 👍",
-"{0} reported — shared with drivers nearby": "{0} reportado — compartido con choferes cercanos"
+"{0} reported — shared with drivers nearby": "{0} reportado — compartido con choferes cercanos",
+"TomTom included in times": "TomTom incluido en los tiempos",
+"Live: TomTom": "En vivo: TomTom",
+"live (TomTom)": "en vivo (TomTom)",
+"Tapping a live traffic icon now also shows when TomTom says it started, plus its description. Fixed the live-reports pill covering the traffic legend with the phone sideways.": "Al tocar un ícono de tráfico en vivo ahora también ves cuándo empezó según TomTom y su descripción. Se arregló la etiqueta de reportes en vivo que tapaba la leyenda de tráfico con el teléfono de lado.",
+"Tapping a live traffic icon now also shows when TomTom says it started, plus its description. Fixed the live-reports pill covering the traffic legend with the phone sideways": "Al tocar un ícono de tráfico en vivo ahora también ves cuándo empezó según TomTom y su descripción. Se arregló la etiqueta de reportes en vivo que tapaba la leyenda de tráfico con el teléfono de lado"
 }

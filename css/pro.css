@@ -497,3 +497,6 @@ html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegen
 @media (orientation:landscape) and (max-height:500px){html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegend:not(.min)) #hzLive{bottom:calc(104px + var(--safe-b))!important;left:216px!important;right:auto!important}}
 /* v3.29.11: "Share my location with X?" prompt (Not now is the default) */
 #shareAsk{position:fixed;inset:0;z-index:3100;background:#000b;display:flex;align-items:flex-end;justify-content:center}#shareAsk .sa-card{background:#14181f;color:#fff;max-width:560px;width:100%;border-radius:18px 18px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom))}#shareAsk h2{margin:0 0 8px;font-size:21px}#shareAsk p{font-size:17px;line-height:1.45;color:#d5dde7}#shareAsk .row{display:flex;gap:10px}#shareAsk .row button{flex:1;min-height:52px;font-size:18px}
+
+/* v3.29.12: landscape with the traffic legend open: the live-reports pill would sit on it, so it steps aside (the legend already says Live) */
+@media (orientation:landscape) and (max-height:500px){html body:has(#tfLegend:not(.min)) #hzLive{display:none!important}}

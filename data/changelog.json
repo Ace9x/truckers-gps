@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.29.12",
+  "date": "2026-11-04",
+  "items": [
+   "Tapping a live traffic icon now also shows when TomTom says it started, plus its description. Fixed the live-reports pill covering the traffic legend with the phone sideways."
+  ]
+ },
+ {
   "version": "3.29.11",
   "date": "2026-11-04",
   "items": [
