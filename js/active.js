@@ -10,4 +10,4 @@ async function area() {
   return {}; }
 export async function ping() { try { if (navigator.webdriver && !localStorage.getItem('rr_ping_test')) return; const day = new Date().toISOString().slice(0, 10); if (localStorage.getItem('rr_ping_day') === day) return;
   let id = localStorage.getItem('rr_dev'); if (!id) { id = crypto.randomUUID(); localStorage.setItem('rr_dev', id); }
-  const c = await sb(); if (!c) return; const a = areaOn() ? await area() : {}; // opted out: count only, no area, no IP lookup const { error } = await c.rpc('active_ping', { p_id: id, p_region: a.region || null, p_metro: a.metro || null }); if (!error) localStorage.setItem('rr_ping_day', day); } catch {} }
+  const c = await sb(); if (!c) return; const a = areaOn() ? await area() : {}; /* opted out: count only, no area, no IP lookup */ const { error } = await c.rpc('active_ping', { p_id: id, p_region: a.region || null, p_metro: a.metro || null }); if (!error) localStorage.setItem('rr_ping_day', day); } catch {} }

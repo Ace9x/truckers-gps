@@ -1,11 +1,22 @@
 [
-  { "version": "3.29.0", "date": "2026-11-04", "items": [
-    "Truck routes on local streets: long rigs get wider streets with fewer tight turns, and in New York City routes stick to the official truck routes.",
-    "Faster route offers: when traffic builds up, RigRoute tells you about a faster truck-safe road. Tap Switch to take it or Keep to stay. It never changes your route by itself.",
-    "Fixed a crash when opening Me before the app finished loading.",
-    "New tour in plain words. Tap ? and then Show me around to see every part of the app.",
-    "Report a Bug / Suggestion in Me, with an Email us button.",
-    "Help RigRoute grow (off unless you turn it on): share only your city and state so we can bring help to drivers near you.",
-    "Ask RigRoute: type a question in Help and get an answer about the app."
-  ] }
+ {
+  "version": "3.29.1",
+  "date": "2026-11-04",
+  "items": [
+   "Fixed a problem that stopped some new features from loading."
+  ]
+ },
+ {
+  "version": "3.29.0",
+  "date": "2026-11-04",
+  "items": [
+   "Truck routes on local streets: long rigs get wider streets with fewer tight turns, and in New York City routes stick to the official truck routes.",
+   "Faster route offers: when traffic builds up, RigRoute tells you about a faster truck-safe road. Tap Switch to take it or Keep to stay. It never changes your route by itself.",
+   "Fixed a crash when opening Me before the app finished loading.",
+   "New tour in plain words. Tap ? and then Show me around to see every part of the app.",
+   "Report a Bug / Suggestion in Me, with an Email us button.",
+   "Help RigRoute grow (off unless you turn it on): share only your city and state so we can bring help to drivers near you.",
+   "Ask RigRoute: type a question in Help and get an answer about the app."
+  ]
+ }
 ]
