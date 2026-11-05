@@ -104,8 +104,8 @@ for (const P of PROFILES) {
   // Hazard pin votes as a guest (pin made by another device; note marks it as gate data for cleanup)
   const nE = run.errors.length; const hv = await ev(async () => { const S = window.TruckNav, c = await (await import('./js/cloud.js')).sb(); const other = 'gate-' + crypto.randomUUID().slice(0, 12);
     const { data } = await c.rpc('guest_report_hazard', { p_device: other, p_type: 'hazard', p_lat: 40.70 + Math.random() / 50, p_lng: -73.95 + Math.random() / 50, p_note: '[automated gate test]' });
-    await S.backend.listReports().then(l => { S.reports = l; S.drawReports(); }); const r = S.reports.find(x => x.id === data.id); if (!r) return { err: 'pin not listed' };
-    await S.vote(r, 'up'); const after = S.reports.find(x => x.id === data.id); let again = null; try { await S.backend.vote(data.id, 'up'); } catch (e) { again = e.message; }
+    await S.backend.listReports().then(l => { S.reports = l; S.drawReports(); }); const r = data ? S.reports.find(x => x.id === data.id) : S.reports.find(x => x.server && !x.mine && !x.voted); if (!r) return { err: 'no pin to vote on (report RPC refused: ' + JSON.stringify(data) + ')' };
+    await S.vote(r, 'up'); const after = S.reports.find(x => x.id === r.id); let again = null; try { await S.backend.vote(r.id, 'up'); } catch (e) { again = e.message; }
     return { up: after?.up, voted: after?.voted, again }; });
   await p.waitForTimeout(300); run.errors.splice(nE, run.errors.length - nE, ...run.errors.slice(nE).filter(e => !/status of 400.*guest_vote_hazard/.test(e))); /* the deliberate second vote is refused with 400 */ ok(hv.up >= 1 && hv.voted === 'up' && /already voted/.test(hv.again || ''), 'Hazard pin: 👍 Still there works once per device ' + JSON.stringify(hv));
   // reload mid-task keeps destination + stops
