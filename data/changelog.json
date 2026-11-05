@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.29.4",
+  "date": "2026-11-04",
+  "items": [
+   "Ask RigRoute can now answer with an AI helper when it is turned on. If the AI is off or busy, it answers from the built-in help. While you drive, answers are read out loud only."
+  ]
+ },
+ {
   "version": "3.29.3",
   "date": "2026-11-04",
   "items": [

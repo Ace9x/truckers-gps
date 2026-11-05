@@ -37,3 +37,12 @@ export function walk(S) { const say = s => { try { const u = new SpeechSynthesis
     document.getElementById('walkStop').onclick = stop; document.getElementById('walkNext').onclick = () => { if (++i >= steps.length) stop(); else show(); }; };
   show(); return { voiceOnly: false, n: steps.length, step: () => i }; }
 export function stop() { ['walkRing', 'walkCard'].forEach(id => document.getElementById(id)?.remove()); }
+
+// Ask RigRoute AI (Supabase edge function, free model tier). Falls back to the keyword answer above if it errors or is off.
+export async function askAI(q, S) { const log = await changelog(); let text = null, ai = false;
+  try { const { SUPABASE } = await import('./config.js'); let dev = localStorage.getItem('rr_dev'); if (!dev) { dev = crypto.randomUUID(); localStorage.setItem('rr_dev', dev); }
+    const r = await fetch(SUPABASE.url + '/functions/v1/ask-rigroute', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE.anonKey }, body: JSON.stringify({ q, device: dev, lang: document.documentElement.lang || 'en' }), signal: AbortSignal.timeout(20000) });
+    const j = await r.json(); if (r.ok && j.answer) { text = j.answer; ai = !!j.ai; } } catch {}
+  if (!text) { const a = answer(q, log); text = a ? `${a.t}: ${a.b}` : t('Sorry, I don\'t know that yet. Try Report a Bug in Me, or tap Show me around.'); }
+  const moving = (S?.pos?.speed || 0) > 2.2; if (moving) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = document.documentElement.lang || 'en'; speechSynthesis.speak(u); } catch {} }
+  return { text, ai, voiceOnly: moving }; }
