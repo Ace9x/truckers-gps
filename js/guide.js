@@ -18,7 +18,8 @@ export const GUIDE = [
 export const tourSteps = () => GUIDE.filter(g => g.tour);
 export const walkSteps = () => GUIDE; // whole app, section by section
 let CL = null; export async function changelog() { if (CL) return CL; try { CL = await fetch('data/changelog.json').then(r => r.json()); } catch { CL = []; } return CL; }
-const words = s => String(s).toLowerCase().match(/[a-z0-9]+/g) || [];
+const STOP = new Set('how what when where why who can the and you your for are does with this that use get see tap'.split(' '));
+const words = s => (String(s).toLowerCase().match(/[a-z0-9]+/g) || []).filter(w => !STOP.has(w)).map(w => w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w);
 export function answer(q, log = []) { const w = words(q); if (!w.length) return null;
   if (w.some(x => ['new', 'changed', 'change', 'update', 'updates', 'whats'].includes(x))) { const e = log[0]; if (e) return { t: t('What\'s new') + ` (${e.date})`, b: e.items.map(i => t(i)).join(' ') }; }
   let best = null, sc = 0; for (const g of GUIDE) { const hay = new Set(words(`${g.t} ${g.b} ${g.k}`)); const s = w.filter(x => x.length > 2 && hay.has(x)).length; if (s > sc) { sc = s; best = g; } }
