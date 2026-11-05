@@ -20,6 +20,7 @@ const bm = await p.textContent('#bugMsg'); ok(/Thanks/.test(bm), 'bug report as 
 // What's New + Ask RigRoute
 const wn = await p.evaluate(async()=>{ const m=await import('./js/guide.js'); const l=await m.changelog(); return l[0]?.version; }); ok(wn==='3.29.6', 'changelog top '+wn);
 const ask = await p.evaluate(async()=>{ const m=await import('./js/guide.js'); return m.askAI('how do I report a bug', window.TruckNav); }); ok(!!ask.text && !/sign in/i.test(ask.text), 'Ask RigRoute answered (ai='+ask.ai+'): '+ask.text.slice(0,90));
+const mv = await p.evaluate(async()=>{ const S=window.TruckNav; const old=S.pos; S.pos={...(old||{lat:40.75,lon:-73.99}),speed:15}; let spoke=0; const o=speechSynthesis.speak.bind(speechSynthesis); speechSynthesis.speak=u=>{spoke++;}; const m=await import('./js/guide.js'); const r=await m.askAI('how do I add a stop', S); speechSynthesis.speak=o; S.pos=old; return {v:r.voiceOnly, spoke, ai:r.ai}; }); ok(mv.v===true && mv.spoke>0, 'moving: answer voice-only '+JSON.stringify(mv));
 // Active ping
 await p.evaluate(async()=>{ localStorage.removeItem('rr_ping_day'); const m=await import('./js/active.js'); await m.ping(); }); ok(!!await p.evaluate(()=>localStorage.getItem('rr_ping_day')), 'anonymous active ping stored');
 // Hazard as guest
