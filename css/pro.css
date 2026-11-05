@@ -500,3 +500,5 @@ html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegen
 
 /* v3.29.12: landscape with the traffic legend open: the live-reports pill would sit on it, so it steps aside (the legend already says Live) */
 @media (orientation:landscape) and (max-height:500px){html body:has(#tfLegend:not(.min)) #hzLive{display:none!important}}
+/* v3.30.1: landscape: the traffic legend (open or minimized) and the live-reports pill share one row; the legend wins */
+@media (orientation:landscape) and (max-height:500px){html body:has(#tfLegend) #hzLive{display:none!important}}

@@ -10,7 +10,7 @@ export const ttInfo = c => TT[+c] || TT[0];
 export const SRC = { tomtom: 'TomTom traffic', driver: 'RigRoute driver', friend: 'Friend', you: 'You' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export function ago(ts, now = Date.now()) { const ms = now - (typeof ts === 'string' ? Date.parse(ts) : +ts); if (!Number.isFinite(ms)) return '';
-  if (ms < 0) return t('starts at {0}', [new Date(now - ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })]);
+  if (ms < 0 && ms > -15 * 60e3) return t('just now'); /* GPS / device clocks can run slightly ahead */ if (ms < 0) return t('starts at {0}', [new Date(now - ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })]);
   const m = Math.round(ms / 60e3); return m < 1 ? t('just now') : m < 60 ? t('{0} min ago', [m]) : m < 1440 ? t('{0} h ago', [Math.round(m / 60)]) : t('{0} d ago', [Math.round(m / 1440)]); }
 // kind: tomtom | hazard | friend | you.  when: ms or ISO time.  whenKind: 'reported' (default) or 'started'
 export function head({ kind, icon, label, src, when, whenKind = 'reported', detail }) { const a = when != null && when !== '' ? ago(when) : '';

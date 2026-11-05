@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.30.1",
+  "date": "2026-11-04",
+  "items": [
+   "Fixed: with the phone sideways, the live-reports label no longer covers the traffic legend. Your truck's info now says just now instead of a time in the future."
+  ]
+ },
+ {
   "version": "3.30.0",
   "date": "2026-11-04",
   "items": [
