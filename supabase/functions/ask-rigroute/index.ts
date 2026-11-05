@@ -19,7 +19,7 @@ Deno.serve(async req => {
     const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const key = async (n: string) => Deno.env.get(n) || (await db.rpc('ai_key', { p_name: n })).data;
     const gem = await key('GEMINI_API_KEY'), groq = gem ? null : await key('GROQ_API_KEY');
-    if (!gem && !groq) return out({ error: 'no model key' }, 503); // don't spend the daily limit when AI is off
+    if (!gem && !groq) return out({ error: 'no model key' }); // 200 so browsers don't log an error; don't spend the daily limit when AI is off
     const { data: ok, error: rl } = await db.rpc('ai_take', { p_id: dev, p_max: 20 });
     if (rl) return out({ error: 'unavailable' }, 503);
     if (!ok) return out({ limited: true, answer: 'You asked 20 questions today. Try again tomorrow, or tap Show me around.' });
