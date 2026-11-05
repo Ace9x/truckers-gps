@@ -47,3 +47,4 @@ body.st-nav .maplibregl-ctrl-scale,body.st-arriving .maplibregl-ctrl-scale,body.
 /* windshield view on a short screen (Safari bars): newest alert only, compact, so it never lands on the speed box */
 @media (max-height:760px){body.driving #alerts .alert:not(:last-child),body.nav #alerts .alert:not(:last-child){display:none}body.driving #alerts .alert,body.nav #alerts .alert{font-size:15px;padding:8px 12px}}
 html body #dMid{margin-top:auto;margin-bottom:8px}
+body.st-nav .maplibregl-ctrl-attrib-button,body.driving .maplibregl-ctrl-attrib-button{min-height:24px!important;height:24px!important;width:24px!important;min-width:24px!important} /* S-002: compact (i) while driving so it never meets alerts or nav buttons */

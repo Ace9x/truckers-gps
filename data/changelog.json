@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.30.6",
+  "date": "2026-11-05",
+  "items": [
+   "When NYC's live speed feed is down, RigRoute waits and keeps the last speeds instead of asking again every few seconds.",
+   "Starting navigation closes the help tour so it never covers the turn banner.",
+   "The map credits (i) stays clear of alerts and nav buttons while driving."
+  ]
+ },
+ {
   "version": "3.30.5",
   "date": "2026-11-05",
   "items": [

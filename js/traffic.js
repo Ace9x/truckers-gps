@@ -104,11 +104,11 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   map.on('click', 'tf', e => { const p = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${esc(p.name || 'Road')}</b><br><span style="color:#333">${Math.round(p.mph)} mph now (normal ~${Math.round(p.ff)}) · ${level(p.ratio).label}<br><i>Source: ${esc(p.src)} · ${ageText(Date.now() - p.t)}</i></span>`).addTo(map); });
 
   // ---------- sources ----------
-  async function fetchNyc() { if (T.feeds.nyc && Date.now() - T.feeds.nyc.fetched < 120e3) return;
+  async function fetchNyc() { if (T.feeds.nyc && Date.now() - T.feeds.nyc.fetched < 120e3) return; if (Date.now() < (T.nycBackoff || 0)) return; // NYC Open Data outage: wait, keep the last speeds
     try { const r = await fetch(`${NYC}?$limit=3000&$where=data_as_of>'${new Date(Date.now() - 6 * 3600e3 - 4 * 3600e3).toISOString().slice(0, 19)}'&$order=data_as_of DESC`, { signal: AbortSignal.timeout(25000) });
-      const rows = await r.json(); const seen = new Set(), latest = rows.filter(x => !seen.has(x.link_id) && seen.add(x.link_id));
+      if (!r.ok) throw new Error('NYC DOT ' + r.status); T.nycFails = 0; const rows = await r.json(); if (!Array.isArray(rows)) throw new Error('NYC DOT bad data'); const seen = new Set(), latest = rows.filter(x => !seen.has(x.link_id) && seen.add(x.link_id));
       const all = parseNycDot(latest), links = freshLinks(all); T.feeds.nyc = { links, fetched: Date.now(), t: links.length ? Math.max(...links.map(l => l.t).filter(Number.isFinite)) : null }; T.status.nyc = links.length ? `${links.length} links` : all.length ? 'feed stale' : 'no data'; }
-    catch (e) { T.status.nyc = 'unavailable'; } }
+    catch (e) { T.status.nyc = 'unavailable'; T.nycFails = (T.nycFails || 0) + 1; T.nycBackoff = Date.now() + Math.min(30, 2 ** T.nycFails) * 60e3; } }
   async function fetchHere(b) { if (!T.keys.here) return; try {
       const j = await (await fetch(`https://data.traffic.hereapi.com/v7/flow?in=bbox:${b.map(x => x.toFixed(4)).join(',')}&locationReferencing=shape&apiKey=${encodeURIComponent(T.keys.here)}`, { signal: AbortSignal.timeout(20000) })).json();
       const links = parseHere(j); T.feeds.here = { links, fetched: Date.now(), t: Date.now() }; T.status.here = j.error ? 'key error' : `${links.length} links`;

@@ -37,8 +37,8 @@ const AUDIT = () => { const vw = innerWidth, vh = innerHeight, out = { wrap: [],
   out.attribButtons = [...document.querySelectorAll('.maplibregl-ctrl-attrib-button,.maplibregl-ctrl-attrib')].filter(vis).filter(e => e.matches('.maplibregl-ctrl-attrib-button') || !e.querySelector('.maplibregl-ctrl-attrib-button')).length;
   out.ibuttons = [...document.querySelectorAll('.maplibregl-ctrl-attrib-button')].filter(vis).map(e => { const c = getComputedStyle(e), b = e.getBoundingClientRect(); return c.backgroundRepeat.startsWith('no-repeat') || b.height <= 26 && b.width <= 26 ? 1 : 2; }).reduce((a, b) => a + b, 0) + [...document.querySelectorAll('.maplibregl-ctrl-attrib:not(.maplibregl-compact)')].filter(vis).length;
   return out; };
-for (const [vp, label] of [[{ width: 390, height: 664 }, '390x664 (Safari bars)'], [{ width: 390, height: 844 }, '390x844']]) {
-  const ctx = await br.newContext({ ...devices['iPhone 13'], locale: 'en-US', viewport: vp, permissions: ['geolocation'], geolocation: { latitude: 40.6560, longitude: -73.7680 } });
+for (const [vp, label, dev] of [[{ width: 390, height: 664 }, '390x664 (Safari bars)', 'iPhone 13'], [{ width: 390, height: 844 }, '390x844', 'iPhone 13'], [{ width: 412, height: 915 }, 'Pixel 7 412x915', 'Pixel 7']]) {
+  const ctx = await br.newContext({ ...devices[dev], isMobile: true, hasTouch: true, locale: 'en-US', viewport: vp, permissions: ['geolocation'], geolocation: { latitude: 40.6560, longitude: -73.7680 } });
   await ctx.addInitScript(() => { localStorage.setItem('tn_locWhySeen', '1'); localStorage.setItem('tn_lang', '"en"'); Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(BASE, { waitUntil: 'load' }); await p.waitForFunction(() => window.TruckNav?.map?.loaded?.(), null, { timeout: 60000 }).catch(() => {}); await p.waitForTimeout(3500);
@@ -47,12 +47,26 @@ for (const [vp, label] of [[{ width: 390, height: 664 }, '390x664 (Safari bars)'
   await p.evaluate(() => { document.querySelectorAll('#splash,.wiz,#wizard,.onb,#tour,.tour,.hs-sheet,#helpSheet').forEach(x => x.remove()); document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); });
   const v = vp.height, shot = n => p.screenshot({ path: `${OUT}/${TAG}${v}-${n}.png` });
   const check = async where => { const r = await p.evaluate(AUDIT); ok(!r.wrap.length, `[${label}] ${where}: no text wrapping inside buttons/menu items`, r.wrap); ok(!r.ov.length, `[${label}] ${where}: nothing overlaps`, r.ov); ok(!r.clip.length, `[${label}] ${where}: nothing clipped off-screen`, r.clip); ok(!r.covered.length, `[${label}] ${where}: lanes, alerts and turn text not covered`, r.covered); return r; };
+  const checkPanel = async where => { const r = await p.evaluate(() => { const root = document.querySelector('#legendSheet,#helpSheet,.hs-sheet') || document.querySelector('.panel:not(.hidden)'); if (!root) return null; const vw = innerWidth, out = { clip: [], ov: [] };
+      const vis = e => { const s = getComputedStyle(e), b = e.getBoundingClientRect(); return b.width > 1 && b.height > 1 && s.visibility !== 'hidden' && s.display !== 'none' && !e.closest('[hidden],details:not([open]) > :not(summary)'); };
+      const name = e => (e.id ? '#' + e.id : e.tagName.toLowerCase()) + ' "' + (e.getAttribute('aria-label') || e.textContent || e.value || '').trim().replace(/\s+/g, ' ').slice(0, 30) + '"';
+      const els = [...root.querySelectorAll('button,a[href],input,select,summary')].filter(vis);
+      for (const e of els) { const b = e.getBoundingClientRect(); if (b.right > vw + 1 || b.left < -1) out.clip.push(name(e) + ` [${Math.round(b.left)}..${Math.round(b.right)}]`); }
+      if (root.scrollWidth > root.clientWidth + 2) out.clip.push('panel scrolls sideways (' + root.scrollWidth + ' > ' + root.clientWidth + ')');
+      for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) { const a = els[i], b = els[j]; if (a.contains(b) || b.contains(a) || a.closest('label')?.contains(b) || b.closest('label')?.contains(a)) continue; const x = a.getBoundingClientRect(), y = b.getBoundingClientRect(), w = Math.min(x.right, y.right) - Math.max(x.left, y.left), h = Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top); if (w > 3 && h > 3) out.ov.push(name(a) + ' × ' + name(b)); }
+      return out; });
+    if (!r) { ok(true, `[${label}] ${where}: (no panel)`); return; } ok(!r.clip.length, `[${label}] ${where}: nothing clipped or sideways`, r.clip); ok(!r.ov.length, `[${label}] ${where}: no overlapping controls`, r.ov); };
   // map + tabs
   await p.waitForTimeout(500); let r = await check('map + tabs'); ok(!r.noIcon.length, `[${label}] every bottom tab has an icon`, r.noIcon); ok(r.ibuttons <= 1, `[${label}] one map info (i) button, not ${r.ibuttons}`); await shot('1-map-tabs');
   // ⋮ menu
   const more = await p.$('#moreBtn'); if (more) { const b = await more.boundingBox(); await p.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await p.waitForTimeout(500); }
   ok(await p.evaluate(() => !!document.querySelector('#railMenu:not(.hidden)')), `[${label}] ⋮ menu opens`); await check('⋮ menu'); await shot('2-menu');
   await p.evaluate(() => document.querySelector('#railMenu')?.classList.add('hidden'));
+  const PAN = await p.evaluate(() => [...document.querySelectorAll('#dock button')].map(b => b.dataset.panel).filter(Boolean));
+  for (const id of PAN) { await p.evaluate(id => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); document.querySelector(`#dock [data-panel=${id}]`)?.click(); }, id); await p.waitForTimeout(700); await checkPanel(id); await shot('p-' + id); }
+  const MENU = await p.evaluate(() => [...document.querySelectorAll('#railMenu button')].map(b => b.id).filter(i => i && !/sosBtn|muteBtn|satBtn|hudBtn/.test(i)));
+  for (const id of MENU) { await p.evaluate(id => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); document.getElementById(id)?.click(); }, id); await p.waitForTimeout(800); await checkPanel('menu ' + id); await shot('m-' + id);
+    await p.evaluate(() => { document.querySelectorAll('#legendSheet,#helpSheet,.hs-sheet').forEach(x => x.remove()); document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); document.querySelector('#railMenu')?.classList.add('hidden'); }); }
   // nav: route + banner + lanes + an alert (the layout from Fan's 12:02 AM screenshot)
   const routed = await p.evaluate(async () => { const S = window.TruckNav; S.setDest({ lon: -73.7413, lat: 40.6231, name: 'Inwood, NY' }); for (let i = 0; i < 90 && !S.route; i++) await new Promise(r => setTimeout(r, 500)); if (!S.route) return false; S.startNav(); await new Promise(r => setTimeout(r, 2500)); return true; });
   ok(routed, `[${label}] route + navigation start`);

@@ -13,7 +13,7 @@ const ch = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsa
 const PROFILES = [
   { name: 'iphone', engine: wk ? 'webkit' : 'chromium', br: wk || ch, dev: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } },
   { name: 'pixel7', engine: 'chromium', br: ch, dev: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 } } }];
-const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh/i;
+const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh|data\.cityofnewyork\.us/i; // outside servers (NYC Open Data had a 503 outage during the 3.30.5 gate): listed separately, app handles them
 
 for (const P of PROFILES) {
   const run = { profile: P.name, engine: P.engine, checks: [], overlaps: [], small: [], errors: [], external: [], shots: [] }; R.runs.push(run);

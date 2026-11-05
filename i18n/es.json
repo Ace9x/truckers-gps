@@ -1222,5 +1222,11 @@
 "Spanish: live traffic lines (source, coverage, included in times) are fully translated, and translations refresh right after an update.": "Español: las líneas de tráfico en vivo (fuente, cobertura, incluido en los tiempos) están totalmente traducidas, y las traducciones se actualizan justo después de una actualización.",
 "Spanish: live traffic lines (source, coverage, included in times) are fully translated, and translations refresh right after an update": "Español: las líneas de tráfico en vivo (fuente, cobertura, incluido en los tiempos) están totalmente traducidas, y las traducciones se actualizan justo después de una actualización",
 "Switching language translates live traffic text drawn while the new language was loading.": "Al cambiar de idioma se traduce el texto de tráfico en vivo que aparece mientras se carga el nuevo idioma.",
-"Switching language translates live traffic text drawn while the new language was loading": "Al cambiar de idioma se traduce el texto de tráfico en vivo que aparece mientras se carga el nuevo idioma"
+"Switching language translates live traffic text drawn while the new language was loading": "Al cambiar de idioma se traduce el texto de tráfico en vivo que aparece mientras se carga el nuevo idioma",
+"When NYC's live speed feed is down, RigRoute waits and keeps the last speeds instead of asking again every few seconds.": "Cuando el servicio de velocidades en vivo de NYC está caído, RigRoute espera y mantiene las últimas velocidades en vez de volver a pedirlas cada pocos segundos.",
+"When NYC's live speed feed is down, RigRoute waits and keeps the last speeds instead of asking again every few seconds": "Cuando el servicio de velocidades en vivo de NYC está caído, RigRoute espera y mantiene las últimas velocidades en vez de volver a pedirlas cada pocos segundos",
+"Starting navigation closes the help tour so it never covers the turn banner.": "Al iniciar la navegación se cierra el recorrido de ayuda para que nunca tape el aviso de giro.",
+"Starting navigation closes the help tour so it never covers the turn banner": "Al iniciar la navegación se cierra el recorrido de ayuda para que nunca tape el aviso de giro",
+"The map credits (i) stays clear of alerts and nav buttons while driving.": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas.",
+"The map credits (i) stays clear of alerts and nav buttons while driving": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas"
 }

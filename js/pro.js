@@ -45,7 +45,7 @@ function stackTop() { const B = document.body, drive = B.classList.contains('dri
   if (T && shown(T)) { T.style.top = (y + 8) + 'px'; y = Math.round(T.getBoundingClientRect().bottom); } else if (T) T.style.top = '';
   if (A) A.style.top = (y + 8) + 'px';
   // map credits (i) sit just above whichever bottom bar is showing
-  const C = $('.maplibregl-ctrl-bottom-right'); if (C) { const bars = ['#dMid', '#dBtns', '#tripBar', '#navStack'].map(s => $(s)).filter(e => shown(e) && e.getBoundingClientRect().height); const topB = Math.min(innerHeight, ...bars.map(e => e.getBoundingClientRect().top)); C.style.bottom = Math.max(0, Math.round(innerHeight - topB + 6)) + 'px'; } }
+  const C = $('.maplibregl-ctrl-bottom-right'); if (C) { const bars = ['#dMid', '#dBtns', '#tripBar', '#navStack', '#nsMute', '#nsRecenter', '#nsReport'].map(s => $(s)).filter(e => shown(e) && e.getBoundingClientRect().height); const topB = Math.min(innerHeight, ...bars.map(e => e.getBoundingClientRect().top)); C.style.bottom = Math.max(0, Math.round(innerHeight - topB + 6)) + 'px'; const ib = C.querySelector('.maplibregl-ctrl-attrib-button')?.getBoundingClientRect(); if (ib?.height && ib.bottom > topB - 4) C.style.bottom = (parseFloat(C.style.bottom) + ib.bottom - topB + 6) + 'px'; /* the 44px (i) overflows its compact box */ } }
 let stRaf = 0; const stack = () => { if (!stRaf) stRaf = requestAnimationFrame(() => { stRaf = 0; stackTop(); }); };
 addEventListener('resize', stack); setInterval(stackTop, 700); new MutationObserver(stack).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
@@ -95,6 +95,8 @@ export function startTour() {
   show(); S.tour = { step: () => i };
 }
 function endTour() { ['#tourDim', '#tourRing', '#tourCard'].forEach(s => $(s)?.remove()); }
+// S-001: a tour left open covered the turn banner, lanes and alerts once navigation started. Navigation always wins.
+new MutationObserver(() => { if ((document.body.classList.contains('nav') || document.body.classList.contains('driving')) && $('#tourCard')) endTour(); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 function finish(keep) { endTour(); LS.set('tourDone', true); LS.set('mascot', keep); if (S.mascot) { S.mascot.enabled = keep; if (!keep) S.mascot.hide(); else S.mascot.say('Great, I\'ll ride along. Tap ? anytime for help.', 'happy', 4000); }
   const c = $('#mascotOn'); if (c) c.checked = keep; S.tourResult = keep ? 'kept' : 'off'; }
 S.startTour = startTour; S.walk = () => GUIDE.walk(S); WNEW.start(S);
