@@ -1,6 +1,6 @@
 // Ask RigRoute: AI help grounded ONLY on js/guide.js + data/changelog.json (knowledge.ts is generated from them).
 // Free model tier: Gemini (vault secret GEMINI_API_KEY) or Groq (vault secret GROQ_API_KEY). Keys live only in Supabase (env secret or Vault).
-// Rate limit: 20 questions per device per day (public.ai_take). No location or account data is sent to the model.
+// Rate limit: 20 successful AI answers per device per day (ai_left check, ai_take after success). No location or account data is sent to the model.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { GUIDE, CHANGELOG } from './knowledge.ts';
 const ORIGINS = ['https://ace9x.github.io', 'http://localhost:8841'];
@@ -20,7 +20,7 @@ Deno.serve(async req => {
     const key = async (n: string) => Deno.env.get(n) || (await db.rpc('ai_key', { p_name: n })).data;
     const gem = await key('GEMINI_API_KEY'), groq = gem ? null : await key('GROQ_API_KEY');
     if (!gem && !groq) return out({ error: 'no model key' }); // 200 so browsers don't log an error; don't spend the daily limit when AI is off
-    const { data: ok, error: rl } = await db.rpc('ai_take', { p_id: dev, p_max: 20 });
+    const { data: ok, error: rl } = await db.rpc('ai_left', { p_id: dev, p_max: 20 }); // check only; counted after a real answer
     if (rl) return out({ error: 'unavailable' }, 503);
     if (!ok) return out({ limited: true, answer: 'You asked 20 questions today. Try again tomorrow, or tap Show me around.' });
     const user = `${lang && lang !== 'en' ? `(App language: ${String(lang).slice(0, 8)})\n` : ''}Question: ${question}`;
@@ -37,7 +37,8 @@ Deno.serve(async req => {
         body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: [{ role: 'system', content: SYS }, { role: 'user', content: user }], max_tokens: 200, temperature: 0.2 }), signal: AbortSignal.timeout(15000) });
       const j = await r.json(); answer = j.choices?.[0]?.message?.content || '';
     } else return out({ error: 'no model key' }, 503);
-    if (!answer.trim()) return out({ error: 'empty' }, 502);
+    if (!answer.trim()) return out({ error: 'busy' }); // not counted toward the daily limit; app falls back to built-in help
+    await db.rpc('ai_take', { p_id: dev, p_max: 20 }); // count only successful AI answers
     return out({ answer: answer.trim().slice(0, 800), ai: true });
-  } catch (_e) { return out({ error: 'failed' }, 500); }
+  } catch (_e) { return out({ error: 'failed' }); /* not counted; app falls back */ }
 });

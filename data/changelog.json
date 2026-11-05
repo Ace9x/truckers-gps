@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.29.7",
+  "date": "2026-11-04",
+  "items": [
+   "Hazards you report are shared with every driver again, no account needed. Pins clear themselves after a few hours (a day for closures). Ask RigRoute only counts answers it actually gives."
+  ]
+ },
+ {
   "version": "3.29.6",
   "date": "2026-11-04",
   "items": [
