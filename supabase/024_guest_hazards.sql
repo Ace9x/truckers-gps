@@ -1,3 +1,4 @@
+-- (024b fix: FOUND was clobbered by the log insert; dedupe now tests h.id)
 -- Guest (no-account) shared hazards through one sanitized RPC. No anon insert/update/delete on public.hazards itself.
 create table if not exists public.hazard_guest_log (device text not null, ip text not null, at timestamptz not null default now());
 create index if not exists hgl_dev on public.hazard_guest_log (device, at); create index if not exists hgl_ip on public.hazard_guest_log (ip, at);
@@ -25,7 +26,7 @@ begin
   select * into h from public.hazards where type = p_type and status = 'active' and expires_at > now()
     and abs(lat - p_lat) * 111320 < 150 and abs(lng - p_lng) * 111320 * cos(radians(p_lat)) < 150 order by created_at desc limit 1;
   insert into public.hazard_guest_log(device, ip) values (p_device, v_ip);
-  if found then update public.hazards set confirmations = confirmations + 1, expires_at = greatest(expires_at, now() + make_interval(hours => ttl)) where id = h.id returning * into h;
+  if h.id is not null then update public.hazards set confirmations = confirmations + 1, expires_at = greatest(expires_at, now() + make_interval(hours => ttl)) where id = h.id returning * into h;
     return json_build_object('id', h.id, 'dedup', true, 'expires_at', h.expires_at); end if;
   insert into public.hazards(reporter, type, lat, lng, note, expires_at)
     values (null, p_type, round(p_lat::numeric, 5), round(p_lng::numeric, 5), nullif(left(regexp_replace(coalesce(p_note, ''), '[<>]', '', 'g'), 140), ''), now() + make_interval(hours => ttl)) returning * into h;
