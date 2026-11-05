@@ -1,6 +1,6 @@
 // Live shared hazard reports: one-tap UI, Waze-style pins/callouts, approaching alerts,
 // shared in real time over free public Nostr relays (geohash-tagged), MQTT public broker fallback.
-import { finalizeEvent, generateSecretKey } from './vendor/nostr.js';
+import { finalizeEvent, generateSecretKey } from './vendor/nostr.js'; import { head as mpHead, SRC as MP_SRC } from './mappop.js'; import { t as T_ } from './i18n.js';
 import { HZ, HZ_ORDER, alive, opacity, ingest, applyVote, RateLimiter, geohash, ghNeighbors, AREA_P, ahead, alertText, dist, tooFar, held, MAX_REPORT_M, FLAG_REASONS } from './hazlogic.js';
 import { snapToRoute } from './logic.js';
 
@@ -109,7 +109,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
       if (!m) { const el = document.createElement('div'); el.className = `hz-pin ${color(r.type)}`; el.dataset.hz = r.type; el.dataset.id = r.id;
         el.innerHTML = `<div class="bub"></div><i>${h.icon}</i><div class="hz-call"></div>`;
         const pop = new maplibregl.Popup({ offset: 30 }); pop.on('open', () => { const box = document.createElement('div');
-          box.innerHTML = `<b style="color:#111;font-size:15px">${h.icon} ${h.label}</b><br><span style="color:#333">${ago(Date.now() - r.t)} · 👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>` + (r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up" style="min-height:44px">👍 Still there</button><button data-v="down" style="min-height:44px">👎 Not there</button><label style="display:block;color:#333;font-size:13px;margin-top:6px">Reason for "not there" <select class="hz-reason" style="min-height:40px;font-size:15px;width:100%">' + REASON_OPTS + '</select></label></div>');
+          box.innerHTML = mpHead({ kind: 'hazard', icon: h.icon, label: h.label, src: r.mine ? MP_SRC.you : MP_SRC.driver, when: r.t }) + `<span style="color:#333">👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>` + (r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up" style="min-height:44px">👍 Still there</button><button data-v="down" style="min-height:44px">👎 Not there</button><label style="display:block;color:#333;font-size:13px;margin-top:6px">Reason for "not there" <select class="hz-reason" style="min-height:40px;font-size:15px;width:100%">' + REASON_OPTS + '</select></label></div>');
           box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v, box.querySelector('.hz-reason')?.value || 'gone'); pop.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — 2 "not there" votes remove it'); });
           pop.setDOMContent(box); });
         m = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([r.lon, r.lat]).setPopup(pop).addTo(map); markers.set(r.id, m); }
@@ -148,8 +148,8 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
     if (res.nofix) toast('Waiting for GPS — reports need your real position');
     else if (res.far) toast('Reports must be within 2 km of where you are');
     else if (res.limited) toast('Easy, driver — you just reported that. Try again in a minute.');
-    else if (res.dup) toast(res.dup.mine ? `You already reported this ${h.label.toLowerCase()}` : `${h.label} was already reported here — added your 👍`);
-    else { toast(`${h.icon} ${h.label} reported — shared with drivers nearby`); if (!quiet) say(`${h.say} reported. Thanks, driver.`, 'report');
+    else if (res.dup) toast(res.dup.mine ? T_('You already reported this: {0}', [T_(h.label)]) : T_('{0} was already reported here — added your 👍', [T_(h.label)]));
+    else { toast(`${h.icon} ` + T_('{0} reported — shared with drivers nearby', [T_(h.label)])); if (!quiet) say(`${h.say} reported. Thanks, driver.`, 'report');
       if (!h.avoid) S.award?.(10, `${h.label} report`); if (h.avoid && legacyReport) legacyReport(type, [lon, lat]).catch?.(() => {}); }
     return res; }
   S.hzFile = file;

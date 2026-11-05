@@ -2,8 +2,8 @@
 import { makeAuth, deviceKey } from './auth.js';
 import { DriverDispatch, STATUS_LABEL, nextStatus, routeStops, pinOk } from './dispatch.js';
 import { Friends, passPrediction } from './friends.js';
-import { bus } from './link.js';
-import * as cloud from './cloud.js';
+import { bus } from './link.js'; import { head as mpHead, SRC as MP_SRC } from './mappop.js';
+import * as cloud from './cloud.js'; import { t } from './i18n.js';
 export async function init(S, h) {
   const { $, LS, esc, toast, say, map, openPanel, closePanels } = h;
   const css = document.createElement('style'); css.textContent = `.acct-tabs{display:flex;gap:6px;margin:8px 0}.acct-tabs button.on{background:var(--acc);color:#111}.acct input,.acct select{width:100%;margin:4px 0;min-height:44px;font-size:16px;box-sizing:border-box}
@@ -61,7 +61,7 @@ ${false && SBA && tab !== 'rec' ? `<button id="acGoogle" class="oauth-google" st
   // ---------- dispatch (driver side)
   let dd = null, fr = null;
   async function wire() { dd = new DriverDispatch(key(), me); S.dispatch = dd; dd.onChange(() => { badge(loadsBtn, dd.allLoads().filter(l => l.state === 'offered').length); if (!$('#loadsPanel').classList.contains('hidden')) renderLoads(); notifyLoads(); });
-    fr = await new Friends(key(), me).start().catch(() => null); S.friends = fr; if (fr) { fr.onChange(() => { badge(friendsBtn, fr.requests.length); drawFriends(); if (!$('#friendsPanel').classList.contains('hidden')) renderFriends(); }); if (auth.user?.username) fr.publishUsername(auth.user?.username).catch(() => {}); }
+    fr = await new Friends(key(), me).start().catch(() => null); S.friends = fr; if (fr) { fr.onChange(() => { badge(friendsBtn, fr.requests.length); drawFriends(); if (!$('#friendsPanel').classList.contains('hidden')) renderFriends(); askShare(); }); askShare(); if (auth.user?.username) fr.publishUsername(auth.user?.username).catch(() => {}); }
     await wireCloud(); drawFriends(); renderAcct(); }
   // ---------- server (Supabase) loads + friends; the relay versions above stay as fallback
   let cLoads = [], cFr = { friends: [], incoming: [], outgoing: [] }, cLocs = [], cRoutes = [], unwatch = null, cMarkers = {};
@@ -76,7 +76,7 @@ ${false && SBA && tab !== 'rec' ? `<button id="acGoogle" class="oauth-google" st
     badge(friendsBtn, (fr?.requests.length || 0) + cFr.incoming.length); drawCloudFriends(); if (!$('#friendsPanel').classList.contains('hidden')) renderFriends(); }
   function drawCloudFriends() { const names = Object.fromEntries(cFr.friends.map(f => [f.other, f])); const keep = new Set();
     for (const L of cLocs) { const f = names[L.user_id]; if (!f) continue; keep.add(L.user_id); let m = cMarkers[L.user_id];
-      if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.cfriend = L.user_id; m = cMarkers[L.user_id] = new maplibregl.Marker({ element: el }).setLngLat([L.lng, L.lat]).addTo(map); }
+      if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.cfriend = L.user_id; m = cMarkers[L.user_id] = new maplibregl.Marker({ element: el }).setLngLat([L.lng, L.lat]).addTo(map); const pop = new maplibregl.Popup({ offset: 20 }); pop.on('open', () => { const L2 = cLocs.find(x => x.user_id === L.user_id) || L; pop.setHTML(mpHead({ kind: 'friend', icon: f.truck?.icon || '🚛', label: 'Friend sharing their location', src: MP_SRC.friend, when: L2.updated_at, detail: f.name })); }); m.setPopup(pop); }
       m.setLngLat([L.lng, L.lat]); m.getElement().innerHTML = `<i>${esc(f.truck?.icon || '🚛')}</i><b>${esc(f.name)}</b><small>${ago(Date.parse(L.updated_at))}</small>`;
       const p = passPrediction({ me: S.pos && { ...S.pos, t: Date.now() }, fr: { lat: L.lat, lon: L.lng, heading: L.heading, speed: (L.speed_mph || 0) / 2.237, t: Date.parse(L.updated_at) }, myRoute: S.route?.line, frRoute: cRoutes.find(r => r.owner === L.user_id)?.geometry?.coordinates, names: routeNames(), who: f.name });
       f.pass = p; if (p && (p.kind === 'near' || (p.kind === 'ahead' && p.miles < 5)) && !notified['c' + L.user_id]) { notified['c' + L.user_id] = Date.now(); say(p.text, 'info'); toast('👥 ' + p.text); } }
@@ -151,7 +151,7 @@ ${false && SBA && tab !== 'rec' ? `<button id="acGoogle" class="oauth-google" st
       out[f.pk] = passPrediction({ me: S.pos && { ...S.pos, t: Date.now() }, fr: L.loc, myRoute: S.route?.line, frRoute: L.route?.line, names: routeNames(), who: f.name || 'friend' }); } S.friendPass = out; return out; }
   function drawFriends() { if (!fr) return; const pr = predictions();
     for (const f of fr.friends) { const L = fr.live[f.pk]; if (!L?.loc || Date.now() - L.loc.t > 60 * 60e3) { fMarkers[f.pk]?.remove(); delete fMarkers[f.pk]; continue; }
-      let m = fMarkers[f.pk]; if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.friend = f.pk; m = fMarkers[f.pk] = new maplibregl.Marker({ element: el }).setLngLat([L.loc.lon, L.loc.lat]).addTo(map); }
+      let m = fMarkers[f.pk]; if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.friend = f.pk; m = fMarkers[f.pk] = new maplibregl.Marker({ element: el }).setLngLat([L.loc.lon, L.loc.lat]).addTo(map); const pop = new maplibregl.Popup({ offset: 20 }); pop.on('open', () => { const L2 = fr.live[f.pk] || L; pop.setHTML(mpHead({ kind: 'friend', icon: L2.loc?.truck || f.truck?.icon || '🚛', label: 'Friend sharing their location', src: MP_SRC.friend, when: L2.loc?.t, detail: f.name || '' })); }); m.setPopup(pop); }
       m.setLngLat([L.loc.lon, L.loc.lat]); m.getElement().innerHTML = `<i>${esc(L.loc.truck || f.truck?.icon || '🚛')}</i><b>${esc(f.name || 'Friend')}</b><small>${ago(L.loc.t)}</small>`;
       const p = pr[f.pk]; if (p && (p.kind === 'near' || (p.kind === 'ahead' && p.miles < 5)) && !notified[f.pk]) { notified[f.pk] = Date.now(); say(p.text, 'info'); toast('👥 ' + p.text); } if (p && p.kind === 'behind' && p.miles > 10) delete notified[f.pk]; }
     drawFriendRoutes(); }
@@ -178,6 +178,12 @@ ${false && SBA && tab !== 'rec' ? `<button id="acGoogle" class="oauth-google" st
     F.querySelectorAll('[data-fr]').forEach(c => { const pk = c.dataset.fr; c.querySelector('[data-share]').onchange = e => { fr.setShare(pk, e.target.checked); share(); }; c.querySelector('[data-rm]').onclick = () => confirm('Remove friend?') && fr.remove(pk);
       c.querySelector('[data-loc]').onclick = () => { const L = fr.live[pk]; if (L?.loc) { closePanels(); map.flyTo({ center: [L.loc.lon, L.loc.lat], zoom: 13 }); } else toast('Not sharing right now'); }; }); }
   // ---------- periodic sharing (friends every 20 s while moving, dispatch every 30 s), plus deep links
+  // New friend: ask before sharing. "Not now" is the default (focused) and safe choice; nothing is sent until Yes.
+  function askShare() { if (!fr || document.querySelector('#shareAsk')) return; const f = fr.friends.find(x => x.askShare); if (!f) return; const nm = f.name || f.username || t('your friend');
+    const d = document.createElement('div'); d.id = 'shareAsk'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.dataset.friendPk = f.pk;
+    d.innerHTML = `<div class="sa-card"><h2>📍 ${esc(t('Share my location with {0}?', [nm]))}</h2><p>${esc(t('They will see where your truck is while sharing is on. You can turn it off any time in Friends.'))}</p><div class="row"><button type="button" class="big primary" data-no>${esc(t('Not now'))}</button><button type="button" class="big" data-yes>${esc(t('Yes, share'))}</button></div></div>`;
+    const done = yes => { d.remove(); fr.answerShare(f.pk, yes); if (yes) share(); toast(yes ? t('Sharing your location with {0}', [nm]) : t('Not sharing your location with {0}', [nm])); setTimeout(askShare, 300); };
+    d.querySelector('[data-no]').onclick = () => done(false); d.querySelector('[data-yes]').onclick = () => done(true); document.body.appendChild(d); d.querySelector('[data-no]').focus(); }
   const share = () => { fr?.tick(S.pos, S.route?.line).then(() => drawFriends()); };
   S.shareNow = () => { share(); dd?.location(S.pos); }; setInterval(share, 20000); setInterval(() => dd?.location(S.pos), 30000); setInterval(drawFriends, 10000);
   await wire(); const q = new URLSearchParams(location.search); if (q.get('pair')) { openPanel('loadsPanel'); renderLoads(); } else if (q.get('friend')) { openPanel('friendsPanel'); renderFriends(); }

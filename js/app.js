@@ -1,4 +1,4 @@
-import { t, valhallaLang, locale as uiLocale } from './i18n.js';
+import { t, valhallaLang, locale as uiLocale } from './i18n.js'; import * as MP from './mappop.js';
 import { locGate } from './privacy.js';
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting, VEHICLES as VTYPES, vehOf, costingFor, costingOptions, truckUIOn,
   hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, truckDetour, DETOUR_RELAX, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
@@ -48,13 +48,14 @@ applyTheme(); $('#ver').textContent = 'v' + VERSION;
 
 // ---------- Map ----------
 const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true, customAttribution: ['Routing <a href="https://github.com/valhalla/valhalla" target="_blank" rel="noopener">Valhalla</a>', 'NYC truck routes &amp; speeds: <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC DOT</a>', '<a href="terms.html" target="_blank">Terms &amp; safety</a> · <a href="privacy.html" target="_blank">Privacy</a> · <a href="terms.html" target="_blank">Terms</a>'] } });
-S.map = map;
+S.map = map; MP.wireTomTom(map, S); setTimeout(MP.mountLegendButton, 0);
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
 S.ride = { type: 'pro', color: 'orange', ...LS.get('ride', {}) };
 const drawRide = () => { truckEl.innerHTML = vehicleSVG(S.ride.type, S.ride.color, 52); };
 drawRide();
 const truckMarker = new maplibregl.Marker({ element: truckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
+{ const pop = new maplibregl.Popup({ offset: 24 }); pop.on('open', () => pop.setHTML(MP.head({ kind: 'you', icon: '🚛', label: 'Your truck (live GPS)', src: MP.SRC.you, when: S.pos?.t ?? null, detail: S.pos?.acc ? t('GPS accurate to about {0} m', [Math.round(S.pos.acc)]) : '' }))); truckMarker.setPopup(pop); S.truckMarker = truckMarker; S.mp = MP; }
 const destMarker = new maplibregl.Marker({ color: '#e53935' }); const gateMarker = new maplibregl.Marker({ color: '#ffb300' });
 let poiMarkers = [], rptMarkers = [], avoidMarkers = []; let updateHud = null;
 
@@ -547,7 +548,7 @@ function drawReports() {
   rptMarkers.forEach(m => m.remove());
   rptMarkers = S.reports.filter(r => reportVisible(r) && !(r.mine && REPORT_TYPES[r.type]?.avoid)).map(r => { const t = REPORT_TYPES[r.type]; if (!t) return null;
     const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = t.icon;
-    const html = document.createElement('div'); html.innerHTML = `<b style="color:#111">${t.label}</b><br><span style="color:#333">${new Date(r.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · 👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : r.voted ? `<br><i style="color:#555">You voted: ${r.voted === 'up' ? 'still there' : 'not there'}</i>` : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
+    const html = document.createElement('div'); html.innerHTML = MP.head({ kind: 'hazard', icon: t.icon, label: t.label, src: r.mine ? MP.SRC.you : MP.SRC.driver, when: r.t }) + `<span style="color:#333">👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : r.voted ? `<br><i style="color:#555">You voted: ${r.voted === 'up' ? 'still there' : 'not there'}</i>` : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
     html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Could not send the flag right now. Try again later.'); } });
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
     return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
@@ -737,7 +738,10 @@ makeBackend().then(async b => { backend = b; S.backend = b; const u = await b.se
 // Service worker updates never swap mid-drive: a new version waits until navigation is off, then activates (no reload; next launch uses it).
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').then(reg => {
   const tryActivate = () => { if (reg.waiting && !S.nav) reg.waiting.postMessage('skipWaiting'); };
-  reg.addEventListener('updatefound', () => reg.installing?.addEventListener('statechange', tryActivate)); setInterval(tryActivate, 60e3); setInterval(() => { if (!S.nav) reg.update().catch(() => {}); }, 30 * 60e3); tryActivate(); }).catch(() => {});
+  reg.addEventListener('updatefound', () => reg.installing?.addEventListener('statechange', tryActivate)); setInterval(tryActivate, 60e3); setInterval(() => { if (!S.nav) reg.update().catch(() => {}); }, 30 * 60e3); tryActivate();
+  reg.update().catch(() => {}); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !S.nav) reg.update().catch(() => {}); }); // auto-update: check on every open / return to the app
+  let had = !!navigator.serviceWorker.controller, reloaded = false; navigator.serviceWorker.addEventListener('controllerchange', () => { if (!had) { had = true; return; } if (reloaded || S.nav) return; reloaded = true; location.reload(); }); // new version took over: reload once (never mid-trip)
+}).catch(() => {});
 window.addEventListener('offline', () => toast('Offline — current route keeps working; rerouting & search need signal', 5000));
 document.addEventListener('visibilitychange', async () => { if (document.visibilityState === 'visible' && S.nav && !wakeLock) try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} });
 if (!LS.get('greeted', false)) { LS.set('greeted', true); setTimeout(() => mascot.say("Welcome to RigRoute GPS! I'm Ace 🚧 your co-pilot. Set your truck under 🚛, then tap Where to?", 'happy', 9000), 1500); }

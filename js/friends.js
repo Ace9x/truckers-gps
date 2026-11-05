@@ -58,9 +58,9 @@ export class Friends {
     await ch.send(this.sk, { type: 'friend_request', fromPk: this.pk, from: { name: this.me().name, username: this.me().username, truck: this.me().truck }, secret });
     this.outgoing = [...this.outgoing.filter(x => x.code !== code), o]; this._save(); this._awaitAccept(o); this._emit(); return o; }
   async _awaitAccept(o) { const ch = await Channel.fromSecret(o.secret, 'friend'); const un = ch.listen(m => { if (m._from === this.pk) return;
-      if (m.type === 'friend_accept') { un(); this.outgoing = this.outgoing.filter(x => x !== o); this._add({ pk: m._from, name: m.from?.name, username: m.from?.username, truck: m.from?.truck, secret: o.secret, share: true, since: Date.now() }); }
+      if (m.type === 'friend_accept') { un(); this.outgoing = this.outgoing.filter(x => x !== o); this._add({ pk: m._from, name: m.from?.name, username: m.from?.username, truck: m.from?.truck, secret: o.secret, share: false, askShare: true, since: Date.now() }); }
       if (m.type === 'friend_decline') { un(); this.outgoing = this.outgoing.filter(x => x !== o); this._save(); this._emit(); } }, Math.floor(o.at / 1000) - 60); }
-  async accept(req) { this.requests = this.requests.filter(r => r !== req); const f = { pk: req.fromPk, name: req.from?.name, username: req.from?.username, truck: req.from?.truck, secret: req.secret, share: true, since: Date.now() };
+  async accept(req) { this.requests = this.requests.filter(r => r !== req); const f = { pk: req.fromPk, name: req.from?.name, username: req.from?.username, truck: req.from?.truck, secret: req.secret, share: false, askShare: true, since: Date.now() };
     await this._add(f); await this.chans[f.pk].send(this.sk, { type: 'friend_accept', from: { name: this.me().name, username: this.me().username, truck: this.me().truck } }); }
   async decline(req) { this.requests = this.requests.filter(r => r !== req); (await Channel.fromSecret(req.secret, 'friend')).send(this.sk, { type: 'friend_decline' }, 1).catch(() => {}); this._emit(); }
   async _add(f) { this.friends = [...this.friends.filter(x => x.pk !== f.pk), f]; this._save(); await this._attach(f); this._emit(); }
@@ -70,12 +70,14 @@ export class Friends {
       if (m.type === 'unfriend') { this.friends = this.friends.filter(x => x.pk !== f.pk); delete this.live[f.pk]; this._save(); } this._emit(); }, Math.floor(Date.now() / 1000) - 3600); }
   remove(pk) { this.chans[pk]?.send(this.sk, { type: 'unfriend' }, 1).catch(() => {}); this.friends = this.friends.filter(f => f.pk !== pk); delete this.live[pk]; this._save(); this._emit(); }
   setShare(pk, on) { const f = this.friends.find(x => x.pk === pk); if (!f) return; f.share = !!on; this._save(); if (!on) this.chans[pk]?.send(this.sk, { type: 'stop_share' }, 1).catch(() => {}); this._emit(); }
+  /** answer to the 'Share my location with X?' prompt. New friends start OFF; only a Yes turns sharing on. */
+  answerShare(pk, yes) { const f = this.friends.find(x => x.pk === pk); if (!f) return; delete f.askShare; f.share = !!yes; this._save(); this._emit(); }
   setGhost(on) { this.ghost = !!on; this._save(); if (on) this.friends.forEach(f => this.chans[f.pk]?.send(this.sk, { type: 'stop_share' }, 1).catch(() => {})); this._emit(); }
   setTimer(minutes) { this.shareUntil = minutes ? Date.now() + minutes * 60e3 : 0; this._save(); this._emit(); }
   setRouteShare(on) { this.routeShare = !!on; this._save(); this._emit(); }
   /** called by the app with my position; only sends to friends with share on, when not ghost/expired */
   async tick(pos, routeLine) { if (!pos || !this.sharingActive) return 0; let n = 0;
-    for (const f of this.friends.filter(f => f.share)) { const ch = this.chans[f.pk]; if (!ch) continue; n++;
+    for (const f of this.friends.filter(f => f.share === true && !f.askShare)) { /* privacy: only an explicit Yes shares (saved choices of existing friends are kept as they were) */ const ch = this.chans[f.pk]; if (!ch) continue; n++;
       ch.send(this.sk, { type: 'loc', lat: +pos.lat.toFixed(5), lon: +pos.lon.toFixed(5), heading: pos.heading ?? null, speed: pos.speed ?? null, name: this.me().name, truck: this.me().truck?.icon || null }, 1).catch(() => {});
       const key = routeLine ? routeLine.length + ':' + routeLine[0] : 'none'; if (this.routeShare ? f._rk !== key : f._rk && f._rk !== 'off') { f._rk = this.routeShare ? key : 'off'; ch.send(this.sk, { type: 'route', line: this.routeShare && routeLine ? simplify(routeLine) : null }, 1).catch(() => {}); } }
     return n; }
