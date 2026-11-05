@@ -1,0 +1,23 @@
+/* Highbeam (v3.30.0) screen 1: map + bottom sheet. Night-road black, one signal green, black labels on green,
+   56px in-drive targets, logical properties for RTL, motion off with reduced motion and while driving. */
+:root{--hb-bg:#000;--hb-s1:#0F0F10;--hb-s2:#1C1C1E;--hb-line:#2A2A2D;--hb-ring:#8E8E93;--hb-text:#fff;--hb-muted:#A1A1A6;--hb-signal:#06C167;--hb-hazard:#FFB020;--hb-danger:#FF453A;--hb-float:0 8px 24px rgba(0,0,0,.5)}
+/* Map search pill: white, 56px, black 19/700 */
+body #searchBtn.search-pill{background:#fff;color:#000;min-height:56px;border-radius:999px;font-size:19px;font-weight:700;box-shadow:var(--hb-float);border:0;padding-inline:20px}
+body #searchBtn.search-pill #destLabel{color:#000}
+/* Map FABs: 56px, #1C1C1E with a 3:1 ring (non-text contrast on a dark map) */
+body #sideBtns .round,body #railMenu .round{min-width:56px;min-height:56px;width:56px;height:56px;border-radius:50%;background:var(--hb-s2);color:#fff;border:1px solid var(--hb-ring);box-shadow:var(--hb-float)}
+body #sideBtns #reportBtn{width:64px!important;height:64px!important;background:var(--hb-hazard);color:#000;border-color:#000}
+body #sideBtns #sosBtn{background:#D70015;color:#fff;border-color:#fff}
+/* Bottom sheet: one sheet look for every panel, #111 at night, radius 28, grab handle */
+body .panel{background:#111;color:var(--hb-text);border-start-start-radius:28px;border-start-end-radius:28px;border-top:1px solid var(--hb-line);box-shadow:0 -12px 40px #000c;padding-top:18px}
+body .panel .phead h2{font-size:22px;font-weight:700;letter-spacing:-.02em}
+body .panel .muted,body .panel .small{color:var(--hb-muted)}
+/* One primary button: signal green pill, black 21/900 label */
+body .panel button.primary,body .panel .btnlike.primary{background:var(--hb-signal);color:#000;border:0;border-radius:999px;min-height:56px;font-size:19px;font-weight:900}
+body .panel button:not(.primary):not(.close):not(.help-q):not(.gl):not([data-duty]){border-radius:999px}
+/* Bottom dock: black, 56px targets */
+body #dock{background:var(--hb-bg);border-top:1px solid var(--hb-line)}
+body #dock button{min-height:56px}
+@media (prefers-reduced-motion: reduce){body .panel{animation:none!important}}
+body.driving .panel{animation:none!important}
+:lang(ar) body .panel .phead h2,:lang(fa) body .panel .phead h2,:lang(ur) body .panel .phead h2,:lang(he) body .panel .phead h2{letter-spacing:0}
