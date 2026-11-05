@@ -21,3 +21,29 @@ body #dock button{min-height:56px}
 @media (prefers-reduced-motion: reduce){body .panel{animation:none!important}}
 body.driving .panel{animation:none!important}
 :lang(ar) body .panel .phead h2,:lang(fa) body .panel .phead h2,:lang(ur) body .panel .phead h2,:lang(he) body .panel .phead h2{letter-spacing:0}
+/* 3.30.2 real-iPhone fixes (Fan's screenshots 12:01-12:02 AM) */
+/* BUG-025: ⋮ menu was a 200px column beside the rail; its labels wrapped one word per line over the round icons and covered the search bar. Now a full-width bottom sheet, one line per item. */
+html body #railMenu{position:fixed;left:8px;right:8px;top:auto;bottom:calc(8px + var(--safe-b,0px));min-width:0;width:auto;max-height:calc(100dvh - 24px);overflow-y:auto;z-index:40;display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:20px}
+body.nav #railMenu{top:auto}
+html body #railMenu button,html body #railMenu button.round{width:100%;min-width:0;height:auto;min-height:56px;border-radius:14px;border:0;box-shadow:none;display:flex;align-items:center;justify-content:flex-start;gap:14px;padding:6px 12px;text-align:left}
+html body #railMenu button:not(#sosBtn){background:transparent}
+html body #railMenu button::after{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;font-size:16px}
+html body #railMenu #sosBtn{background:var(--rr-danger,#d32f2f)}
+/* BUG-027: the compact map-credits (i) is a 44px tap target; its 24px icon repeated, showing two clipped (i) icons */
+html body .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
+/* BUG-028: lanes / alerts sit above the windshield banner layer while driving (top set by pro.js stackTop) */
+body.driving #lanes,body.driving #alerts,body.driving #hzBanner,body.driving #tfBanner{z-index:36}
+html body #lanes:not(.hidden){transform:none}
+/* BUG-030: windshield "Exit" was absolutely placed over the distance and street name; now its own column */
+html body #dExit{position:static;flex:none;align-self:flex-start;margin-left:auto;white-space:nowrap}
+html body #dTurn>div:nth-child(2){flex:1;min-width:0}
+html body #dStreet{overflow-wrap:anywhere}
+@media (max-width:430px){html body #dArrow{font-size:60px;min-width:60px}html body #dDist{font-size:46px}html body #dStreet{font-size:21px}html body #dTurn{gap:10px;padding:10px 12px}}
+/* BUG-029: decluttered pins are hidden, not just under another pin */
+.maplibregl-marker.mp-hide{visibility:hidden!important;pointer-events:none!important}
+html body #railMenu{box-shadow:0 0 0 100vmax rgba(0,0,0,.55),0 -8px 32px rgba(0,0,0,.5)}
+/* map credits + scale must not sit on the driving controls (trip bar, nav buttons, windshield buttons) */
+body.st-nav .maplibregl-ctrl-scale,body.st-arriving .maplibregl-ctrl-scale,body.driving .maplibregl-ctrl-scale{display:none}
+/* windshield view on a short screen (Safari bars): newest alert only, compact, so it never lands on the speed box */
+@media (max-height:760px){body.driving #alerts .alert:not(:last-child),body.nav #alerts .alert:not(:last-child){display:none}body.driving #alerts .alert,body.nav #alerts .alert{font-size:15px;padding:8px 12px}}
+html body #dMid{margin-top:auto;margin-bottom:8px}

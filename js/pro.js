@@ -30,10 +30,24 @@ function iconize(root) {
 }
 let pending = new Set(), raf = 0;
 new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') pending.add(m.target); else m.addedNodes.forEach(x => { if (x.nodeType === 1 && !x.classList?.contains('pi') || x.nodeType === 3) pending.add(x); }); }
-  if (!raf) raf = requestAnimationFrame(() => { raf = 0; const p = pending; pending = new Set(); p.forEach(x => x.isConnected && iconize(x)); laneState(); }); })
+  if (!raf) raf = requestAnimationFrame(() => { raf = 0; const p = pending; pending = new Set(); p.forEach(x => x.isConnected && iconize(x)); laneState(); stack(); }); })
   .observe(document.body, { childList: true, subtree: true, characterData: true });
 iconize(document.body);
 function laneState() { const l = $('#lanes'); document.body.classList.toggle('lanes-on', !!l && !l.classList.contains('hidden') && !$('#banner').classList.contains('hidden')); }
+// BUG-028: the lane bar, hazard card and alerts were pinned at fixed offsets, so a taller turn banner (or the windshield banner) covered them. Stack them under whatever banner is showing.
+const shown = e => e && !e.classList.contains('hidden') && getComputedStyle(e).display !== 'none';
+function stackTop() { const B = document.body, drive = B.classList.contains('driving'), top = drive ? $('#dTurn') : $('#banner'); const L = $('#lanes'), H = $('#hzBanner'), T = $('#tfBanner'), A = $('#alerts');
+  if (!(B.classList.contains('nav') || drive) || !shown(top) || (drive && !shown($('#drive')))) { [L, H, T, A, $('#thenBox')].forEach(x => x && (x.style.top = '')); const C = $('.maplibregl-ctrl-bottom-right'); if (C) C.style.bottom = ''; return; }
+  let y = Math.round(top.getBoundingClientRect().bottom);
+  if (shown(L) && L.children.length) { L.style.top = y + 'px'; y = Math.round(L.getBoundingClientRect().bottom); } else if (L) L.style.top = '';
+  const TB = $('#thenBox'); if (TB && shown(TB) && !drive) { TB.style.top = (y + 6) + 'px'; y = Math.round(TB.getBoundingClientRect().bottom); } else if (TB) TB.style.top = '';
+  if (H && shown(H)) { H.style.top = (y + 8) + 'px'; y = Math.round(H.getBoundingClientRect().bottom); } else if (H) H.style.top = '';
+  if (T && shown(T)) { T.style.top = (y + 8) + 'px'; y = Math.round(T.getBoundingClientRect().bottom); } else if (T) T.style.top = '';
+  if (A) A.style.top = (y + 8) + 'px';
+  // map credits (i) sit just above whichever bottom bar is showing
+  const C = $('.maplibregl-ctrl-bottom-right'); if (C) { const bars = ['#dMid', '#dBtns', '#tripBar', '#navStack'].map(s => $(s)).filter(e => shown(e) && e.getBoundingClientRect().height); const topB = Math.min(innerHeight, ...bars.map(e => e.getBoundingClientRect().top)); C.style.bottom = Math.max(0, Math.round(innerHeight - topB + 6)) + 'px'; } }
+let stRaf = 0; const stack = () => { if (!stRaf) stRaf = requestAnimationFrame(() => { stRaf = 0; stackTop(); }); };
+addEventListener('resize', stack); setInterval(stackTop, 700); new MutationObserver(stack).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 // ---------- Splash / brand ----------
 export const LOGO = `<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><rect width="96" height="96" rx="22" fill="#161b22"/><rect x="1.5" y="1.5" width="93" height="93" rx="20.5" fill="none" stroke="#2b333f" stroke-width="3"/><path d="M30 78 L44 18 H52 L66 78" fill="none" stroke="#3a4350" stroke-width="5" stroke-linecap="round"/><path d="M48 26v8M48 44v8M48 62v8" stroke="#3a4350" stroke-width="3" stroke-linecap="round"/><path d="M48 22 L70 70 L48 59 L26 70 Z" fill="#ff9500" stroke="#161b22" stroke-width="3" stroke-linejoin="round"/></svg>`;

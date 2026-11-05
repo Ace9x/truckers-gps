@@ -48,14 +48,18 @@ applyTheme(); $('#ver').textContent = 'v' + VERSION;
 
 // ---------- Map ----------
 const map = new maplibregl.Map({ container: 'map', style: STYLES[curTheme] || STYLES.night, center: S.pos ? [S.pos.lon, S.pos.lat] : [-73.88, 40.81], zoom: S.pos ? 13 : 10, attributionControl: { compact: true, customAttribution: ['Routing <a href="https://github.com/valhalla/valhalla" target="_blank" rel="noopener">Valhalla</a>', 'NYC truck routes &amp; speeds: <a href="https://opendata.cityofnewyork.us/" target="_blank" rel="noopener">NYC DOT</a>', '<a href="terms.html" target="_blank">Terms &amp; safety</a> · <a href="privacy.html" target="_blank">Privacy</a> · <a href="terms.html" target="_blank">Terms</a>'] } });
-S.map = map; MP.wireTomTom(map, S); setTimeout(MP.mountLegendButton, 0);
+S.map = map; MP.wireTomTom(map, S); MP.declutter(map);
+// Map credits start collapsed to the (i) button (MapLibre opens them on load; open they covered the speed box and driving buttons). Tap (i) to read them.
+{ const shut = () => { const a = document.querySelector('.maplibregl-ctrl-attrib.maplibregl-compact'); if (a && !a.dataset.userOpen) { a.classList.remove('maplibregl-compact-show'); a.removeAttribute('open'); } };
+  map.on('load', shut); map.on('resize', () => setTimeout(shut, 0)); setTimeout(shut, 1500);
+  document.addEventListener('click', e => { const a = e.target.closest?.('.maplibregl-ctrl-attrib'); if (a) a.dataset.userOpen = '1'; else document.querySelectorAll('.maplibregl-ctrl-attrib[data-user-open]').forEach(x => { delete x.dataset.userOpen; shut(); }); }, true); } setTimeout(MP.mountLegendButton, 0);
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
 S.ride = { type: 'pro', color: 'orange', ...LS.get('ride', {}) };
 const drawRide = () => { truckEl.innerHTML = vehicleSVG(S.ride.type, S.ride.color, 52); };
 drawRide();
 const truckMarker = new maplibregl.Marker({ element: truckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
-{ const pop = new maplibregl.Popup({ offset: 24 }); pop.on('open', () => pop.setHTML(MP.head({ kind: 'you', icon: '🚛', label: 'Your truck (live GPS)', src: MP.SRC.you, when: S.pos?.t ?? null, detail: S.pos?.acc ? t('GPS accurate to about {0} m', [Math.round(S.pos.acc)]) : '' }))); truckMarker.setPopup(pop); S.truckMarker = truckMarker; S.mp = MP; }
+{ const pop = new maplibregl.Popup({ offset: 24 }); pop.on('open', () => pop.setHTML(MP.head({ kind: 'you', icon: '🚛', label: 'Your truck (live GPS)', src: MP.SRC.you, when: S.pos?.t ?? null, detail: S.pos?.acc ? t('GPS accurate to about {0} m', [Math.round(S.pos.acc)]) : '' }))); truckMarker.setPopup(pop); MP.tapToOpen(truckMarker, 'Your truck (live GPS)'); S.truckMarker = truckMarker; S.mp = MP; }
 const destMarker = new maplibregl.Marker({ color: '#e53935' }); const gateMarker = new maplibregl.Marker({ color: '#ffb300' });
 let poiMarkers = [], rptMarkers = [], avoidMarkers = []; let updateHud = null;
 
@@ -551,7 +555,7 @@ function drawReports() {
     const html = document.createElement('div'); html.innerHTML = MP.head({ kind: 'hazard', icon: t.icon, label: t.label, src: r.mine ? MP.SRC.you : MP.SRC.driver, when: r.t }) + `<span style="color:#333">👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : r.voted ? `<br><i style="color:#555">You voted: ${r.voted === 'up' ? 'still there' : 'not there'}</i>` : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
     html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Could not send the flag right now. Try again later.'); } });
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
-    return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
+    return MP.tapToOpen(new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map), t.label); }).filter(Boolean);
 }
 async function vote(r, dir) { if (!backend) return toast('Still connecting, try again in a second'); const uid = profile.p.uid || 'me'; let res = null; try { res = await backend.vote(r.id, dir, uid); } catch (e) { if (backend.name === 'supabase') { const m = String(e?.message || ''); return toast(/own pin/.test(m) ? 'That is your own pin, so you cannot vote on it.' : /already voted/.test(m) ? 'You already voted on this pin. Thanks!' : /rate limited/.test(m) ? 'Too many votes right now. Try again later.' : /already gone|not found/.test(m) ? 'That pin is already gone.' : 'Could not send that right now. Try again later.'); } } if (res) Object.assign(r, res, { voted: dir }); else r[dir] = (r[dir] || 0) + 1; if (res?.gone) S.reports = S.reports.filter(x => x.id !== r.id); award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
 S.vote = vote; S.drawReports = drawReports; S.drawRoute = drawRoute;
@@ -716,7 +720,7 @@ S.toast = toast;
 S.setTruck = t => { Object.assign(S.truck, t); fillTruck(); LS.set('truck', S.truck); applyVehicle(); };
 S.costingFor = () => costingFor(S.truck); S.costingOptions = () => costingOptions(S.truck); S.truckUIOn = () => truckUIOn(S.truck); S.VEHICLES = VTYPES; S.vehOf = () => vehOf(S.truck);
 function applyVehicle() { const v = vehOf(S.truck), b = document.body.classList; for (const k of Object.keys(VTYPES)) b.toggle('veh-' + k, k === v); b.toggle('no-truckui', !truckUIOn(S.truck)); b.toggle('veh-commercial', !!VTYPES[v].commercial);
-  const ic = document.querySelector('#dock [data-panel=truckPanel]'); if (ic) ic.firstChild.textContent = VTYPES[v].icon; const tu = document.querySelector('#truckUIRow'); if (tu) tu.hidden = VTYPES[v].truckUI !== 'optional'; }
+  const ic = document.querySelector('#dock [data-panel=truckPanel]'); if (ic) ic.firstChild.replaceWith(document.createTextNode(VTYPES[v].icon)); const tu = document.querySelector('#truckUIRow'); if (tu) tu.hidden = VTYPES[v].truckUI !== 'optional'; }
 applyVehicle();
 
 // ---------- Boot (resume after crash/reload) ----------

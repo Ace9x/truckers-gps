@@ -1,5 +1,20 @@
 [
  {
+  "version": "3.30.2",
+  "date": "2026-11-05",
+  "items": [
+   "Map pins now open their info for VoiceOver, TalkBack and keyboard users too, and every pin is announced as a button with its name.",
+   "The ⋮ menu is now a full-width sheet with each label on one line.",
+   "The Truck tab shows its icon again.",
+   "The map credits button shows a single (i) and sits above your driving buttons.",
+   "Lane arrows, traffic cards and alerts now stack under the turn banner instead of hiding behind it.",
+   "The Exit button no longer crowds the distance and street name in the windshield view.",
+   "Pins that overlap or run off the screen edge are tidied away until you zoom in.",
+   "Speed limit never shows a city-street 25 on an expressway: when a road has no posted limit it uses that road's posted limit nearby or the state default for its road type, marked est.",
+   "No more false Off NYC truck route warnings just outside the city (Inwood, Lawrence, Elmont), on divided truck routes, or on expressways."
+  ]
+ },
+ {
   "version": "3.30.1",
   "date": "2026-11-04",
   "items": [
