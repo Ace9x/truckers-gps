@@ -137,14 +137,15 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
   S.renderNet = renderNet;
 
   // ----- wrap backend: queue when offline or send fails -----
+  const refused = e => !!(e && e.code && !/^PGRST0|^08|^57/.test(String(e.code))); // a real answer from the server, not a network failure
   async function sendNow(kind, p) { if (kind === 'nostr') { if (!S.hz?._rawSend || !S.hz._rawSend(p.ev)) throw new Error('no relay open'); return; }
     const b = S.backend; if (!b?._raw) throw new Error('no backend');
-    if (kind === 'report') return b._raw.addReport(p); const r = await b._raw.vote(p.id, p.dir, p.uid); if (r === undefined && b.name !== 'local') throw new Error('vote failed'); return r; }
+    if (kind === 'report') return b._raw.addReport(p); let r; try { r = await b._raw.vote(p.id, p.dir, p.uid); } catch (e) { if (refused(e)) return null; throw e; } /* queued vote the server refuses: drop it */ if (r === undefined && b.name !== 'local') throw new Error('vote failed'); return r; }
   function wrap(b) { if (!b || b._raw) return; b._raw = { addReport: b.addReport.bind(b), vote: b.vote.bind(b) };
     b.addReport = async r => { if (!online()) { await outbox.add('report', r, r.t); renderNet(); cacheReports(); toast('Offline — report saved, will send when signal returns', 4000); return r; }
       try { return await b._raw.addReport(r); } catch (e) { await outbox.add('report', r, r.t); renderNet(); return r; } };
     b.vote = async (id, dir, uid) => { if (!online()) { await outbox.add('vote', { id, dir, uid, t: Date.now() }); renderNet(); return null; }
-      try { return await b._raw.vote(id, dir, uid); } catch { await outbox.add('vote', { id, dir, uid, t: Date.now() }); renderNet(); return null; } }; }
+      try { return await b._raw.vote(id, dir, uid); } catch (e) { if (refused(e)) throw e; /* BUG-013: server said no (own pin, already voted, rate limit) — tell the driver, don't queue it forever */ await outbox.add('vote', { id, dir, uid, t: Date.now() }); renderNet(); return null; } }; }
   // live hazard network (Nostr): signed events made offline (or with no relay open) are persisted; original created_at kept in the signature
   function wrapHz(hz) { if (!hz || hz._rawSend) return; hz._rawSend = hz._send.bind(hz);
     hz._send = ev => { let c = {}; try { c = JSON.parse(ev.content); } catch {}

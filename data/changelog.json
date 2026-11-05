@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.29.10",
+  "date": "2026-11-04",
+  "items": [
+   "If you try to vote twice on a pin, or on your own pin, RigRoute now tells you instead of saying thanks."
+  ]
+ },
+ {
   "version": "3.29.9",
   "date": "2026-11-04",
   "items": [
