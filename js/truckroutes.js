@@ -2,6 +2,16 @@
 // Trucks must stay on designated routes in NYC except to reach an origin/destination via the shortest route off it (NYC Traffic Rules 4-13).
 export const NYC = [-74.26, 40.49, -73.69, 40.92];
 export const inNYC = (lon, lat) => lon >= NYC[0] && lon <= NYC[2] && lat >= NYC[1] && lat <= NYC[3];
+// Real city line (NYC Borough Boundaries, data/nyc-boundary.json): the box above also covers Nassau County (Inwood, Lawrence, Elmont), where NYC truck rules don't apply.
+export function inRings(rings, lon, lat) { let inside = false; for (const r of rings || []) for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside; } return inside; }
+export const inCity = (ix, lon, lat) => inNYC(lon, lat) && (!ix?.rings || inRings(ix.rings, lon, lat));
+const norm = n => String(n || '').toUpperCase().replace(/\bEXPWY\b|\bEXPY\b/g, 'EXPRESSWAY').replace(/\bBLVD\b/g, 'BOULEVARD').replace(/\bAVE\b/g, 'AVENUE').replace(/\bST\b/g, 'STREET').replace(/\s+/g, ' ').trim();
+// Same street as a designated route within maxM: NYC DOT draws one centerline, the map draws each side of a divided road (often 40-80 m apart).
+export function namedRouteNear(ix, lon, lat, names, maxM = 150) { const want = new Set((names || []).map(norm).filter(Boolean)); if (!want.size) return null; const r = Math.ceil(maxM / 170), gx = Math.floor(lon / CELL), gy = Math.floor(lat / CELL);
+  for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) for (const id of ix.grid.get((gx + i) + ':' + (gy + j)) || []) { const s = ix.segs[id]; if (!want.has(norm(s.name))) continue;
+    for (let q = 1; q < s.pts.length; q++) if (segDist([lon, lat], s.pts[q - 1], s.pts[q]) <= maxM) return { t: s.t, name: s.name }; } return null; }
+// Limited-access expressways/interstates are through truck routes (NYC Traffic Rules 4-13(b)); parkways ban trucks.
+export const isExpressway = e => !!e && !(e.names || []).some(n => /parkway|pkwy/i.test(n)) && (/motorway/.test(e.road_class || '') || /trunk/.test(e.road_class || '') && (e.names || []).some(n => /expressway|expwy|expy|interstate|\bI-?\d/i.test(n)));
 const CELL = 0.002; // ~170 m x 220 m
 export function buildIndex(data) { const segs = [], grid = new Map();
   for (const [t, ni, dc] of data.segs) { const pts = []; let x = 0, y = 0; for (let i = 0; i < dc.length; i += 2) { x += dc[i]; y += dc[i + 1]; pts.push([x / 1e5, y / 1e5]); }
@@ -20,6 +30,6 @@ export function nearestRoute(ix, lon, lat, maxM = 30) { const gx = Math.floor(lo
 // Plan-time check: stretches of a route inside NYC that leave designated truck routes, ignoring the first/last `exemptM` (origin / destination access).
 export function offTruckRoute(ix, line, cum, { exemptM = 805, stepM = 40, minM = 120 } = {}) { const total = cum.at(-1) || 0, out = []; let cur = null;
   for (let s = exemptM, i = 1; s <= total - exemptM; s += stepM) { while (i < cum.length - 1 && cum[i] < s) i++; const a = line[i - 1], b = line[i], f = (s - cum[i - 1]) / Math.max(1e-6, cum[i] - cum[i - 1]); const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-    const off = inNYC(p[0], p[1]) && !nearestRoute(ix, p[0], p[1], 30);
+    const off = inCity(ix, p[0], p[1]) && !nearestRoute(ix, p[0], p[1], 30);
     if (off) { if (!cur) cur = { from: s, to: s, at: p }; cur.to = s; } else if (cur) { if (cur.to - cur.from + stepM >= minM) out.push({ ...cur, len: cur.to - cur.from + stepM }); cur = null; } }
   if (cur && cur.to - cur.from + stepM >= minM) out.push({ ...cur, len: cur.to - cur.from + stepM }); return out; }

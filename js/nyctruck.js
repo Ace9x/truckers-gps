@@ -1,8 +1,9 @@
 // NYC truck routes in the app: map layer, plan-time "leaves truck route" check, live off-truck-route warning (voice + haptic).
-import { buildIndex, nearestRoute, offTruckRoute, inNYC } from './truckroutes.js';
+import { buildIndex, nearestRoute, offTruckRoute, inNYC, inCity, namedRouteNear, isExpressway } from './truckroutes.js';
+import { edgeAt } from './trip.js';
 let S; const $ = s => document.querySelector(s), LSK = 'tn_nycTruckLayer';
 let ix = null, loading = null;
-export function load() { if (ix) return Promise.resolve(ix); return loading ||= fetch('data/nyc-truck-routes.json').then(r => r.json()).then(d => (ix = buildIndex(d))).catch(e => { loading = null; throw e; }); }
+export function load() { if (ix) return Promise.resolve(ix); return loading ||= Promise.all([fetch('data/nyc-truck-routes.json').then(r => r.json()), fetch('data/nyc-boundary.json').then(r => r.json()).catch(() => null)]).then(([d, b]) => { const x = buildIndex(d); x.rings = b?.rings || null; return (ix = x); }).catch(e => { loading = null; throw e; }); }
 const nearNYC = p => p && p.lon > -74.6 && p.lon < -73.4 && p.lat > 40.3 && p.lat < 41.1;
 function geo() { return { type: 'FeatureCollection', features: ix.segs.map(s => ({ type: 'Feature', properties: { t: s.t, n: s.name }, geometry: { type: 'LineString', coordinates: s.pts } })) }; }
 function layer(on) { const map = S.map; if (!map?.getStyle()) return;
@@ -16,7 +17,7 @@ function ui() { const lp = $('#layersPanel'); if (!lp || $('#nycTruckChk')) retu
   const c = $('#nycTruckChk'); c.checked = localStorage.getItem(LSK) === '1'; c.onchange = () => { localStorage.setItem(LSK, c.checked ? '1' : '0'); if (c.checked) load().then(() => layer(true)); else layer(false); }; }
 // Plan-time: the route sheet says if (and where) the route leaves designated truck routes inside NYC
 let lastRoute = null;
-async function planCheck() { const r = S.route; if (!r || r === lastRoute) return; const line = r.line; S.nycIn = !!line?.some(p => inNYC(p[0], p[1])); if (!S.nycIn) { lastRoute = r; S.nycOff = []; render(); return; }
+async function planCheck() { const r = S.route; if (!r || r === lastRoute) return; const line = r.line; S.nycIn = !!line?.some(p => inNYC(p[0], p[1])) && !!(await load().catch(() => null)) && line.some(p => inCity(ix, p[0], p[1])); if (!S.nycIn) { lastRoute = r; S.nycOff = []; render(); return; }
   await load(); lastRoute = r; S.nycOff = offTruckRoute(ix, line, r.cum); render(); }
 function render() { const rp = $('#routePanel'); if (!rp) return; let n = $('#nycOff'); const off = S.nycOff || [], long = S.nycIn && (+S.truck?.lengthFt || 0) > 55;
   if (!off.length && !long) { n?.remove(); return; } if (!n) { n = document.createElement('div'); n.id = 'nycOff'; n.setAttribute('role', 'note'); ($('#hosEta') || $('#alts'))?.before(n); }
@@ -25,9 +26,9 @@ function render() { const rp = $('#routePanel'); if (!rp) return; let n = $('#ny
     + (long ? `<div data-nyc53>📏 <b>${S.truck.lengthFt} ft rig in NYC:</b> 53′ trailers and rigs over 55 ft may only use the interstate network in the city — a NYC DOT oversize permit is needed to leave it.</div>` : ''); }
 // Live: off a designated route for ~150 m inside NYC, not within 0.5 mi of start/destination -> voice + haptic, at most every 2 min
 let offCount = 0, lastWarn = 0;
-function live() { const p = S.pos; if (!S.nav || !p || !inNYC(p.lon, p.lat) || !ix) { offCount = 0; return; }
+function live() { const p = S.pos; if (!S.nav || !p || !ix || !inCity(ix, p.lon, p.lat)) { offCount = 0; S.nycTruckStatus = null; return; }
   const left = (S.route?.length || 0) - (S.along || 0), done = S.along || 0; if (left < 805 || done < 805) { offCount = 0; S.nycTruckStatus = 'access'; return; }
-  const on = nearestRoute(ix, p.lon, p.lat, 30); S.nycTruckStatus = on ? 'on' : 'off'; offCount = on ? 0 : offCount + 1;
+  const e = edgeAt(S.edges || [], S.along || 0), on = nearestRoute(ix, p.lon, p.lat, Math.max(45, (+p.acc || 0) + 20)) || namedRouteNear(ix, p.lon, p.lat, e?.names) || (isExpressway(e) ? { t: 'T', name: e.names?.[0] || 'expressway' } : null); S.nycTruckStatus = on ? 'on' : 'off'; offCount = on ? 0 : offCount + 1;
   if (offCount >= 3 && Date.now() - lastWarn > 120e3) { lastWarn = Date.now(); S.voiceObj?.say('You have left the New York City truck route. Return to a designated truck route.', 'danger');
     try { navigator.vibrate?.([200, 100, 200]); } catch {} const a = $('#alerts'); if (a) { const el = document.createElement('div'); el.className = 'alert warn'; el.textContent = '⚠ Off NYC truck route — return to a designated route'; a.appendChild(el); setTimeout(() => el.remove(), 12000); } } }
 export function start() { S = window.TruckNav; S.nycOff = []; S.nycTruckStatus = null; setInterval(ui, 1000); setInterval(() => { planCheck().catch(() => {}); }, 1500); setInterval(live, 2000);

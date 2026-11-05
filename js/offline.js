@@ -99,7 +99,7 @@ export function init(S, h) {
 #dMid{display:flex;justify-content:space-between;align-items:flex-end;padding:0 10px}
 #dSpeed,#dLimit{background:#000;color:#fff;border:4px solid #fff;border-radius:18px;padding:6px 14px;text-align:center;font-weight:900}
 #dSpeed b{font-size:56px;display:block;line-height:1}#dSpeed.over{border-color:#ff1744;background:#5a0d0d}
-#dLimit{background:#fff;color:#000;border-color:#000}#dLimit b{font-size:44px;display:block;line-height:1}
+#dLimit{background:#fff;color:#000;border-color:#000}#dLimit i{display:none;font:italic 700 12px/1 system-ui;color:#444}#dLimit.est{border-style:dashed}#dLimit.est i{display:block}#dLimit b{font-size:44px;display:block;line-height:1}
 #dEta{background:#000;color:#ffeb3b;border:3px solid #ffeb3b;border-radius:14px;padding:6px 12px;font:800 22px system-ui;text-align:center}
 #dBtns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:#000c}
 #dBtns button{min-height:92px;border-radius:20px;border:3px solid #fff;background:#111;color:#fff;font:800 17px system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
@@ -114,7 +114,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
 <div id="offGuide" class="hidden" role="alert"><b id="ogArrow">↑</b><div><div id="ogText">Offline — follow the route line</div><small id="ogSub"></small></div></div>
 <div id="drive" class="hidden" aria-label="Drive mode">
  <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div><button id="dExit" aria-label="Exit drive mode">✕ Exit</button></div>
- <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden">LIMIT<b id="dLim">--</b></div></div>
+ <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden">LIMIT<b id="dLim">--</b><i id="dLimEst">est.</i></div></div>
  <div id="dBtns"><button id="dReport"><i>⚠️</i>Report</button><button id="dMute"><i>🔊</i>Mute</button><button id="dAce"><i>🎤</i>Ace</button><button id="dCenter"><i>🎯</i>Recenter</button></div>
 </div>
 <div id="dRep" class="hidden"></div>
@@ -214,7 +214,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     $('#dStreet').textContent = og ? 'No signal — back to the route line' : $('#bInstr')?.textContent || '';
     $('#dSpd').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
     const lim = $('#limitSign') && !$('#limitSign').classList.contains('hidden') ? $('#limitVal').textContent : null;
-    $('#dLimit').classList.toggle('hidden', !lim); if (lim) $('#dLim').textContent = lim; $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
+    $('#dLimit').classList.toggle('hidden', !lim); if (lim) $('#dLim').textContent = lim; $('#dLimit').classList.toggle('est', !!$('#limitSign')?.classList.contains('est')); $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
     $('#dLeft').textContent = S.remT != null ? fmtDur(S.remT) : '--'; $('#dMi').textContent = $('#tDist') ? `${$('#tDist').textContent} ${U() === 'km' ? 'km' : 'mi'} · ${$('#tEta')?.textContent || ''}` : '';
     $('#dMute i').textContent = S.voiceObj?.enabled ? '🔊' : '🔇'; $('#dMute').lastChild.textContent = S.voiceObj?.enabled ? 'Mute' : 'Unmute'; }
   S.renderDrive = () => renderDrive((S.pos?.speed || 0) * 2.23694);

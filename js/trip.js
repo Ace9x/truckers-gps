@@ -78,15 +78,25 @@ export const STATE_DEFAULTS = {
   PR: [25, 45, 55], // PR Law 22-2000 Art. 6.01 (25 residential, 45 rural); 55 expressways (Wikipedia)
 };
 export const inNYC = (lon, lat) => lat > 40.495 && lat < 40.917 && lon > -74.259 && lon < -73.70 && !(lon < -74.05 && lat > 40.65); // 5 boroughs (excludes Hudson/NJ side)
-// Default when untagged. NYC: 25 on every street unless posted (VTL §1642), 50 on untagged expressways.
-export function defaultLimitMph(roadClass, state, pt) { const rc = String(roadClass || ''), nyc = pt && inNYC(pt[0], pt[1]);
-  if (nyc) return /motorway/.test(rc) ? 50 : 25;
+// Default when untagged. NYC: 25 on city streets unless posted (VTL §1642); expressways are never 25 (BUG-031: 25 showed on an untagged Rockaway Blvd/Nassau Expwy edge at 56 mph).
+const EXPWY = /expressway|expwy|expy|interstate|turnpike|thruway|freeway|\bI-?\d/i;
+export function defaultLimitMph(roadClass, state, pt, names) { const rc = String(roadClass || ''), nyc = pt && inNYC(pt[0], pt[1]), xw = (names || []).some(n => EXPWY.test(n));
+  if (nyc) return /motorway/.test(rc) || /trunk/.test(rc) && xw ? 50 : /trunk/.test(rc) ? 30 : 25;
   const d = STATE_DEFAULTS[state] || [25, 55, 55];
-  if (/motorway/.test(rc)) return d[2]; if (/trunk|primary|secondary/.test(rc)) return d[1]; if (/tertiary/.test(rc)) return Math.min(d[1], 45); return d[0]; }
-// Always returns a limit: {mph, est, src}. Tagged posted value wins; else statutory default for road class + place. Truck max caps both.
-export function limitInfo(edges, along, admins, pt, truckMaxMph) { const e = edgeAt(edges || [], along);
+  if (/motorway/.test(rc) || /trunk/.test(rc) && xw) return d[2]; if (/trunk|primary|secondary/.test(rc)) return d[1]; if (/tertiary/.test(rc)) return Math.min(d[1], 45); return d[0]; }
+const isHwy = e => /motorway/.test(e?.road_class || '') || /trunk/.test(e?.road_class || '') && (e?.names || []).some(n => EXPWY.test(n));
+// Posted value of the same road nearby (gap in the map tags, or a ramp/turn lane between two tagged stretches): within 800 m, same name, or the next edge for unnamed connectors.
+function nearbyPosted(edges, e, along, maxM = 800) { const nm = e?.names?.[0]; let best = null, bd = Infinity;
+  for (const x of edges) { if (!x.speed_limit || x === e) continue; const d = x.along > along ? x.along - along : along - (x.along + (x.length || 0)); if (d > maxM || d >= bd) continue;
+    if (nm ? (x.names || []).includes(nm) && x.road_class === e?.road_class : d < 150 && !!e && x.road_class === e.road_class) { best = x; bd = d; } } return best; }
+// Always returns a limit: {mph, est, src}. Tagged posted value wins; else same road's posted value nearby (est.); else statutory default for road class + place (est.). Truck max caps all.
+// Never blank, and never a street-level limit on a highway: a posted value under 35 on a motorway/expressway is treated as a bad tag.
+export function limitInfo(edges, along, admins, pt, truckMaxMph) { edges = edges || []; const e = edgeAt(edges, along);
   const state = e && admins?.[e.end_node?.admin_index]?.state_code;
-  let mph, est = false, src = 'posted'; if (e?.speed_limit) mph = kphToMph(e.speed_limit); else { mph = defaultLimitMph(e?.road_class, state, pt); est = true; src = 'est.'; }
+  let mph, est = false, src = 'posted'; const posted = e?.speed_limit ? kphToMph(e.speed_limit) : null;
+  if (posted && !(isHwy(e) && posted < 35)) mph = posted;
+  else { const n = nearbyPosted(edges, e, along), nm = n && kphToMph(n.speed_limit); est = true; src = 'est.';
+    mph = nm && !(isHwy(e) && nm < 35) ? nm : defaultLimitMph(e?.road_class, state, pt, e?.names); }
   if (truckMaxMph && truckMaxMph < mph) { mph = truckMaxMph; src = 'truck max'; est = false; }
   return { mph, est, src, state: state || null, roadClass: e?.road_class || null }; }
 // Effective limit for this truck = min(posted, truck max). Speeding when > limit + tolerance for a while.

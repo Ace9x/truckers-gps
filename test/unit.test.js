@@ -224,3 +224,15 @@ test('speed limit: exact edge, NYC 25 default, never truck-max 65 on a street', 
   assert.equal(Object.keys(STATE_DEFAULTS).length, 52); });
 test('NYC trips fully prefer the truck route network', async () => { const { costingOptions } = await import('../js/logic.js'); const t = { vehicle: 'semi', heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5 };
   assert.equal(costingOptions(t, { from: { lat: 40.72, lon: -73.84 }, to: { lat: 40.75, lon: -73.94 } }).truck.use_truck_route, 1); assert.equal(costingOptions(t, { from: { lat: 41.5, lon: -75 }, to: { lat: 42, lon: -76 } }).truck.use_truck_route, 0.8); });
+test('speed limit never shows a street 25 on an expressway (BUG-031: Nassau Expwy / Rockaway Blvd gap at 56 mph)', () => {
+  const ad = [{ state_code: 'NY' }], q = [-73.762, 40.652]; // Queens, south of JFK
+  const e = [{ along: 0, length: 400, speed_limit: 56, road_class: 'trunk', names: ['Rockaway Boulevard'], end_node: { admin_index: 0 } }, { along: 400, length: 200, road_class: 'trunk', names: ['Rockaway Boulevard'], end_node: { admin_index: 0 } }, { along: 600, length: 60, road_class: 'trunk', use: 'turn_channel', end_node: { admin_index: 0 } }, { along: 660, length: 900, road_class: 'trunk', names: ['Nassau Expressway'], end_node: { admin_index: 0 } }];
+  let i = limitInfo(e, 500, ad, q); assert.equal(i.mph, 35); assert.ok(i.est); // same road posted 56 kph nearby -> 35 est., not 25
+  i = limitInfo(e, 900, ad, q); assert.equal(i.mph, 50); assert.ok(i.est); // untagged expressway in NYC -> 50 est.
+  i = limitInfo([{ along: 0, length: 900, speed_limit: 40, road_class: 'motorway', names: ['I-678'], end_node: { admin_index: 0 } }], 100, ad, q); assert.ok(i.mph >= 50 && i.est); // 25 mph tag on a motorway = bad tag
+  assert.equal(defaultLimitMph('trunk', 'NY', q, ['Nassau Expressway']), 50); assert.ok(defaultLimitMph('trunk', 'NY', q, ['Rockaway Boulevard']) > 25); });
+test('NYC truck route: city line, divided roads, expressways (BUG-032: false "off truck route" on Nassau Expwy)', async () => { const m = await import('../js/truckroutes.js'); const fs = await import('node:fs');
+  const ix = m.buildIndex(JSON.parse(fs.readFileSync('data/nyc-truck-routes.json'))); ix.rings = JSON.parse(fs.readFileSync('data/nyc-boundary.json')).rings;
+  assert.ok(m.inCity(ix, -73.9935, 40.7506)); assert.ok(m.inCity(ix, -73.7592, 40.6515)); assert.ok(!m.inCity(ix, -73.7413, 40.6231)); assert.ok(!m.inCity(ix, -73.705, 40.70)); // Inwood/Elmont are Nassau County
+  assert.ok(m.isExpressway({ road_class: 'trunk', names: ['Nassau Expressway'] })); assert.ok(!m.isExpressway({ road_class: 'motorway', names: ['Grand Central Parkway'] }));
+  assert.ok(m.namedRouteNear(ix, -73.7677 + 0.0006, 40.6562, ['Rockaway Boulevard'])); });
