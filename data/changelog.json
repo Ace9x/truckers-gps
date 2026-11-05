@@ -1,5 +1,15 @@
 [
  {
+  "version": "3.29.11",
+  "date": "2026-11-04",
+  "items": [
+   "Privacy: sharing your location with a friend is now off by default. When you add a friend, RigRoute asks “Share my location with them?” and nothing is sent until you tap Yes. Choices you already made stay the same.",
+   "Tap any icon on the map, like a red 🚘, to see what it is (for example Broken-down vehicle), who reported it and how long ago. A new Map key button in More lists every icon.",
+   "The phone Back button now closes the open sheet or panel instead of leaving the app.",
+   "Fixes: works better offline on iPhone, Arabic and Hebrew text reads the right way, and tapping Send twice sends only once. More of the app is in Spanish."
+  ]
+ },
+ {
   "version": "3.29.10",
   "date": "2026-11-04",
   "items": [

@@ -24,7 +24,7 @@ export const DATA_MAP = [
   { item: 'Truck profile, name, points', where: 'This phone only (no driver accounts)', sync: true },
   { item: 'Hazard reports and votes you make', where: 'Public to other drivers (Supabase + Nostr relays), with a random driver key', sync: true },
   { item: 'Anonymous traffic speeds', where: 'Nostr relays, only if "Share my speed" is on', sync: 'opt-in' },
-  { item: 'Live location for friends', where: 'Only friends you approved, only while sharing is on', sync: 'opt-in' },
+  { item: 'Live location for friends', where: 'Off by default. Only friends you said Yes to, only while sharing is on', sync: 'opt-in' },
   { item: 'Loads from dispatch', where: 'Your paired dispatcher', sync: 'opt-in' },
   { item: 'Routes, stops, trips, receipts, HOS log, facility notes, voice settings', where: 'This phone only', sync: false },
 ];
