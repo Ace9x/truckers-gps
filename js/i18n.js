@@ -82,7 +82,7 @@ const getJ = async c => { try { const j = await (await fetch(new URL(c + '.json'
 async function load(l) { if (l === 'src') { dict = {}; base = {}; hasEn = false; index(); return; }
   base = await getJ('en'); dict = l === 'en' ? base : l === 'xx' ? {} : await getJ(l); if (l === 'xx') base = {}; hasEn = l === 'en' && Object.keys(dict).length > 0; index(); }
 export async function setLang(l, { save = true } = {}) { if (!LANGS[l]) l = 'en'; lang = l; I18N.missing.clear(); if (save) try { localStorage.setItem(LSK, JSON.stringify(l)); } catch {}
-  await load(l); applyDir(); translateTree(document.body); if (document.title) document.title = t(I18N.title0 ||= document.title); dispatchEvent(new CustomEvent('rr-lang', { detail: l })); }
+  await load(l); I18N.missing.clear(); /* strings drawn while the dictionary was loading are re-translated below, not missing */ applyDir(); translateTree(document.body); if (document.title) document.title = t(I18N.title0 ||= document.title); dispatchEvent(new CustomEvent('rr-lang', { detail: l })); }
 export const valhallaLang = () => VALHALLA[lang] || 'en-US';
 export const speechLang = () => SPEECH[lang] || 'en-US';
 export const locale = () => LOCALE[lang];
