@@ -13,7 +13,7 @@ const ch = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsa
 const PROFILES = [
   { name: 'iphone', engine: wk ? 'webkit' : 'chromium', br: wk || ch, dev: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } },
   { name: 'pixel7', engine: 'chromium', br: ch, dev: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 } } }];
-const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh|data\.cityofnewyork\.us/i; // outside servers (NYC Open Data had a 503 outage during the 3.30.5 gate): listed separately, app handles them
+const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh|data\.cityofnewyork\.us|api\.weather\.gov|Access-Control-Allow-Origin\. Status code: 5\d\d/i; // outside servers (NYC Open Data had a 503 outage during the 3.30.5 gate): listed separately, app handles them
 
 for (const P of PROFILES) {
   const run = { profile: P.name, engine: P.engine, checks: [], overlaps: [], small: [], errors: [], external: [], shots: [] }; R.runs.push(run);
@@ -21,7 +21,7 @@ for (const P of PROFILES) {
   const ctx = await P.br.newContext({ ...P.dev, bypassCSP: true /* lets the gate inject axe-core */, permissions: ['geolocation'], geolocation: { latitude: 40.7506, longitude: -73.9935 } });
   await ctx.addInitScript(() => { localStorage.setItem('tn_locWhySeen', '1'); Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); }); // real first run: the app skips onboarding for automation
   const p = await ctx.newPage();
-  p.on('pageerror', e => run.errors.push('pageerror: ' + e.message));
+  p.on('pageerror', e => (EXTERNAL.test(e.message) && /access control checks|Load failed|Failed to fetch/.test(e.message) ? run.external : run.errors).push('pageerror: ' + e.message)); // WebKit reports an outside 503 without CORS as a page error even when the app catches it
   p.on('console', m => { if (m.type() !== 'error') return; const t = m.text() + ' ' + (m.location()?.url || ''); (EXTERNAL.test(t) ? run.external : run.errors).push(t.slice(0, 300)); });
   const shot = async n => { const f = `${OUT}/${P.name}-${n}.png`; await p.screenshot({ path: f }); run.shots.push(f); };
   const ev = (f, a) => p.evaluate(f, a);

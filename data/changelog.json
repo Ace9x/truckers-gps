@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.30.7",
+  "date": "2026-11-05",
+  "items": [
+   "Daytime (light) screens: small grey text and live/age labels are dark enough to read in sunlight again."
+  ]
+ },
+ {
   "version": "3.30.6",
   "date": "2026-11-05",
   "items": [

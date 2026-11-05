@@ -1228,5 +1228,7 @@
 "Starting navigation closes the help tour so it never covers the turn banner.": "Al iniciar la navegación se cierra el recorrido de ayuda para que nunca tape el aviso de giro.",
 "Starting navigation closes the help tour so it never covers the turn banner": "Al iniciar la navegación se cierra el recorrido de ayuda para que nunca tape el aviso de giro",
 "The map credits (i) stays clear of alerts and nav buttons while driving.": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas.",
-"The map credits (i) stays clear of alerts and nav buttons while driving": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas"
+"The map credits (i) stays clear of alerts and nav buttons while driving": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas",
+"Daytime (light) screens: small grey text and live/age labels are dark enough to read in sunlight again.": "Pantallas de día (claras): el texto gris pequeño y las etiquetas de en vivo/antigüedad vuelven a ser lo bastante oscuros para leerse al sol.",
+"Daytime (light) screens: small grey text and live/age labels are dark enough to read in sunlight again": "Pantallas de día (claras): el texto gris pequeño y las etiquetas de en vivo/antigüedad vuelven a ser lo bastante oscuros para leerse al sol"
 }
