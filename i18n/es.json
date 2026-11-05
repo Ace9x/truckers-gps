@@ -1214,5 +1214,11 @@
 "No more false Off NYC truck route warnings just outside the city (Inwood, Lawrence, Elmont), on divided truck routes, or on expressways": "Se acabaron los avisos falsos de Fuera de la ruta de camiones de NYC justo afuera de la ciudad (Inwood, Lawrence, Elmont), en rutas de camiones divididas o en autopistas",
 "(TomTom)": "(TomTom)",
 "Spanish: the TomTom source label in map popups is translated.": "Español: la etiqueta de fuente TomTom en las ventanas del mapa está traducida.",
-"Spanish: the TomTom source label in map popups is translated": "Español: la etiqueta de fuente TomTom en las ventanas del mapa está traducida"
+"Spanish: the TomTom source label in map popups is translated": "Español: la etiqueta de fuente TomTom en las ventanas del mapa está traducida",
+"Live traffic": "Tráfico en vivo",
+"live": "en vivo",
+"covers {0}% of route": "cubre el {0}% de la ruta",
+"Live: {0}": "En vivo: {0}",
+"Spanish: live traffic lines (source, coverage, included in times) are fully translated, and translations refresh right after an update.": "Español: las líneas de tráfico en vivo (fuente, cobertura, incluido en los tiempos) están totalmente traducidas, y las traducciones se actualizan justo después de una actualización.",
+"Spanish: live traffic lines (source, coverage, included in times) are fully translated, and translations refresh right after an update": "Español: las líneas de tráfico en vivo (fuente, cobertura, incluido en los tiempos) están totalmente traducidas, y las traducciones se actualizan justo después de una actualización"
 }

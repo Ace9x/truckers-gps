@@ -78,7 +78,7 @@ function observe() { mo ||= new MutationObserver(ms => { for (const m of ms) { i
   if (!sched) { sched = true; queueMicrotask(flush); } });
   mo.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS.concat('value') }); }
 function applyDir() { const h = document.documentElement; h.lang = lang === 'ar' ? 'ar' : LOCALE[lang].split('-u-')[0]; h.dir = RTL.has(lang) ? 'rtl' : 'ltr'; document.body?.classList.toggle('rtl', RTL.has(lang)); }
-const getJ = async c => { try { const j = await (await fetch(new URL(c + '.json', BASE))).json(); delete j._meta; return j; } catch { return {}; } };
+const getJ = async c => { try { const j = await (await fetch(new URL(c + '.json', BASE), { cache: 'no-cache' })).json(); delete j._meta; return j; } catch { return {}; } };
 async function load(l) { if (l === 'src') { dict = {}; base = {}; hasEn = false; index(); return; }
   base = await getJ('en'); dict = l === 'en' ? base : l === 'xx' ? {} : await getJ(l); if (l === 'xx') base = {}; hasEn = l === 'en' && Object.keys(dict).length > 0; index(); }
 export async function setLang(l, { save = true } = {}) { if (!LANGS[l]) l = 'en'; lang = l; I18N.missing.clear(); if (save) try { localStorage.setItem(LSK, JSON.stringify(l)); } catch {}

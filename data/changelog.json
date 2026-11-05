@@ -1,5 +1,12 @@
 [
  {
+  "version": "3.30.4",
+  "date": "2026-11-05",
+  "items": [
+   "Spanish: live traffic lines (source, coverage, included in times) are fully translated, and translations refresh right after an update."
+  ]
+ },
+ {
   "version": "3.30.3",
   "date": "2026-11-05",
   "items": [
