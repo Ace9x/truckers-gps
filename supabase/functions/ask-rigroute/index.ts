@@ -26,9 +26,12 @@ Deno.serve(async req => {
     const user = `${lang && lang !== 'en' ? `(App language: ${String(lang).slice(0, 8)})\n` : ''}Question: ${question}`;
     let answer = '';
     if (gem) {
-      const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gem },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: SYS }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { maxOutputTokens: 200, temperature: 0.2 } }), signal: AbortSignal.timeout(15000) });
-      const j = await r.json(); answer = j.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || '';
+      // older model ids get retired; try the free 'latest' aliases in order, skipping busy (503) ones
+      for (const m of ['gemini-flash-lite-latest', 'gemini-flash-latest']) {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gem },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: SYS }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { maxOutputTokens: 400, temperature: 0.2 } }), signal: AbortSignal.timeout(15000) }).catch(() => null);
+        const j = r ? await r.json().catch(() => ({})) : {}; answer = j.candidates?.[0]?.content?.parts?.filter((p: { thought?: boolean }) => !p.thought).map((p: { text?: string }) => p.text || '').join('') || '';
+        if (answer.trim()) break; }
     } else if (groq) {
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groq}` },
         body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: [{ role: 'system', content: SYS }, { role: 'user', content: user }], max_tokens: 200, temperature: 0.2 }), signal: AbortSignal.timeout(15000) });
