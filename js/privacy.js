@@ -18,10 +18,10 @@ export async function locGate(start) {
 }
 // What leaves the device, and where. Used by Me > Privacy and privacy.html.
 export const DATA_MAP = [
-  { item: 'Parking reports (open / some / full) and shared facility notes', where: 'Your RigRoute account; readable by other drivers (parking also by guests)', sync: true },
-  { item: 'Loads, stop times, POD photos, documents, messages', where: 'Your RigRoute account; visible only to you and the dispatcher on that load', sync: true },
+  { item: 'Parking reports (open / some / full) and shared facility notes', where: 'Sharing paused (no driver accounts); nothing is sent', sync: true },
+  { item: 'Loads, stop times, POD photos, documents, messages', where: 'This phone, and the dispatcher you pair with by code (encrypted relay)', sync: true },
   { item: 'CDL / med card expiry dates', where: 'This phone only', sync: false },
-  { item: 'Truck profile, name, points', where: 'Your RigRoute account (Supabase) when signed in; otherwise this phone only', sync: true },
+  { item: 'Truck profile, name, points', where: 'This phone only (no driver accounts)', sync: true },
   { item: 'Hazard reports and votes you make', where: 'Public to other drivers (Supabase + Nostr relays), with a random driver key', sync: true },
   { item: 'Anonymous traffic speeds', where: 'Nostr relays, only if "Share my speed" is on', sync: 'opt-in' },
   { item: 'Live location for friends', where: 'Only friends you approved, only while sharing is on', sync: 'opt-in' },

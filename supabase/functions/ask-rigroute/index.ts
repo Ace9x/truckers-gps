@@ -17,11 +17,12 @@ Deno.serve(async req => {
     const question = String(q || '').trim().slice(0, 500), dev = String(device || '');
     if (!question || !/^[A-Za-z0-9-]{8,64}$/.test(dev)) return out({ error: 'bad request' }, 400);
     const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const key = async (n: string) => Deno.env.get(n) || (await db.rpc('ai_key', { p_name: n })).data;
+    const gem = await key('GEMINI_API_KEY'), groq = gem ? null : await key('GROQ_API_KEY');
+    if (!gem && !groq) return out({ error: 'no model key' }, 503); // don't spend the daily limit when AI is off
     const { data: ok, error: rl } = await db.rpc('ai_take', { p_id: dev, p_max: 20 });
     if (rl) return out({ error: 'unavailable' }, 503);
     if (!ok) return out({ limited: true, answer: 'You asked 20 questions today. Try again tomorrow, or tap Show me around.' });
-    const key = async (n: string) => Deno.env.get(n) || (await db.rpc('ai_key', { p_name: n })).data;
-    const gem = await key('GEMINI_API_KEY'), groq = gem ? null : await key('GROQ_API_KEY');
     const user = `${lang && lang !== 'en' ? `(App language: ${String(lang).slice(0, 8)})\n` : ''}Question: ${question}`;
     let answer = '';
     if (gem) {

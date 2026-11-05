@@ -17,7 +17,7 @@ const pkLine = s => s ? `<b class="pk-${s.status}">🅿️ ${PK[s.status][1]}</b
 function fillPk(all) { document.querySelectorAll('[data-pk]').forEach(el => { if (el.dataset.done && !all) return; el.dataset.done = 1; const id = el.dataset.pk, s = S.parking?.[id];
   el.innerHTML = `<div data-pkline>${pkLine(s)}</div><div class="vote pk-btns">${Object.entries(PK).map(([k, [w]]) => `<button data-pks="${k}">${w}</button>`).join('')}</div>`;
   el.querySelectorAll('[data-pks]').forEach(b => b.onclick = () => reportParking(id, el.dataset.pkname, el.dataset.pkll.split(',').map(Number), b.dataset.pks)); }); }
-export async function reportParking(id, name, [lat, lon], status) { if (!signedIn()) return toast('Sign in (Me → Account) to report parking'); const c = await cloud.sb();
+export async function reportParking(id, name, [lat, lon], status) { if (!signedIn()) return toast('Sharing parking reports is paused for now. Thanks for helping!'); const c = await cloud.sb();
   const { data, error } = await c.rpc('report_parking', { p_poi: String(id), p_name: name, p_lat: lat, p_lng: lon, p_status: status }); if (error) return toast('⚠ ' + error.message);
   (pkReports[id] ||= []).push(data); S.parking = { ...(S.parking || {}), [id]: parkingNow(pkReports[id]) }; fillPk(true); toast(`🅿️ Thanks — ${PK[status][1].toLowerCase()} reported`); }
 // ---- HOS short → last parking
@@ -51,7 +51,7 @@ export function facSummary(f, shared = []) { const o = shared[0] || {}; const g 
 // ---- weekly settlement
 let payDocs = [], payKey = '', payBusy = false;
 async function pay() { const me = $('#mePanel'); if (!me || me.classList.contains('hidden')) return; let el = $('#mePay'); if (!el) { el = document.createElement('div'); el.id = 'mePay'; ($('#meTrips') || me.lastChild).before(el); }
-  if (!signedIn()) { el.innerHTML = '<h3>Weekly pay</h3><p class="small muted">Sign in to see settlements for loads from RigRoute dispatch.</p>'; return; }
+  if (!signedIn()) { el.innerHTML = ''; return; }
   const mine = (S.cloudLoads || []).filter(l => l.driver === S.auth.user.id && l.status === 'delivered'), key = mine.map(l => l.id + l.updated_at).join();
   if (key !== payKey) { if (payBusy) return; payBusy = true; try { payDocs = (await cloud.loadEvents(mine.map(l => l.id))).filter(e => e.kind === 'doc'); payKey = key; } catch { return; } finally { payBusy = false; } }
   const W = settlement(mine, payDocs), k2 = JSON.stringify(W.map(w => [w.week, w.total, w.loads.length])); if (el.dataset.k === k2) return; el.dataset.k = k2;

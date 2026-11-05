@@ -547,11 +547,11 @@ function drawReports() {
   rptMarkers = S.reports.filter(r => reportVisible(r) && !(r.mine && REPORT_TYPES[r.type]?.avoid)).map(r => { const t = REPORT_TYPES[r.type]; if (!t) return null;
     const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = t.icon;
     const html = document.createElement('div'); html.innerHTML = `<b style="color:#111">${t.label}</b><br><span style="color:#333">${new Date(r.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · 👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
-    html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Sign in (👤) to flag reports'); } });
+    html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Could not send the flag right now. Try again later.'); } });
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
     return new maplibregl.Marker({ element: el }).setLngLat([r.lon, r.lat]).setPopup(new maplibregl.Popup({ offset: 14 }).setDOMContent(html)).addTo(map); }).filter(Boolean);
 }
-async function vote(r, dir) { if (!backend) return toast('Still connecting, try again in a second'); const uid = profile.p.uid || 'me'; let res = null; try { res = await backend.vote(r.id, dir, uid); } catch (e) { if (backend.name === 'supabase') return toast('Sign in (👤) to confirm reports'); } if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
+async function vote(r, dir) { if (!backend) return toast('Still connecting, try again in a second'); const uid = profile.p.uid || 'me'; let res = null; try { res = await backend.vote(r.id, dir, uid); } catch (e) { if (backend.name === 'supabase') return toast('Could not send that right now. Try again later.'); } if (res) Object.assign(r, res); else r[dir] = (r[dir] || 0) + 1; award(POINTS.vote, 'Voted on a report'); drawReports(); toast(dir === 'up' ? 'Confirmed — thanks!' : 'Marked not there — thanks!'); }
 S.vote = vote; S.drawReports = drawReports; S.drawRoute = drawRoute;
 $('#reportBtn').onclick = () => openPanel('reportPanel');
 
@@ -595,9 +595,8 @@ $('#pNameIn').addEventListener('change', e => { profile.p.name = e.target.value.
 async function renderAcct() { const box = $('#acctBox'); if (!box) return; const a = S.auth, u = a?.user;
   if (!a) { box.innerHTML = '<p class="small muted">Loading account…</p>'; return; }
   if (u) { box.dataset.state = 'signed-in'; box.innerHTML = `<p>Signed in as <b>${esc(u.name || u.email)}</b> <span class="muted small">${esc(u.email || '')}</span></p><div class="row"><button id="meAcctOpen" class="small-btn">Account settings</button><button id="signOut" class="small-btn">Sign out</button></div>`;
-    $('#signOut').onclick = async () => { await a.signOut(); renderAcct(); }; $('#meAcctOpen').onclick = () => S.openAccount?.(); return; }
-  box.dataset.state = 'signed-out'; box.innerHTML = `<p class="small muted">Guest mode: everything works on this phone. An account restores your truck profile on any phone.</p><button id="meSignIn" class="big primary">Sign in or create account</button>`;
-  $('#meSignIn').onclick = () => S.openAccount?.(); }
+    $('#signOut').onclick = async () => { await a.signOut(); renderAcct(); }; $('#meAcctOpen').remove(); return; }
+  box.dataset.state = 'guest'; box.innerHTML = `<p class="small muted">No account needed. Everything works on this phone, and your settings stay on this phone.</p>`; }
 S.renderMeAcct = renderAcct;
 
 // ---------- Voice settings ----------
