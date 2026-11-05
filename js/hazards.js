@@ -1,6 +1,6 @@
 // Live shared hazard reports: one-tap UI, Waze-style pins/callouts, approaching alerts,
 // shared in real time over free public Nostr relays (geohash-tagged), MQTT public broker fallback.
-import { finalizeEvent, generateSecretKey } from './vendor/nostr.js'; import { head as mpHead, SRC as MP_SRC } from './mappop.js'; import { t as T_ } from './i18n.js';
+import { finalizeEvent, generateSecretKey } from './vendor/nostr.js'; import { head as mpHead, SRC as MP_SRC, tapToOpen } from './mappop.js'; import { t as T_ } from './i18n.js';
 import { HZ, HZ_ORDER, alive, opacity, ingest, applyVote, RateLimiter, geohash, ghNeighbors, AREA_P, ahead, alertText, dist, tooFar, held, MAX_REPORT_M, FLAG_REASONS } from './hazlogic.js';
 import { snapToRoute } from './logic.js';
 
@@ -112,7 +112,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
           box.innerHTML = mpHead({ kind: 'hazard', icon: h.icon, label: h.label, src: r.mine ? MP_SRC.you : MP_SRC.driver, when: r.t }) + `<span style="color:#333">👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>` + (r.mine ? '<br><i style="color:#555">Your report</i>' : '<div class="vote"><button data-v="up" style="min-height:44px">👍 Still there</button><button data-v="down" style="min-height:44px">👎 Not there</button><label style="display:block;color:#333;font-size:13px;margin-top:6px">Reason for "not there" <select class="hz-reason" style="min-height:40px;font-size:15px;width:100%">' + REASON_OPTS + '</select></label></div>');
           box.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { hz.vote(r, b.dataset.v, box.querySelector('.hz-reason')?.value || 'gone'); pop.remove(); toast(b.dataset.v === 'up' ? 'Thanks — kept on the map' : 'Thanks — 2 "not there" votes remove it'); });
           pop.setDOMContent(box); });
-        m = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([r.lon, r.lat]).setPopup(pop).addTo(map); markers.set(r.id, m); }
+        m = tapToOpen(new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([r.lon, r.lat]).setPopup(pop).addTo(map), h.label); markers.set(r.id, m); }
       const el = m.getElement(); el.style.opacity = opacity(r, now); el.dataset.op = opacity(r, now);
       const call = el.querySelector('.hz-call'); call.textContent = `${h.label} · ${hz.isHeld(r) ? 'unconfirmed' : ago(now - (r.lastUp || r.t))}`; el.classList.toggle('held', hz.isHeld(r)); call.style.display = d < 3000 ? '' : 'none';
       el.style.display = S.layers?.reports === false ? 'none' : ''; }

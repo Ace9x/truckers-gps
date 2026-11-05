@@ -2,7 +2,7 @@
 import { makeAuth, deviceKey } from './auth.js';
 import { DriverDispatch, STATUS_LABEL, nextStatus, routeStops, pinOk } from './dispatch.js';
 import { Friends, passPrediction } from './friends.js';
-import { bus } from './link.js'; import { head as mpHead, SRC as MP_SRC } from './mappop.js';
+import { bus } from './link.js'; import { head as mpHead, SRC as MP_SRC, tapToOpen } from './mappop.js';
 import * as cloud from './cloud.js'; import { t } from './i18n.js';
 export async function init(S, h) {
   const { $, LS, esc, toast, say, map, openPanel, closePanels } = h;
@@ -76,7 +76,7 @@ ${false && SBA && tab !== 'rec' ? `<button id="acGoogle" class="oauth-google" st
     badge(friendsBtn, (fr?.requests.length || 0) + cFr.incoming.length); drawCloudFriends(); if (!$('#friendsPanel').classList.contains('hidden')) renderFriends(); }
   function drawCloudFriends() { const names = Object.fromEntries(cFr.friends.map(f => [f.other, f])); const keep = new Set();
     for (const L of cLocs) { const f = names[L.user_id]; if (!f) continue; keep.add(L.user_id); let m = cMarkers[L.user_id];
-      if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.cfriend = L.user_id; m = cMarkers[L.user_id] = new maplibregl.Marker({ element: el }).setLngLat([L.lng, L.lat]).addTo(map); const pop = new maplibregl.Popup({ offset: 20 }); pop.on('open', () => { const L2 = cLocs.find(x => x.user_id === L.user_id) || L; pop.setHTML(mpHead({ kind: 'friend', icon: f.truck?.icon || '🚛', label: 'Friend sharing their location', src: MP_SRC.friend, when: L2.updated_at, detail: f.name })); }); m.setPopup(pop); }
+      if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.cfriend = L.user_id; m = cMarkers[L.user_id] = new maplibregl.Marker({ element: el }).setLngLat([L.lng, L.lat]).addTo(map); const pop = new maplibregl.Popup({ offset: 20 }); pop.on('open', () => { const L2 = cLocs.find(x => x.user_id === L.user_id) || L; pop.setHTML(mpHead({ kind: 'friend', icon: f.truck?.icon || '🚛', label: 'Friend sharing their location', src: MP_SRC.friend, when: L2.updated_at, detail: f.name })); }); m.setPopup(pop); tapToOpen(m, 'Friend sharing their location'); }
       m.setLngLat([L.lng, L.lat]); m.getElement().innerHTML = `<i>${esc(f.truck?.icon || '🚛')}</i><b>${esc(f.name)}</b><small>${ago(Date.parse(L.updated_at))}</small>`;
       const p = passPrediction({ me: S.pos && { ...S.pos, t: Date.now() }, fr: { lat: L.lat, lon: L.lng, heading: L.heading, speed: (L.speed_mph || 0) / 2.237, t: Date.parse(L.updated_at) }, myRoute: S.route?.line, frRoute: cRoutes.find(r => r.owner === L.user_id)?.geometry?.coordinates, names: routeNames(), who: f.name });
       f.pass = p; if (p && (p.kind === 'near' || (p.kind === 'ahead' && p.miles < 5)) && !notified['c' + L.user_id]) { notified['c' + L.user_id] = Date.now(); say(p.text, 'info'); toast('👥 ' + p.text); } }
@@ -151,7 +151,7 @@ ${false && SBA && tab !== 'rec' ? `<button id="acGoogle" class="oauth-google" st
       out[f.pk] = passPrediction({ me: S.pos && { ...S.pos, t: Date.now() }, fr: L.loc, myRoute: S.route?.line, frRoute: L.route?.line, names: routeNames(), who: f.name || 'friend' }); } S.friendPass = out; return out; }
   function drawFriends() { if (!fr) return; const pr = predictions();
     for (const f of fr.friends) { const L = fr.live[f.pk]; if (!L?.loc || Date.now() - L.loc.t > 60 * 60e3) { fMarkers[f.pk]?.remove(); delete fMarkers[f.pk]; continue; }
-      let m = fMarkers[f.pk]; if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.friend = f.pk; m = fMarkers[f.pk] = new maplibregl.Marker({ element: el }).setLngLat([L.loc.lon, L.loc.lat]).addTo(map); const pop = new maplibregl.Popup({ offset: 20 }); pop.on('open', () => { const L2 = fr.live[f.pk] || L; pop.setHTML(mpHead({ kind: 'friend', icon: L2.loc?.truck || f.truck?.icon || '🚛', label: 'Friend sharing their location', src: MP_SRC.friend, when: L2.loc?.t, detail: f.name || '' })); }); m.setPopup(pop); }
+      let m = fMarkers[f.pk]; if (!m) { const el = document.createElement('div'); el.className = 'fr-pin'; el.dataset.friend = f.pk; m = fMarkers[f.pk] = new maplibregl.Marker({ element: el }).setLngLat([L.loc.lon, L.loc.lat]).addTo(map); const pop = new maplibregl.Popup({ offset: 20 }); pop.on('open', () => { const L2 = fr.live[f.pk] || L; pop.setHTML(mpHead({ kind: 'friend', icon: L2.loc?.truck || f.truck?.icon || '🚛', label: 'Friend sharing their location', src: MP_SRC.friend, when: L2.loc?.t, detail: f.name || '' })); }); m.setPopup(pop); tapToOpen(m, 'Friend sharing their location'); }
       m.setLngLat([L.loc.lon, L.loc.lat]); m.getElement().innerHTML = `<i>${esc(L.loc.truck || f.truck?.icon || '🚛')}</i><b>${esc(f.name || 'Friend')}</b><small>${ago(L.loc.t)}</small>`;
       const p = pr[f.pk]; if (p && (p.kind === 'near' || (p.kind === 'ahead' && p.miles < 5)) && !notified[f.pk]) { notified[f.pk] = Date.now(); say(p.text, 'info'); toast('👥 ' + p.text); } if (p && p.kind === 'behind' && p.miles > 10) delete notified[f.pk]; }
     drawFriendRoutes(); }
