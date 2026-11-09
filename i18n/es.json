@@ -1230,5 +1230,9 @@
 "The map credits (i) stays clear of alerts and nav buttons while driving.": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas.",
 "The map credits (i) stays clear of alerts and nav buttons while driving": "El botón de créditos del mapa (i) no choca con las alertas ni con los botones de navegación mientras manejas",
 "Daytime (light) screens: small grey text and live/age labels are dark enough to read in sunlight again.": "Pantallas de día (claras): el texto gris pequeño y las etiquetas de en vivo/antigüedad vuelven a ser lo bastante oscuros para leerse al sol.",
-"Daytime (light) screens: small grey text and live/age labels are dark enough to read in sunlight again": "Pantallas de día (claras): el texto gris pequeño y las etiquetas de en vivo/antigüedad vuelven a ser lo bastante oscuros para leerse al sol"
+"Daytime (light) screens: small grey text and live/age labels are dark enough to read in sunlight again": "Pantallas de día (claras): el texto gris pequeño y las etiquetas de en vivo/antigüedad vuelven a ser lo bastante oscuros para leerse al sol",
+"The speed limit sign fills in as soon as navigation starts, instead of staying blank until the next GPS update.": "El letrero del límite de velocidad aparece en cuanto empieza la navegación, en vez de quedarse en blanco hasta la siguiente actualización del GPS.",
+"The speed limit sign fills in as soon as navigation starts, instead of staying blank until the next GPS update": "El letrero del límite de velocidad aparece en cuanto empieza la navegación, en vez de quedarse en blanco hasta la siguiente actualización del GPS",
+"Daytime Map key keeps light source labels on its dark card so they stay readable in sunlight.": "La leyenda del mapa de día mantiene las etiquetas de origen claras sobre la tarjeta oscura para que se lean al sol.",
+"Daytime Map key keeps light source labels on its dark card so they stay readable in sunlight": "La leyenda del mapa de día mantiene las etiquetas de origen claras sobre la tarjeta oscura para que se lean al sol"
 }

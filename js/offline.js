@@ -213,7 +213,8 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     $('#dArrow').textContent = og ? $('#ogArrow').textContent : $('#bArrow')?.textContent || '↑'; $('#dDist').textContent = og ? fmtDist(S.offGuide.dist, U()) : $('#bDist')?.textContent || '--';
     $('#dStreet').textContent = og ? 'No signal — back to the route line' : $('#bInstr')?.textContent || '';
     $('#dSpd').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
-    const lim = $('#limitSign') && !$('#limitSign').classList.contains('hidden') ? $('#limitVal').textContent : null;
+    const raw = ($('#limitVal')?.textContent || '').trim();
+    const lim = $('#limitSign') && !$('#limitSign').classList.contains('hidden') && /^\d+$/.test(raw) ? raw : null;
     $('#dLimit').classList.toggle('hidden', !lim); if (lim) $('#dLim').textContent = lim; $('#dLimit').classList.toggle('est', !!$('#limitSign')?.classList.contains('est')); $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
     $('#dLeft').textContent = S.remT != null ? fmtDur(S.remT) : '--'; $('#dMi').textContent = $('#tDist') ? `${$('#tDist').textContent} ${U() === 'km' ? 'km' : 'mi'} · ${$('#tEta')?.textContent || ''}` : '';
     $('#dMute i').textContent = S.voiceObj?.enabled ? '🔊' : '🔇'; $('#dMute').lastChild.textContent = S.voiceObj?.enabled ? 'Mute' : 'Unmute'; }

@@ -160,4 +160,5 @@ export function init(S, h) {
       : ' <br>No driver-reported prices ahead in the last 24 h — tap 💲 on a station to add one. (No free station-level live price feed exists; we won\'t guess.)');
     if (speak && ranked[0]) { const s = ranked[0], mi = Math.round((s.along - base) / MI); const msg = `Cheapest diesel ahead: $${s.price.toFixed(2)} at ${s.name}, ${mi} miles${s.save > 0 ? `, saves about $${s.save}` : ''}.`; S.lastPriceMsg = msg; say(msg, 'info'); } }
   S.bestPrice = bestPrice;
+  if (S.nav && S.route && S.pos) S.paintLimit?.();
 }

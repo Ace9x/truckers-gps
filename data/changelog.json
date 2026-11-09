@@ -1,5 +1,13 @@
 [
  {
+  "version": "3.30.8",
+  "date": "2026-11-09",
+  "items": [
+   "The speed limit sign fills in as soon as navigation starts, instead of staying blank until the next GPS update.",
+   "Daytime Map key keeps light source labels on its dark card so they stay readable in sunlight."
+  ]
+ },
+ {
   "version": "3.30.7",
   "date": "2026-11-05",
   "items": [

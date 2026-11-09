@@ -305,6 +305,7 @@ async function analyzeRoute(r) {
   }
   if (S.route !== r) return;
   S.edges = edges; try { S.onRouteAnalyzed?.(r); } catch (e) { console.warn(e); }
+  if (S.nav && S.pos) paintLimit(); // posted / nearby limit replaces the estimate as soon as the road match arrives
   S.dangers = [...(costingFor(S.truck) === 'auto' ? [] : dangersAhead(edges, tags, truckMetric())), ...curves].sort((a, b) => a.along - b.along);
   renderDangers();
 }
@@ -354,8 +355,10 @@ async function startNav(resumed) {
   const first = S.route.maneuvers[0]; if (!resumed) { if (!S.introDone) { S.introDone = true; say('RigRoute GPS. Truck route ready.', 'info'); } say(first.verbal_pre_transition_instruction || first.instruction, 'turn'); } else say('Navigation resumed', 'info');
   if (!S.pois.length) loadPois(true);
   prefetchTiles(true);
-  if (S.pos) navTick();
+  if (S.pos) { navTick(); paintLimit(); } // the sign must show on Start, not stay "--" until the next GPS tick
 }
+function paintLimit() { if (!S.nav || !S.route || !S.pos) return; try { S.onFixHook?.(S.pos, (S.pos.speed || 0) * 2.23694); } catch (e) { console.warn(e); } }
+S.paintLimit = paintLimit;
 function endNav(msg) {
   if (S.nav) finishTrip();
   S.nav = false; stopDemo(); document.body.classList.remove('nav'); localStorage.removeItem('tn_navActive');

@@ -13,7 +13,10 @@ const ch = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsa
 const PROFILES = [
   { name: 'iphone', engine: wk ? 'webkit' : 'chromium', br: wk || ch, dev: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } },
   { name: 'pixel7', engine: 'chromium', br: ch, dev: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 } } }];
-const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh|data\.cityofnewyork\.us|api\.weather\.gov|Access-Control-Allow-Origin\. Status code: 5\d\d/i; // outside servers (NYC Open Data had a 503 outage during the 3.30.5 gate): listed separately, app handles them
+const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh|data\.cityofnewyork\.us|api\.weather\.gov|Access-Control-Allow-Origin\. Status code: 5\d\d/i; // browser logs for outside feeds (NYC Open Data 503, NWS). The app catches them.
+// Ask RigRoute allows only the GitHub Pages origin. A gate on localhost still gets the browser's CORS line; the app answers from the built-in guide. The same failure ON Pages stays an app error.
+const TEST_ORIGIN = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(BASE);
+const outside = t => EXTERNAL.test(t) || (TEST_ORIGIN && ((/supabase\.co/.test(t) && /access-control-allow-origin|access control checks|ERR_FAILED/i.test(t)) || (/not allowed by Access-Control-Allow-Origin/i.test(t) && /127\.0\.0\.1|localhost/.test(t))));
 
 for (const P of PROFILES) {
   const run = { profile: P.name, engine: P.engine, checks: [], overlaps: [], small: [], errors: [], external: [], shots: [] }; R.runs.push(run);
@@ -21,8 +24,8 @@ for (const P of PROFILES) {
   const ctx = await P.br.newContext({ ...P.dev, bypassCSP: true /* lets the gate inject axe-core */, permissions: ['geolocation'], geolocation: { latitude: 40.7506, longitude: -73.9935 } });
   await ctx.addInitScript(() => { localStorage.setItem('tn_locWhySeen', '1'); Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); }); // real first run: the app skips onboarding for automation
   const p = await ctx.newPage();
-  p.on('pageerror', e => (EXTERNAL.test(e.message) && /access control checks|Load failed|Failed to fetch/.test(e.message) ? run.external : run.errors).push('pageerror: ' + e.message)); // WebKit reports an outside 503 without CORS as a page error even when the app catches it
-  p.on('console', m => { if (m.type() !== 'error') return; const t = m.text() + ' ' + (m.location()?.url || ''); (EXTERNAL.test(t) ? run.external : run.errors).push(t.slice(0, 300)); });
+  p.on('pageerror', e => (outside(e.message) && /access control checks|Load failed|Failed to fetch|supabase\.co/.test(e.message) ? run.external : run.errors).push('pageerror: ' + e.message)); // WebKit reports a caught cross-origin failure as a page error
+  p.on('console', m => { if (m.type() !== 'error') return; const t = m.text() + ' ' + (m.location()?.url || ''); (outside(t) ? run.external : run.errors).push(t.slice(0, 300)); });
   const shot = async n => { const f = `${OUT}/${P.name}-${n}.png`; await p.screenshot({ path: f }); run.shots.push(f); };
   const ev = (f, a) => p.evaluate(f, a);
   const tap = async sel => { const el = await p.$(sel); if (!el) return false; await el.scrollIntoViewIfNeeded().catch(() => {}); const b = await el.boundingBox(); if (!b) return false; await p.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await p.waitForTimeout(350); return true; };
