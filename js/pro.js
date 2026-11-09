@@ -77,11 +77,7 @@ document.addEventListener('click', e => { if (e.target.closest('.panel .close'))
 
 // ---------- Help button + first-run tour (Ace) ----------
 const side = $('#sideBtns'); if (side && !$('#helpBtn')) side.insertAdjacentHTML('beforeend', '<button id="helpBtn" class="round" title="Help & tour" aria-label="Help and tour">?</button>');
-const STEPS = [ // plain-language first-run walkthrough: 9 picture cards (skippable, replay from ? Help or Me)
-  { pic: '👋', t: 'Hi, I\'m Ace', b: 'I will show you how to use RigRoute. It takes one minute. Tap Skip any time.' },
-  ...GUIDE.tourSteps(), // generated from js/guide.js (same text as Show me around + Ask RigRoute)
-  { ask: true, pic: '🤝', t: 'Want to keep me riding along?', b: 'I can give tips while you drive. You can change this any time under Me.' },
-];
+const STEPS = GUIDE.tourSteps(); // first run is 3 cards (truck, destination, start). The full walk stays on Show me around.
 export function startTour() {
   endTour(); let i = 0;
   document.body.insertAdjacentHTML('beforeend', '<div id="tourDim"></div><div id="tourRing" class="hidden"></div><div id="tourCard" role="dialog" aria-live="polite" aria-label="RigRoute tour"></div>');
@@ -89,9 +85,10 @@ export function startTour() {
   const show = () => { const s = STEPS[i], el = s.sel && $(s.sel), r = el?.getBoundingClientRect();
     if (r && r.width) { ring.classList.remove('hidden'); Object.assign(ring.style, { left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' }); } else ring.classList.add('hidden');
     const low = r && r.top > innerHeight / 2; card.style.top = low || !r ? '' : Math.min(r.bottom + 16, innerHeight - 260) + 'px'; card.style.bottom = low ? innerHeight - r.top + 16 + 'px' : (!r ? 'calc(50% - 100px)' : '');
-    card.innerHTML = `<div class="tpic" aria-hidden="true">${s.pic || ''}</div><div class="th"><div class="ava">ACE</div><div><div class="ts">${s.ask ? 'Your call' : i ? `Step ${i} of ${STEPS.length - 2}` : 'Welcome'}</div><div class="tt">${s.t}</div></div><div class="dots">${STEPS.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div></div><p>${s.b}</p>
-      <div class="tb">${s.ask ? '<button id="tOff">Turn off Ace</button><button id="tKeep" class="primary">Keep Ace</button>' : `<button id="tSkip">Skip</button><button id="tNext" class="primary">${i ? 'Next' : 'Show me'}</button>`}</div>`;
-    if (s.ask) { $('#tKeep').onclick = () => finish(true); $('#tOff').onclick = () => finish(false); } else { $('#tSkip').onclick = () => finish(false); $('#tNext').onclick = () => { i++; show(); }; } };
+    const last = i >= STEPS.length - 1;
+    card.innerHTML = `<div class="tpic" aria-hidden="true">${s.pic || ''}</div><div class="th"><div class="ava">ACE</div><div><div class="ts">Step ${i + 1} of ${STEPS.length}</div><div class="tt">${s.t}</div></div><div class="dots">${STEPS.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div></div><p>${s.b}</p>
+      <div class="tb"><button id="tSkip">Skip</button><button id="tNext" class="primary">${last ? 'Done' : (i ? 'Next' : 'Show me')}</button></div>`;
+    $('#tSkip').onclick = () => finish(false); $('#tNext').onclick = () => { if (last) finish(true); else { i++; show(); } }; }
   show(); S.tour = { step: () => i };
 }
 function endTour() { ['#tourDim', '#tourRing', '#tourCard'].forEach(s => $(s)?.remove()); }
@@ -228,7 +225,7 @@ setInterval(tripWatch, 250);
 const esc2 = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function showReceipt(t, end = Date.now()) {
   const tk = S.truck || {}; const r = t.saved || receipt({ id: t.id, unit: tk.unit || '', odoStart: tk.odometer ?? null, start: t.start, end, drivenMi: t.miles, plannedByState: t.ifta, via: t.via, stops: t.stops, dest: t.dest, reports: Math.max(0, (S.hz?.list || []).filter(x => x.mine).length - (t.reports0 || 0)), tolls: t.tolls });
-  S.lastReceipt = r; if (!t.saved) saveTrip(r); const max = Math.max(1, ...r.states.map(s => s.mi)), fmt = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  S.lastReceipt = r; if (!t.saved) { saveTrip(r); import('./funnel.js').then(m => { if ((S.trips?.() || []).length <= 1) m.mark('first_trip'); }).catch(() => {}); } const max = Math.max(1, ...r.states.map(s => s.mi)), fmt = d => new Date(d).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const show = () => { $('#tripReceipt')?.remove(); const el = document.createElement('section'); el.id = 'tripReceipt'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Trip receipt');
     el.innerHTML = `<div class="trc-paper"><header><span class="trc-tag">TRIP RECEIPT</span><span class="trc-st ${t.arrived ? 'ok' : ''}">${t.arrived ? '✓ Arrived' : 'Trip ended'}</span></header>
       <div class="trc-id">Receipt <b>${esc2(r.id)}</b>${r.unit ? ` · Unit <b>${esc2(r.unit)}</b>` : ""}</div><div class="trc-dest">${esc2(r.dest)}</div><div class="trc-time">${new Date(r.start).toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${fmt(r.start)} – ${fmt(r.end)}</div>
@@ -238,7 +235,7 @@ function showReceipt(t, end = Date.now()) {
       ${r.stops.length ? `<h4>Stops</h4><ol class="trc-stops">${r.stops.map(s => `<li>${esc2(s)}</li>`).join('')}</ol>` : ''}
       <div class="trc-odo"><label>Unit # <input id="trcUnit" value="${esc2(r.unit)}" inputmode="text" maxlength="20"></label><label>Odometer start <input id="trcOdo" value="${r.odoStart ?? ""}" inputmode="decimal" maxlength="9"></label><span>End <b id="trcOdoEnd">${r.odoEnd ?? "—"}</b></span></div>
       <div class="trc-meta"><span>Toll miles <b>${r.tolls}</b></span><span>Reports you made <b>${r.reports}</b></span></div>
-      <div class="trc-tear"></div><div class="trc-btns"><button id="trcCsv">CSV</button><button id="trcPdf">PDF</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
+      <div class="trc-tear"></div>${t.saved ? '' : `<div class="trc-help" id="tripHelp"><p>Did RigRoute help?</p><div class="row"><button type="button" id="helpUp">👍 Yes</button><button type="button" id="helpDown">👎 No</button></div></div>`}<div class="trc-btns"><button id="trcCsv">CSV</button><button id="trcPdf">PDF</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
     document.body.appendChild(el);
     // Calm arrival moment (app_polish_ideas §10): one short buzz, stats count up over 600 ms, gentle HOS reminder. No confetti.
     if (t.arrived) try { navigator.vibrate?.(30); } catch {}
@@ -250,7 +247,12 @@ function showReceipt(t, end = Date.now()) {
     $('#trcUnit').onchange = upd; $('#trcOdo').onchange = upd;
     $('#trcCsv').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([receiptCSV(r)], { type: 'text/csv' })); a.download = `rigroute-${r.id}.csv`; a.click(); };
     $('#trcPdf').onclick = () => { document.body.classList.add('print-receipt'); window.print(); setTimeout(() => document.body.classList.remove('print-receipt'), 500); };
-    $('#trcDone').onclick = () => el.remove(); };
+    $('#trcDone').onclick = () => el.remove();
+    $('#helpUp')?.addEventListener('click', () => S.growth?.openInstall?.({ auto: false }));
+    $('#helpDown')?.addEventListener('click', () => { const box = $('#tripHelp'); if (!box) return; box.innerHTML = `<label>What went wrong?<textarea id="helpNote" rows="3" maxlength="400" placeholder="A short note is enough."></textarea></label><button type="button" id="helpSend" class="big">Send note</button><p id="helpMsg" class="small" role="status"></p>`;
+      $('#helpSend').onclick = async () => { const description = ($('#helpNote')?.value || '').trim(), msg = $('#helpMsg'); if (description.length < 5) { if (msg) msg.textContent = 'Please add a few words (at least 5 characters).'; return; }
+        try { const { submitReport } = await import('./bugreport.js'); await submitReport({ kind: 'bug', description: 'Trip feedback: ' + description, page_url: location.href }); if (msg) msg.textContent = 'Thanks. We got your note.'; $('#helpSend').disabled = true; }
+        catch (e) { if (msg) msg.textContent = e.message || 'Could not send. Use Report a Bug in Me.'; } }; }); };
   // Safety: never pop a sheet while the truck is moving — wait until parked (<3 mph)
   const wait = () => ((S.speed ?? S.pos?.speed ?? 0) * 2.237 < 3 ? show() : setTimeout(wait, 3000)); wait(); }
 S.showReceipt = showReceipt;

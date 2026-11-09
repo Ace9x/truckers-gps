@@ -68,4 +68,18 @@ html body #routeOpts .ropt[aria-pressed=true]{background:var(--hb-signal,#06C167
   body.nav #lanes,body.driving #lanes{height:36px;padding:2px 8px}
 }
 html body #limitSign i{margin-top:2px;letter-spacing:.04em}
+#truckWiz .wz-card{max-height:min(92dvh,760px);overflow:auto}
+.wz-size{display:flex;flex-direction:column;gap:10px}.wz-size-row>span{display:block;font:700 13px var(--font);margin:0 0 4px}
+.wz-size output{font-size:22px}
+.grow-row{display:flex;gap:8px;margin:8px 0 12px}.grow-row button{flex:1;min-height:52px}
+.credits{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.credits a{white-space:nowrap}
+#installCard{z-index:80}
+#installCard .a2hs{list-style:none;margin:8px 0 12px;padding:0;display:flex;flex-direction:column;gap:8px}
+#installCard .a2hs li{display:flex;gap:12px;align-items:center;min-height:56px;background:#232a33;border-radius:12px;padding:8px 10px}
+#installCard .a2hs b{width:44px;height:44px;border-radius:12px;background:#0d1117;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+#installCard .a2hs strong{display:block;font-size:16px}#installCard .a2hs small{display:block;color:#c9d3df;font-size:13px}
+#installCard .row{display:flex;gap:8px;flex-wrap:wrap}#installCard .row button{flex:1;min-height:48px;min-width:44px}
+.trc-help{margin:8px 0} .trc-help p{margin:0 0 8px;font-weight:800} .trc-help .row{display:flex;gap:8px} .trc-help .row button,.trc-help #helpSend{flex:1;min-height:48px}
+.trc-help textarea{width:100%;min-height:72px;margin:6px 0}
 .scale-marker{font-size:22px;line-height:1;filter:drop-shadow(0 1px 1px #0008)}

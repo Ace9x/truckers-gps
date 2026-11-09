@@ -1,5 +1,6 @@
 import test from 'node:test'; import assert from 'node:assert/strict';
 import { haversine, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, truckCosting, hosStatus, H, fmtDist, classifyPoi, overpassQuery } from '../js/logic.js';
+import { cleanRef, installMilestone } from '../js/growth.js';
 
 test('haversine NYC→Newark ≈ 16 km', () => { const d = haversine([-73.9857, 40.7484], [-74.1724, 40.7357]); assert.ok(d > 15500 && d < 16500, d); });
 test('decodePolyline precision 6', () => { assert.deepEqual(decodePolyline('_izlhA~rlgdF_{geC~ywl@_kwzCn`{nI').map(p => p.map(x => +x.toFixed(5))), [[-120.2, 38.5], [-120.95, 40.7], [-126.453, 43.252]]); });
@@ -266,4 +267,16 @@ test('weigh avoidance: corridor starts about 2 miles before the scale, CAT scale
   assert.equal(left.ok, true, JSON.stringify(left));
   assert.equal(usesNoTruckRoad({ maneuvers: [{ street_names: ['Saw Mill River Parkway'], instruction: '' }] }), true);
   assert.equal(usesNoTruckRoad({ maneuvers: [{ street_names: ['Garden State Parkway'], instruction: '' }] }), false);
+});
+test('invite codes stay short and install prompts land on trips 1, 3 and 10', () => {
+  assert.equal(cleanRef('card'), 'card');
+  assert.equal(cleanRef('Ab_1'), 'Ab_1');
+  assert.equal(cleanRef('bad ref'), '');
+  assert.equal(cleanRef('a'.repeat(25)), '');
+  assert.equal(installMilestone(0), 0);
+  assert.equal(installMilestone(1), 1);
+  assert.equal(installMilestone(2), 1);
+  assert.equal(installMilestone(3), 3);
+  assert.equal(installMilestone(9), 3);
+  assert.equal(installMilestone(10), 10);
 });

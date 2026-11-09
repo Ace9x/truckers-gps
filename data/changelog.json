@@ -1,5 +1,15 @@
 [
  {
+  "version": "3.32.0",
+  "date": "2026-11-09",
+  "items": [
+   "A welcome page explains the free truck GPS, shows a truck route next to a car route, and says it works when the signal dies. The map stays at the same address.",
+   "Add to Home Screen is in Me, with a picture guide for iPhone, and it asks again after trips 3 and 10.",
+   "Invite a driver shares a link. No account. After a trip you can say if RigRoute helped.",
+   "The first tour is three steps, and the truck setup is three steps, so the first route starts sooner."
+  ]
+ },
+ {
   "version": "3.31.0",
   "date": "2026-11-09",
   "items": [

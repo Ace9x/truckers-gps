@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en" data-theme="dark">
 <head>
-<meta charset="utf-8"><meta name="referrer" content="strict-origin-when-cross-origin"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://esm.sh 'sha256-qBYznKsJlF4jGk8ryalbo6EYrK6xpZh+oGnima/okJw='; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src blob:; frame-src https://embed.waze.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta charset="utf-8"><meta name="referrer" content="strict-origin-when-cross-origin"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://esm.sh 'sha256-qBYznKsJlF4jGk8ryalbo6EYrK6xpZh+oGnima/okJw=' 'sha256-P0Zg2H9xlw7QX4tfN0NA2BzkFUX7ZWAyKH3PZdLlhAg='; style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src blob:; frame-src https://embed.waze.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0d1117">
@@ -10,8 +10,9 @@
 <meta name="application-name" content="RigRoute GPS">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="RigRoute GPS — free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops, HOS clock.">
+<meta name="description" content="RigRoute GPS — free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops, HOS clock. Not an ELD. Always obey posted signs.">
 <title>RigRoute GPS – Free truck GPS: low bridges, weight limits, hazmat</title>
+<link rel="canonical" href="https://ace9x.github.io/truckers-gps/">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="alternate icon" href="icons/icon-192.png" type="image/png">
@@ -19,7 +20,8 @@
 <meta property="og:description" content="Truck routing by height, weight, length and hazmat, voice turn-by-turn, live hazards and IFTA miles. Free, no account needed.">
 <meta property="og:url" content="https://ace9x.github.io/truckers-gps/"><meta property="og:image" content="https://ace9x.github.io/truckers-gps/icons/og-image.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="RigRoute GPS logo and tagline">
-<meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://ace9x.github.io/truckers-gps/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="RigRoute GPS — free truck-safe navigation"><meta name="twitter:description" content="Free truck GPS by height, weight, length and hazmat. Works when the signal dies. Not an ELD. Always obey posted signs."><meta name="twitter:image" content="https://ace9x.github.io/truckers-gps/icons/og-image.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"RigRoute GPS","applicationCategory":"NavigationApplication","operatingSystem":"Android, iOS, Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"url":"https://ace9x.github.io/truckers-gps/","description":"Free truck GPS that routes by height, weight, length and hazmat. Not an ELD. Always obey posted signs.","author":{"@type":"Organization","name":"Ace Apps"},"isAccessibleForFree":true}</script>
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
@@ -172,7 +174,7 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
   <p class="muted small">⚖️ PrePass / Drivewyze: bypass status comes from your transponder or their app — RigRoute GPS can't see it. Scales show open/closed only when drivers report it here (👍/👎 to confirm).</p>
   <p class="muted small">⚖️ “Avoid weigh stations” only changes the route. If you pass an open scale or a sign says trucks must enter, you must stop by law.</p>
   <p class="muted small">Routes avoid roads marked in OpenStreetMap as too low, too heavy, too long, or closed to trucks/hazmat for this profile. Always obey posted signs.</p>
-  <p class="muted small">Map © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a> · tiles <a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> · routing <a href="https://valhalla.github.io/valhalla/" target="_blank">Valhalla</a> (FOSSGIS server) · search <a href="https://photon.komoot.io" target="_blank">Photon</a> · POIs <a href="https://overpass-api.de" target="_blank">Overpass</a> · satellite <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank">USGS The National Map</a> (public domain, US). <b>RigRoute GPS</b> <span id="ver"></span></p>
+  <p class="muted small credits"><span>Map © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a></span><span>tiles <a href="https://openfreemap.org" target="_blank">OpenFreeMap</a></span><span>routing <a href="https://valhalla.github.io/valhalla/" target="_blank">Valhalla</a></span><span>search <a href="https://photon.komoot.io" target="_blank">Photon</a></span><span>POIs <a href="https://overpass-api.de" target="_blank">Overpass</a></span><span>satellite <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank">USGS The National Map</a></span><span><b>RigRoute GPS</b> <span id="ver"></span></span></p>
 </section>
 
 

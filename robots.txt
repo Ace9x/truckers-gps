@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin-stats.html
+Disallow: /bug-reports.html
+
+Sitemap: https://ace9x.github.io/truckers-gps/sitemap.xml
