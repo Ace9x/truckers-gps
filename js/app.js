@@ -39,7 +39,7 @@ const voice = new Voice(LS.get('voiceCfg', {})); voice.enabled = LS.get('voice',
 Object.defineProperty(S, 'spokenLog', { get: () => voice.log });
 const say = (t, kind, force) => voice.say(t, kind, force);
 const profile = new Profile(); S.profile = profile;
-const mascot = new Mascot({ enabled: LS.get('mascot', false), isBusy: () => S.nav && (S.toNext ?? 1e9) < 600 }); S.mascot = mascot; let backend = null; S.reports = [];
+const mascot = new Mascot({ enabled: LS.get('mascot', false), isBusy: () => (S.pos?.speed || 0) > 2 || (S.nav && (S.toNext ?? 1e9) < 600) }); S.mascot = mascot; let backend = null; S.reports = [];
 
 // 'auto' = day map while the sun is up at the truck's position, night map after dusk (UX P12); hysteresis avoids flapping at twilight.
 let autoDay = null; const effTheme = () => { if (S.truck.theme !== 'auto') return S.truck.theme; const p = S.pos || { lat: 40.8, lon: -73.9 }; autoDay = isDaylight(p.lat, p.lon, new Date(), autoDay); return autoDay ? 'day' : 'night'; };
@@ -447,7 +447,11 @@ function endNav(msg) {
 }
 S.startNav = startNav; S.endNav = endNav;
 $('#goBtn').onclick = () => { stopDemo(); startNav(); };
-$('#endBtn').onclick = () => endNav('Navigation ended');
+function holdToEnd(btn) { if (!btn || btn.dataset.hold) return; btn.dataset.hold = '1'; let timer = 0;
+  btn.addEventListener('pointerdown', ev => { if (ev.button) return; clearTimeout(timer); btn.classList.add('holding'); timer = setTimeout(() => { timer = 0; btn.classList.remove('holding'); (S.endNav || endNav)('Navigation ended'); }, 700); });
+  const stop = () => { if (!timer) return; clearTimeout(timer); timer = 0; btn.classList.remove('holding'); toast('Hold End to stop navigation'); };
+  btn.addEventListener('pointerup', stop); btn.addEventListener('pointercancel', stop); }
+holdToEnd($('#endBtn'));
 
 function navTick() {
   const r = S.route, p = [S.pos.lon, S.pos.lat];
@@ -663,9 +667,12 @@ $('#reportBtn').onclick = () => openPanel('reportPanel');
 
 // ---------- Points, badges, leaderboard ----------
 function award(pts, why) { const fresh = profile.add(pts, why); profile.save(backend); backend?.addPoints?.(pts, why); renderDock();
-  if (pts >= 5) mascot.say(`+${pts} points! ${why}.`, 'happy', 3500);
-  for (const b of fresh) { toast(`🏅 Badge earned: ${BADGES[b].name}`, 4000); mascot.say(`New badge: ${BADGES[b].icon} ${BADGES[b].name}!`, 'party'); }
-  const lv = profile.level; if (S.lastLevel && lv.index > S.lastLevel) { toast(`⬆ Level up: ${lv.name}!`, 4000); mascot.say(`LEVEL UP! You're a ${lv.name} now. Check the garage for new rigs!`, 'party', 8000); say(`Level up! You're now a ${lv.name}.`, 'info'); } S.lastLevel = lv.index; }
+  const moving = (S.pos?.speed || 0) > 2;
+  const note = pts >= 5 ? `+${pts} points! ${why}.` : '';
+  const badges = fresh.map(b => `New badge: ${BADGES[b].icon} ${BADGES[b].name}!`);
+  if (moving) { S.arrivalNotes = [...(S.arrivalNotes || []), note, ...badges].filter(Boolean); }
+  else { if (note) mascot.say(note, 'happy', 3500); for (const b of badges) { toast('🏅 ' + b, 4000); mascot.say(b, 'party'); } }
+  const lv = profile.level; if (S.lastLevel && lv.index > S.lastLevel) { const up = `Level up: ${lv.name}`; if (moving) S.arrivalNotes.push(up); else { toast(`⬆ ${up}!`, 4000); mascot.say(`LEVEL UP! You're a ${lv.name} now. Check the garage for new rigs!`, 'party', 8000); say(`Level up! You're now a ${lv.name}.`, 'info'); } } S.lastLevel = lv.index; }
 S.award = award;
 function renderDock() { $('#dockPts').textContent = `${profile.p.points} pts`; $('#meBtn').firstChild.textContent = profile.p.mood; }
 function finishTrip() {

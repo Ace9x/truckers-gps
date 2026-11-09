@@ -28,11 +28,13 @@ export class Mascot {
   }
   say(text, mood = 'happy', ms = 6000) {
     this.log.push({ text, mood }); if (!this.enabled) return;
+    if ((window.TruckNav?.pos?.speed || 0) > 2) return; // moving: voice only, no figure and no points bubble
     if (this.isBusy()) { this.queue = [{ text, mood, ms }]; clearTimeout(this._q); this._q = setTimeout(() => this.flush(), 4000); return; } // wait until no turn is close
     const el = this.el; el.querySelector('.mText').textContent = text; el.querySelector('.mouth').setAttribute('d', MOUTH[mood] || MOUTH.happy);
     el.className = 'show ' + mood; this.visible = true; clearTimeout(this._t); this._t = setTimeout(() => this.hide(), ms);
   }
   flush() { const q = this.queue.shift(); if (q) this.say(q.text, q.mood, q.ms); }
   hide() { this.el.className = 'hidden'; this.visible = false; }
-  watchBusy() { if (this.visible && this.isBusy()) this.hide(); }
+  watchBusy() { if ((this.visible && this.isBusy()) || (window.TruckNav?.pos?.speed || 0) > 2) this.hide(); }
 }
+setInterval(() => document.getElementById('mascot') && window.TruckNav?.mascot?.watchBusy(), 500);

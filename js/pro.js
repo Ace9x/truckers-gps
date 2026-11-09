@@ -100,7 +100,8 @@ S.startTour = startTour; S.walk = () => GUIDE.walk(S); WNEW.start(S);
 $('#helpBtn')?.addEventListener('click', () => { const open = document.querySelector('.panel:not(.hidden)'); if (open && window.RRHelp?.HELP[open.id]) window.RRHelp.showHelp(open.id); else startTour(); });
 $('#replayTour')?.addEventListener('click', () => { document.querySelector('.panel:not(.hidden) .close')?.click(); startTour(); });
 // First run: Ace is on as the onboarding guide; afterwards the user's choice (default off) rules.
-if (!LS.get('tourDone', false) && (!navigator.webdriver || /[?&]tour=1/.test(location.search)) && !/[?&]notour/.test(location.search)) setTimeout(function go() { if ((S.pos?.speed || 0) > 2 || S.nav) return setTimeout(go, 5000); startTour(); }, 1700); // UX P16: only while parked
+const forceFirst = /[?&]rrfirst=1/.test(location.search);
+if ((!LS.get('tourDone', false) || forceFirst) && (!navigator.webdriver || forceFirst || /[?&]tour=1/.test(location.search)) && !/[?&]notour/.test(location.search)) setTimeout(function go() { if ((S.pos?.speed || 0) > 2 || S.nav) return setTimeout(go, 5000); startTour(); }, 1700); // UX P16: only while parked
 
 // ---------- Right rail: keep the essentials, collapse the rest into a "More" menu ----------
 const RAIL_KEEP = new Set(['followBtn', 'reportBtn', 'layersBtn', 'moreBtn']); // UX P2: few floating buttons; SOS, satellite, HUD, voice etc. live in More
@@ -237,6 +238,8 @@ function showReceipt(t, end = Date.now()) {
       <div class="trc-meta"><span>Toll miles <b>${r.tolls}</b></span><span>Reports you made <b>${r.reports}</b></span></div>
       <div class="trc-tear"></div>${t.saved ? '' : `<div class="trc-help" id="tripHelp"><p>Did RigRoute help?</p><div class="row"><button type="button" id="helpUp">👍 Yes</button><button type="button" id="helpDown">👎 No</button></div></div>`}<div class="trc-btns"><button id="trcCsv">CSV</button><button id="trcPdf">PDF</button><button id="trcDone" class="trc-done">Done</button></div></div>`;
     document.body.appendChild(el);
+    const notes = S.arrivalNotes || []; if (notes.length) { const n = document.createElement('p'); n.className = 'trc-help'; n.textContent = notes.join(' '); el.querySelector('.trc-tear')?.before(n); S.arrivalNotes = []; }
+    import('./areaopt.js').then(m => m.offerOnReceipt(el)).catch(() => {});
     // Calm arrival moment (app_polish_ideas §10): one short buzz, stats count up over 600 ms, gentle HOS reminder. No confetti.
     if (t.arrived) try { navigator.vibrate?.(30); } catch {}
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) el.querySelectorAll('.trc-big b').forEach(b => { const fin = b.textContent, n = parseFloat(fin); if (!(n > 0) || /h/.test(fin)) return; const dec = /\./.test(fin) ? 1 : 0, t0 = performance.now();

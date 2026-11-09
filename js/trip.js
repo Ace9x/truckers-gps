@@ -96,7 +96,9 @@ export function limitInfo(edges, along, admins, pt, truckMaxMph) { edges = edges
   let mph, est = false, src = 'posted'; const posted = e?.speed_limit ? kphToMph(e.speed_limit) : null;
   if (posted && !(isHwy(e) && posted < 35)) mph = posted;
   else { const n = nearbyPosted(edges, e, along), nm = n && kphToMph(n.speed_limit); est = true; src = 'est.';
-    mph = nm && !(isHwy(e) && nm < 35) ? nm : defaultLimitMph(e?.road_class, state, pt, e?.names); }
+    mph = nm && !(isHwy(e) && nm < 35) ? nm : defaultLimitMph(e?.road_class, state, pt, e?.names);
+    const namedHwy = (e?.names || []).some(n => EXPWY.test(n));
+    if ((isHwy(e) || namedHwy) && mph < 40) mph = defaultLimitMph('motorway', state, pt, e?.names); }
   if (truckMaxMph && truckMaxMph < mph) { mph = truckMaxMph; src = 'truck max'; est = false; }
   return { mph, est, src, state: state || null, roadClass: e?.road_class || null }; }
 // Effective limit for this truck = min(posted, truck max). Speeding when > limit + tolerance for a while.

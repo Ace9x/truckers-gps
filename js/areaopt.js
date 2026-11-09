@@ -7,9 +7,26 @@ const set = v => { localStorage.setItem(KEY, v ? '1' : '0'); localStorage.setIte
 function toggle() { const me = document.getElementById('mePanel'); if (!me || document.getElementById('areaOptChk')) return;
   me.insertAdjacentHTML('beforeend', `<h3 id="areaOptH">${t(TITLE)}</h3><label class="chk"><input type="checkbox" id="areaOptChk"> ${t(LINE)}</label>`);
   const c = document.getElementById('areaOptChk'); c.checked = on(); c.onchange = () => set(c.checked); }
-function ask() { if (localStorage.getItem(ASKED) || !localStorage.getItem('tn_truckSetDone') || document.querySelector('.wz-card, #areaAsk')) return;
+let parkedSince = 0;
+function speed() { return window.TruckNav?.pos?.speed || 0; }
+function driving() { const S = window.TruckNav; return !!(S?.nav || document.body.classList.contains('driving') || document.body.classList.contains('nav')); }
+function dismissIfMoving() { if (speed() >= 2.2 || driving()) { document.getElementById('areaAsk')?.remove(); parkedSince = 0; return true; } return false; }
+function ask() {
+  if (dismissIfMoving()) return;
+  if (speed() >= 1) { parkedSince = 0; return; }
+  if (!parkedSince) parkedSince = Date.now();
+  if (Date.now() - parkedSince < 60000) return;
+  if (localStorage.getItem(ASKED) || !localStorage.getItem('tn_truckSetDone') || document.querySelector('.wz-card, #areaAsk, #tripReceipt, #tourCard')) return;
   const d = document.createElement('div'); d.id = 'areaAsk'; d.setAttribute('role', 'dialog');
   d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(90px + env(safe-area-inset-bottom));z-index:60;background:#161b22;color:#e6edf3;border-radius:16px;padding:14px;box-shadow:0 8px 24px #000a';
   d.innerHTML = `<b>${t(TITLE)}</b><p>${t(LINE)}</p><div style="display:flex;gap:8px"><button class="big" data-a="1" style="flex:1">${t('Yes, share my city')}</button><button class="big" data-a="0" style="flex:1">${t('No thanks')}</button></div>`;
-  d.querySelectorAll('button').forEach(b => b.onclick = () => { set(b.dataset.a === '1'); d.remove(); }); document.body.appendChild(d); }
+  d.querySelectorAll('button').forEach(b => b.onclick = () => { set(b.dataset.a === '1'); d.remove(); }); document.body.appendChild(d);
+}
+export function offerOnReceipt(host) {
+  if (!host || localStorage.getItem(ASKED) || host.querySelector('#areaReceipt')) return;
+  const row = document.createElement('div'); row.id = 'areaReceipt'; row.className = 'trc-help';
+  row.innerHTML = `<p>${t(TITLE)}</p><p class="small">${t(LINE)}</p><div class="row"><button type="button" class="big" data-a="1">${t('Yes, share my city')}</button><button type="button" class="big" data-a="0">${t('No thanks')}</button></div>`;
+  (host.querySelector('.trc-btns') || host).before(row);
+  row.querySelectorAll('button').forEach(b => b.onclick = () => { set(b.dataset.a === '1'); row.remove(); });
+}
 export function start() { setInterval(toggle, 1500); setInterval(ask, 3000); }

@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.32.1",
+  "date": "2026-11-09",
+  "items": [
+   "The city-share question waits until you have been parked for a minute, and it leaves the screen as soon as the truck moves.",
+   "The drive-mode speed number stays readable in daylight. The report sheet fits the phone and has a Cancel button.",
+   "Ace and the points stay quiet while you are moving. End navigation takes a short hold. The bottom labels are easier to read."
+  ]
+ },
+ {
   "version": "3.32.0",
   "date": "2026-11-09",
   "items": [

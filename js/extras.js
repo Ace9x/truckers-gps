@@ -125,9 +125,9 @@ export function init(S, h) {
   S.fatigueState = () => ({ moveSince, fatigueTier });
 
   // ---------- Driving lockout ----------
-  S.lockedOut = () => { if (!S.opts.lockout || S.passenger || !S.nav || (S.pos?.speed || 0) * 2.23694 <= 5) return false; $('#lockout').classList.remove('hidden'); say('Typing is locked while moving. Say a destination, or pull over.', 'info'); return true; };
+  S.lockedOut = () => { if (!S.opts.lockout || S.passenger || (S.pos?.speed || 0) <= 2.2) return false; $('#lockout').classList.remove('hidden'); say('Typing is locked while moving. Say a destination, or pull over.', 'info'); return true; };
   $('#lockClose').onclick = () => $('#lockout').classList.add('hidden');
-  $('#iAmPassenger').onclick = () => { S.passenger = true; $('#lockout').classList.add('hidden'); setTimeout(() => S.passenger = false, 10 * 60e3); $('#searchBtn').click(); };
+  $('#iAmPassenger').onclick = () => { if (!confirm('You are the passenger? Typing stays open for 10 minutes.')) return; S.passenger = true; $('#lockout').classList.add('hidden'); setTimeout(() => S.passenger = false, 10 * 60e3); $('#searchBtn').click(); };
   $('#voiceDest').onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { toast('Voice input not supported in this browser — pull over to type'); return; }
     const rec = new SR(); rec.lang = 'en-US'; rec.onresult = async e => { const q = e.results[0][0].transcript; $('#lockout').classList.add('hidden'); toast('Searching: ' + q);
       try { const near = S.pos; const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${near.lat}&lon=${near.lon}`)).json(); const f = j.features[0];

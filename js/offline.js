@@ -103,8 +103,8 @@ export function init(S, h) {
 #dEta{background:#000;color:#ffeb3b;border:3px solid #ffeb3b;border-radius:14px;padding:6px 12px;font:800 22px system-ui;text-align:center}
 #dBtns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:#000c}
 #dBtns button{min-height:92px;border-radius:20px;border:3px solid #fff;background:#111;color:#fff;font:800 17px system-ui;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-#dBtns button i{font-style:normal;font-size:38px}#dBtns #dReport{background:#e65100}#dBtns #dAce.listen{background:#1565c0;animation:pulse 1s infinite}
-#dRep{position:fixed;inset:auto 0 0 0;z-index:36;background:#000;border-top:4px solid #ffeb3b;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+#dBtns button i{font-style:normal;font-size:38px}#dBtns #dReport{background:#e65100}#dBtns #dAce.listen{background:#1565c0;animation:none}
+#dRep{position:fixed;inset:auto 0 0 0;z-index:36;background:#000;border-top:4px solid #ffeb3b;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
 #dRep button{min-height:96px;border-radius:18px;border:3px solid #fff;background:#222;color:#fff;font:800 17px system-ui}#dRep button i{display:block;font-style:normal;font-size:40px}
 #dTurn{position:relative}#dExit{position:absolute;right:8px;top:8px;background:#000a;color:#fff;border:2px solid #fff;border-radius:12px;padding:6px 10px;font:600 13px system-ui}
 body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tripBar,body.driving #speedBox,body.driving #limitSign,body.driving #thenBox,body.driving #offGuide{display:none!important}
@@ -113,8 +113,8 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
   document.body.insertAdjacentHTML('beforeend', `<div id="netPill" class="ok" role="status" aria-live="polite">● Online</div>
 <div id="offGuide" class="hidden" role="alert"><b id="ogArrow">↑</b><div><div id="ogText">Offline — follow the route line</div><small id="ogSub"></small></div></div>
 <div id="drive" class="hidden" aria-label="Drive mode">
- <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div><button id="dExit" aria-label="Exit drive mode">✕ Exit</button></div>
- <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden">LIMIT <b id="dLim">--</b><i id="dLimEst"> est.</i></div></div>
+ <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div><button id="dExit" aria-label="Map">Map</button></div>
+ <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden"><small>LIMIT </small><b id="dLim">--</b><i id="dLimSrc"></i></div></div>
  <div id="dBtns"><button id="dReport"><i>⚠️</i>Report</button><button id="dMute"><i>🔊</i>Mute</button><button id="dAce"><i>🎤</i>Ace</button><button id="dCenter"><i>🎯</i>Recenter</button></div>
 </div>
 <div id="dRep" class="hidden"></div>
@@ -215,7 +215,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     $('#dSpd').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
     const raw = ($('#limitVal')?.textContent || '').trim();
     const lim = $('#limitSign') && !$('#limitSign').classList.contains('hidden') && /^\d+$/.test(raw) ? raw : null;
-    $('#dLimit').classList.toggle('hidden', !lim); if (lim) $('#dLim').textContent = lim; $('#dLimit').classList.toggle('est', !!$('#limitSign')?.classList.contains('est')); $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
+    $('#dLimit').classList.toggle('hidden', !lim); if (lim) { $('#dLim').textContent = lim; const src = ($('#limitSrc')?.textContent || '').trim(); if ($('#dLimSrc')) $('#dLimSrc').textContent = src ? ' ' + src : ''; } $('#dLimit').classList.toggle('est', !!$('#limitSign')?.classList.contains('est')); $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
     $('#dLeft').textContent = S.remT != null ? fmtDur(S.remT) : '--'; $('#dMi').textContent = $('#tDist') ? `${$('#tDist').textContent} ${U() === 'km' ? 'km' : 'mi'} · ${$('#tEta')?.textContent || ''}` : '';
     $('#dMute i').textContent = S.voiceObj?.enabled ? '🔊' : '🔇'; $('#dMute').lastChild.textContent = S.voiceObj?.enabled ? 'Mute' : 'Unmute'; }
   S.renderDrive = () => renderDrive((S.pos?.speed || 0) * 2.23694);
@@ -223,9 +223,12 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
   $('#dCenter').onclick = () => { $('#followBtn')?.click(); say('Recentered', 'info'); };
   $('#dMute').onclick = () => { $('#muteBtn').click(); S.renderDrive(); };
   const QUICK = ['accident', 'camera', 'construction', 'police', 'debris', 'hazard', 'closed', 'ice', 'clearance'];
-  $('#dReport').onclick = () => { const types = S.hzFile ? HZ : (h.types?.() || REPORT_TYPES), ks = [...new Set(QUICK.map(k => pickReportType(k, types)))].slice(0, 6);
-    $('#dRep').innerHTML = ks.map(k => `<button data-dr="${k}"><i>${types[k].icon}</i>${types[k].label}</button>`).join(''); $('#dRep').classList.toggle('hidden');
-    $$('[data-dr]').forEach(b => b.onclick = async () => { $('#dRep').classList.add('hidden'); await doReport(b.dataset.dr); }); };
+  $('#dReport').onclick = () => { const types = S.hzFile ? HZ : (h.types?.() || REPORT_TYPES), ks = [...new Set(QUICK.map(k => pickReportType(k, types)))].slice(0, 5);
+    const box = $('#dRep'); box.innerHTML = ks.map(k => `<button data-dr="${k}"><i>${types[k].icon}</i>${types[k].label}</button>`).join('') + '<button type="button" data-drcancel><i>✕</i>Cancel</button>'; box.classList.remove('hidden');
+    clearTimeout(box._t); box._t = setTimeout(() => box.classList.add('hidden'), 8000);
+    const shut = () => { clearTimeout(box._t); box.classList.add('hidden'); };
+    box.querySelector('[data-drcancel]').onclick = shut;
+    $$('[data-dr]').forEach(b => b.onclick = async () => { shut(); await doReport(b.dataset.dr); }); };
   async function doReport(type) { setDrive(S.drive);
     if (S.hzFile) { const k = pickReportType(type, HZ), res = S.hzFile(k, true); S.lastDriveReport = res;
       say(`${HZ[k].say} reported${online() ? '' : '. It will send when signal returns'}. Thanks, driver.`, 'info', true); return res; }
@@ -248,13 +251,12 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     say("Sorry, try: report accident, mute, next fuel, or how long left.", 'info', true); }
   S.runCommand = runCommand;
   $('#dAce').onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { toast('Voice commands need Chrome or Safari'); say('Voice commands are not supported in this browser.', 'info', true); return; }
-    const rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1; $('#dAce').classList.add('listen'); S.voiceObj.noCustom = true; speechSynthesis?.cancel();
-    rec.onresult = e => runCommand(e.results[0][0].transcript); rec.onend = () => { $('#dAce').classList.remove('listen'); S.voiceObj.noCustom = false; };
+    const rec = new SR(); rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1; const ace = $('#dAce'); ace.classList.add('listen'); if (ace.lastChild) ace.lastChild.textContent = 'Listening…'; S.voiceObj.noCustom = true; speechSynthesis?.cancel();
+    rec.onresult = e => runCommand(e.results[0][0].transcript); rec.onend = () => { ace.classList.remove('listen'); if (ace.lastChild) ace.lastChild.textContent = 'Ace'; S.voiceObj.noCustom = false; };
     rec.onerror = e => toast(e.error === 'network' ? 'Voice commands need signal on this phone' : 'Did not catch that'); try { rec.start(); } catch {} };
   // no keyboard while moving in drive mode
   document.addEventListener('focusin', e => { if (S.drive && (S.pos?.speed || 0) * 2.23694 > 10 && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) { e.target.blur(); toast('Typing is off while driving — tap 🎤 Ace and speak'); } });
   const prevEnd = S.endNav; S.endNav = (...a) => { setDrive(false); $('#offGuide').classList.add('hidden'); return prevEnd(...a); };
-  $('#endBtn') && ($('#endBtn').onclick = () => S.endNav('Navigation ended'));
 
   // ----- Region download -----
   async function tileTemplate() { const src = map.getStyle()?.sources, vec = src && Object.values(src).find(s => s.type === 'vector' && s.url); if (!vec) return null;

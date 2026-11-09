@@ -16,8 +16,12 @@ body .panel .muted,body .panel .small{color:var(--hb-muted)}
 body .panel button.primary,body .panel .btnlike.primary{background:var(--hb-signal);color:#000;border:0;border-radius:999px;min-height:56px;font-size:19px;font-weight:900}
 body .panel button:not(.primary):not(.close):not(.help-q):not(.gl):not([data-duty]){border-radius:999px}
 /* Bottom dock: black, 56px targets */
-body #dock{background:var(--hb-bg);border-top:1px solid var(--hb-line)}
+body #dock{background:#0d1117;border-top:1px solid var(--hb-line)}
 body #dock button{min-height:56px}
+html body #dock button,html body #dock button span{color:#f4f7fb;font-size:15px;font-weight:700}
+html[data-theme=light] body #dock,body.day #dock{background:#fff;border-top:1px solid #111}
+html[data-theme=light] body #dock button,html[data-theme=light] body #dock button span,body.day #dock button,body.day #dock button span{color:#111}
+#endBtn.holding{outline:3px solid #fff;outline-offset:-3px}
 @media (prefers-reduced-motion: reduce){body .panel{animation:none!important}}
 body.driving .panel{animation:none!important}
 :lang(ar) body .panel .phead h2,:lang(fa) body .panel .phead h2,:lang(ur) body .panel .phead h2,:lang(he) body .panel .phead h2{letter-spacing:0}
@@ -65,7 +69,7 @@ html body #routeOpts .ropt[aria-pressed=true]{background:var(--hb-signal,#06C167
   body.nav #thenBox,body.driving #thenBox{display:none!important}
   body.nav #tfBanner,body.driving #tfBanner,body.nav #hzBanner,body.driving #hzBanner{max-height:48px;overflow:hidden;padding:6px 10px}
   body.nav #tfBanner .d,body.driving #tfBanner .d,body.nav #hzBanner .d,body.driving #hzBanner .d{display:none}
-  body.nav #lanes,body.driving #lanes{height:36px;padding:2px 8px}
+  body.nav #lanes,body.driving #lanes{height:52px;padding:2px 8px}
 }
 html body #limitSign i{margin-top:2px;letter-spacing:.04em}
 #truckWiz .wz-card{max-height:min(92dvh,760px);overflow:auto}

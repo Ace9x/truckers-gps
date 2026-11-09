@@ -46,9 +46,24 @@ for (const P of PROFILES) {
   const close = () => ev(() => { document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden')); document.querySelectorAll('#helpSheet,.hs-sheet,#walkCard,#walkRing').forEach(x => x.remove()); });
 
   await p.goto(BASE, { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(3000);
-  if (await p.$('#langFirst [data-l="en"]')) await tap('#langFirst [data-l="en"]'); await p.waitForTimeout(600);
+  if (await p.$('#lfGo')) await tap('#lfGo'); else if (await p.$('#langFirst [data-l="en"]')) await tap('#langFirst [data-l="en"]'); await p.waitForTimeout(600);
   ok(!!await p.$('#tourCard, #tSkip'), 'first-run tour appears'); if (await p.$('#tSkip')) await tap('#tSkip'); await p.waitForTimeout(4000);
   await shot('00-map'); await audit('map screen');
+  const contrast = await ev(() => { const parse = c => { const m = String(c).match(/[\d.]+/g); return (m || ['0', '0', '0']).slice(0, 3).map(Number); };
+    const lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const L = rgb => { const [r, g, b] = rgb.map(lin); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a, b) => { const l1 = L(parse(a)), l2 = L(parse(b)); const [h, s] = l1 > l2 ? [l1, l2] : [l2, l1]; return (h + 0.05) / (s + 0.05); };
+    const html = document.documentElement, body = document.body, prev = html.dataset.theme, day = body.classList.contains('day');
+    html.dataset.theme = 'light'; body.classList.add('day');
+    const lab = getComputedStyle(document.querySelector('#dock button span') || document.querySelector('#dock button'));
+    const dock = getComputedStyle(document.querySelector('#dock'));
+    const spd = getComputedStyle(document.querySelector('#dSpd'));
+    const box = getComputedStyle(document.querySelector('#dSpeed'));
+    const out = { dock: +ratio(lab.color, dock.backgroundColor).toFixed(2), speed: +ratio(spd.color, box.backgroundColor).toFixed(2), fs: parseFloat(lab.fontSize), lab: lab.color, dockBg: dock.backgroundColor, spdC: spd.color, spdBg: box.backgroundColor };
+    if (!day) body.classList.remove('day'); html.dataset.theme = prev || ''; return out; });
+  ok(contrast.dock >= 4.5, `dock label contrast ${contrast.dock}:1 (${contrast.lab} on ${contrast.dockBg})`);
+  ok(contrast.speed >= 4.5, `drive speed contrast ${contrast.speed}:1 (${contrast.spdC} on ${contrast.spdBg})`);
+  ok(contrast.fs >= 14, `dock label is ${contrast.fs}px`);
   const axe = async where => { await p.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' }).catch(() => {}); const v = await ev(async () => { const r = await window.axe.run(document.querySelector('.panel:not(.hidden)') || document, { runOnly: ['color-contrast', 'button-name', 'label', 'link-name', 'image-alt', 'aria-valid-attr-value'] }); return r.violations.map(v => v.id + ': ' + v.nodes.slice(0, 4).map(n => n.target.join(' ')).join(', ')); }).catch(e => ['axe error ' + e.message]);
     (run.a11y ||= []).push(...v.map(x => where + ': ' + x)); ok(!v.length, `${where}: accessibility (contrast AA, labels, names)`, v); };
   await axe('map screen');
@@ -256,6 +271,18 @@ for (const P of PROFILES) {
   run.errors = [...new Set(run.errors)].filter(e => !/ERR_INTERNET_DISCONNECTED|Failed to fetch|WebKit encountered an internal error/.test(e)) /* WebKit's wording for a request that failed while the gate had the phone offline */; ok(!run.errors.length, 'zero console errors from the app', run.errors);
   await ctx.close();
 }
+// First run is skipped when navigator.webdriver is true. This pass forces it on.
+{ const br = wk || ch; const ctx = await br.newContext({ ...devices['iPhone 13'], viewport: { width: 390, height: 844 } });
+  await ctx.addInitScript(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => true }); });
+  const p = await ctx.newPage(); const run = { profile: 'first-run', engine: wk ? 'webkit' : 'chromium', checks: [], overlaps: [], small: [], errors: [], external: [], shots: [] }; R.runs.push(run);
+  const ok = (c, m, extra) => { run.checks.push({ ok: !!c, m, extra }); console.log((c ? 'ok   ' : 'FAIL ') + '[first-run] ' + m); };
+  await p.goto(BASE + '?rrfirst=1', { waitUntil: 'domcontentloaded' }); await p.waitForTimeout(1500);
+  const go = await p.$('#lfGo'); ok(!!go && /Continue in/.test(await go.textContent()), 'first run shows one Continue button, not the language wall');
+  ok(!(await p.$('#lfGrid:not(.hidden)')), 'the full language list stays closed');
+  if (go) await go.click(); await p.waitForTimeout(2000);
+  ok(!!await p.$('#tourCard, #tSkip'), 'forced first run shows the tour');
+  await p.waitForTimeout(3500); ok(!(await p.$('#wnPop')), 'What\'s New stays off on first run');
+  await ctx.close(); }
 await ch.close(); if (wk) await wk.close();
 // (e) real-iPhone fit (3.30.2, after Fan's iPhone screenshots): WebKit 390x844 and 390x664 (Safari bars), menu / tabs / turn banner / windshield view
 { const { spawnSync } = await import('node:child_process'); const r = spawnSync('node', ['test/iphone-fit.mjs'], { env: { ...process.env, BASE, OUT: OUT + '/iphone-fit' }, encoding: 'utf8', timeout: 600000 });
