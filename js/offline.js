@@ -114,7 +114,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
 <div id="offGuide" class="hidden" role="alert"><b id="ogArrow">↑</b><div><div id="ogText">Offline — follow the route line</div><small id="ogSub"></small></div></div>
 <div id="drive" class="hidden" aria-label="Drive mode">
  <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div><button id="dExit" aria-label="Exit drive mode">✕ Exit</button></div>
- <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden">LIMIT<b id="dLim">--</b><i id="dLimEst">est.</i></div></div>
+ <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden">LIMIT <b id="dLim">--</b><i id="dLimEst"> est.</i></div></div>
  <div id="dBtns"><button id="dReport"><i>⚠️</i>Report</button><button id="dMute"><i>🔊</i>Mute</button><button id="dAce"><i>🎤</i>Ace</button><button id="dCenter"><i>🎯</i>Recenter</button></div>
 </div>
 <div id="dRep" class="hidden"></div>

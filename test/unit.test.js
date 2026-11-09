@@ -236,3 +236,34 @@ test('NYC truck route: city line, divided roads, expressways (BUG-032: false "of
   assert.ok(m.inCity(ix, -73.9935, 40.7506)); assert.ok(m.inCity(ix, -73.7592, 40.6515)); assert.ok(!m.inCity(ix, -73.7413, 40.6231)); assert.ok(!m.inCity(ix, -73.705, 40.70)); // Inwood/Elmont are Nassau County
   assert.ok(m.isExpressway({ road_class: 'trunk', names: ['Nassau Expressway'] })); assert.ok(!m.isExpressway({ road_class: 'motorway', names: ['Grand Central Parkway'] }));
   assert.ok(m.namedRouteNear(ix, -73.7677 + 0.0006, 40.6562, ['Rockaway Boulevard'])); });
+test('weigh avoidance: corridor starts about 2 miles before the scale, CAT scales in a lot are ignored', async () => {
+  const { scalesOnRoute, corridorSquares, avoidDecision, scalesStillHit, leavesBefore, usesNoTruckRoad, avoidableScale } = await import('../js/weighlogic.js');
+  const { cumulative } = await import('../js/logic.js');
+  const line = []; for (let i = 0; i <= 40; i++) line.push([-75.5, 39.7 + i * 0.02]); // ~1.4 mi per step, ~55 mi north
+  const cum = cumulative(line);
+  const mid = cum[20];
+  const pois = [
+    { lon: line[20][0], lat: line[20][1], tags: { amenity: 'weighbridge', name: 'Chester Weigh Station' } },
+    { lon: line[20][0] + 0.01, lat: line[20][1], tags: { amenity: 'weighbridge', name: 'CAT Scale' } },
+    { lon: line[8][0] + 0.05, lat: line[8][1], tags: { amenity: 'weighbridge' } },
+  ];
+  assert.equal(avoidableScale({ amenity: 'weighbridge', name: 'CAT Scale' }, 400), false);
+  assert.equal(avoidableScale({ amenity: 'weighbridge' }, 80), true);
+  const scales = scalesOnRoute(pois, line, cum);
+  assert.equal(scales.length, 1); assert.match(scales[0].name, /Chester/);
+  const polys = corridorSquares(line, cum, scales[0].along, { lon: scales[0].lon, lat: scales[0].lat });
+  assert.ok(polys.length >= 4);
+  const through = { line, cum, time: 3600, length: cum.at(-1), maneuvers: [] };
+  const avoid = { line: line.map(([x, y]) => [x + 0.02, y]), cum, time: 3900, length: cum.at(-1) + 2000, maneuvers: [{ street_names: ['I-95'], instruction: 'Stay on I-95' }] };
+  const dec = avoidDecision(through, avoid);
+  assert.equal(dec.pick, 'avoid'); assert.equal(dec.huge, false); assert.equal(dec.extraMin, 5);
+  const huge = avoidDecision(through, { ...avoid, time: 7200, length: through.length + 1609 * 30 });
+  assert.equal(huge.pick, 'through'); assert.equal(huge.huge, true);
+  assert.equal(avoidDecision(through, { ...avoid, time: 3000 }).pick, 'avoid');
+  assert.equal(scalesStillHit(through, scales).length, 1);
+  assert.equal(scalesStillHit(avoid, scales).length, 0);
+  const left = leavesBefore(through, avoid, scales[0], 1609);
+  assert.equal(left.ok, true, JSON.stringify(left));
+  assert.equal(usesNoTruckRoad({ maneuvers: [{ street_names: ['Saw Mill River Parkway'], instruction: '' }] }), true);
+  assert.equal(usesNoTruckRoad({ maneuvers: [{ street_names: ['Garden State Parkway'], instruction: '' }] }), false);
+});

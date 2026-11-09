@@ -53,3 +53,19 @@ body.st-nav .maplibregl-ctrl-attrib-button,body.driving .maplibregl-ctrl-attrib-
 html[data-theme=light] body .panel :is(.muted,.small,p,#routeSummary,#stopToggle,#plSum,#pLevel),html[data-theme=light] body #hzLive .age,html[data-theme=light] body #tfLegend .age{color:#3a3a3c!important}
 html[data-theme=light] body .panel .age,html[data-theme=light] body #tripReceipt .age{color:#1b5e20!important}
 html[data-theme=light] body .panel .age.stale,html[data-theme=light] body #hzLive .age.stale,html[data-theme=light] body #tfLegend .age.stale,html[data-theme=light] body #tripReceipt .age.stale{color:#8a4b00!important}
+/* Route options: one full-width row each, 56px, on = signal green. Subtitle can wrap; the label stays one line. */
+#routeOpts{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+#routeOpts[hidden]{display:none!important}
+html body #routeOpts .ropt{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;width:100%;min-height:56px;height:auto;text-align:start;padding:8px 16px;border-radius:16px;border:2px solid var(--hb-line,#2A2A2D);background:transparent;color:inherit;white-space:normal}
+html body #routeOpts .ropt b{font-size:17px;font-weight:800;line-height:1.2;white-space:nowrap}
+html body #routeOpts .ropt span{font-size:13px;font-weight:700;line-height:1.25;opacity:.9}
+html body #routeOpts .ropt[aria-pressed=true]{background:var(--hb-signal,#06C167);color:#000;border-color:#064}
+/* A-003: Safari bars (390x664). Turn banner stays. The then-line and the extra detail on traffic/hazard cards collapse so the map stays visible. */
+@media (max-height:700px){
+  body.nav #thenBox,body.driving #thenBox{display:none!important}
+  body.nav #tfBanner,body.driving #tfBanner,body.nav #hzBanner,body.driving #hzBanner{max-height:48px;overflow:hidden;padding:6px 10px}
+  body.nav #tfBanner .d,body.driving #tfBanner .d,body.nav #hzBanner .d,body.driving #hzBanner .d{display:none}
+  body.nav #lanes,body.driving #lanes{height:36px;padding:2px 8px}
+}
+html body #limitSign i{margin-top:2px;letter-spacing:.04em}
+.scale-marker{font-size:22px;line-height:1;filter:drop-shadow(0 1px 1px #0008)}

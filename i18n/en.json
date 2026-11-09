@@ -211,7 +211,7 @@
 "Thanks. Avoiding that road and recalculating.": "Thanks. We will skip that road and find a new way.",
 "This device already has a passkey for your account.": "This phone already has a passkey for you.",
 "This shorter route crosses roads mapped as restricted for your rig (no trucks, weight, height or length limit). Only use it if you have verified the signs or hold a permit. Use it?": "This shorter route may use roads your truck is not allowed on (no trucks, or a weight, height or length limit). Only use it if you checked the signs or have a permit. Use it?",
-"TomTom traffic unavailable — showing NYC DOT + driver speeds. Tap 🚦 Waze for the live map.": "TomTom traffic is not working. Showing city and driver speeds. Tap 🚦 Waze for a live map.",
+"TomTom traffic unavailable — showing city and driver speeds.": "TomTom traffic is not working. Showing city and driver speeds.",
 "Traffic ahead. A faster truck-safe route saves about {0} minutes. Tap switch to take it.": "Traffic ahead. A faster safe truck route saves about {0} minutes. Tap Switch to take it.",
 "Trip sheet": "Trip paper",
 "Trip with no hard braking or speeding: {0} pts": "A trip with no hard stops or speeding: {0} points",

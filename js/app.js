@@ -5,6 +5,7 @@ import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDe
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
+import { scalesOnRoute, corridorsFor, scalesStillHit, usesNoTruckRoad, avoidDecision } from './weighlogic.js';
 import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
 import { makeBackend, Profile, REPORT_TYPES, POINTS, BADGES, LEVELS, DrivingMonitor, reportVisible, weekKey } from './community.js';
@@ -201,9 +202,13 @@ const destTarget = () => { const f = S.facilities[facKey(S.dest)]; return f?.gat
 function excludePolys(from, to) {
   const polys = S.avoids.map(a => squarePolygon(a.lon, a.lat, 25));
   for (const z of S.closures || []) if (z.closed) for (const c of z.coords) polys.push(squarePolygon(c[0], c[1], 30));
-  if (S.truck.avoidWeigh && staticPois && from && to) { const bb = bboxOf([[from.lon, from.lat], [to.lon, to.lat]], 0.4);
-    for (const p of staticPois) if (classifyPoi(p.tags) === 'weigh' && p.lon >= bb[0] && p.lon <= bb[2] && p.lat >= bb[1] && p.lat <= bb[3]) polys.push(squarePolygon(p.lon, p.lat, 15)); }
+  if (S.truck.avoidWeigh && S.scaleExcludes?.length) polys.push(...S.scaleExcludes);
   return polys;
+}
+function trafficDelay(r) { try { const d = S.traffic?.routeTraffic?.(r, 0)?.delay; return Number.isFinite(d) ? d : 0; } catch { return 0; } }
+async function scalesFor(route, minAlong = 600) {
+  const pois = await getStaticPois();
+  return scalesOnRoute(pois, route.line, route.cum, { minAlong, maxOffM: 800 });
 }
 function mergeLegs(trip, costing) {
   const ln = [], man = [];
@@ -232,43 +237,95 @@ async function setDest(d) {
   if (!S.pos) { toast('Waiting for your GPS position to plan the route…'); openPanel('routePanel'); $('#routeSummary').textContent = 'Waiting for GPS…'; return; }
   await plan();
 }
+async function avoidAround(from, to, through, minAlong, extra = {}, abort = () => false) {
+  const scales = await scalesFor(through, minAlong);
+  if (abort()) return { scales, route: null };
+  S.scalesOnTrip = scales; paintScales(scales);
+  if (!S.truck.avoidWeigh || !scales.length || costingFor(S.truck) !== 'truck') { S.lastAvoidErr = !S.truck.avoidWeigh ? 'toggle off' : !scales.length ? 'no scales' : 'not truck'; S.scaleExcludes = []; return { scales, route: null }; }
+  for (const opt of [{ beforeM: 2 * 1609.344 }, { beforeM: 3 * 1609.344, halfM: 180 }]) {
+    if (abort()) return { scales, route: null };
+    S.scaleExcludes = corridorsFor(scales, through.line, through.cum, { ...opt, minFrom: Math.max(0, minAlong - 500) });
+      try {
+        const av = await valhalla(from, to, 'truck', extra); // truck costing kept: height, weight, hazmat, no-truck roads
+        const route = Array.isArray(av) ? av[0] : av;
+        if (route && !usesNoTruckRoad(route) && !scalesStillHit(route, scales).length) return { scales, route };
+        S.lastAvoidErr = route ? (usesNoTruckRoad(route) ? 'no-truck road' : 'still hits scale') : 'no route';
+      } catch (e) { S.lastAvoidErr = e.message; }
+  }
+  S.scaleExcludes = []; return { scales, route: null };
+}
+let planGen = 0;
 async function plan(isReroute = false) {
   if (!S.pos || !S.dest) return;
+  const gen = ++planGen;
+  const stale = () => gen !== planGen;
   if (isReroute && !navigator.onLine) { S.pendingReroute = true; return; } // offline: keep current route, reroute queued until signal returns
   if (!isReroute) { $('#routeSummary').textContent = 'Finding truck‑safe routes…'; if ($('#routePanel').classList.contains('hidden')) openPanel('routePanel'); }
   try {
     const from = S.pos, to = destTarget();
     if (isReroute) {
       // Respect the driver's chosen route: rejoin it ahead via "through" points instead of silently switching routes.
+      S.scaleExcludes = [];
       let vias = [];
       if (S.chosen) { const sn = snapToRoute([from.lon, from.lat], S.chosen.line, S.chosen.cum, 0); if (sn.dist < 3000) vias = rejoinVias(S.chosen.line, S.chosen.cum, sn.along, { ahead: 1500, max: 2 }); }
       let tr; const tries = [{ heading: from.heading, vias }, { vias }, { heading: from.heading, vias, radius: 300 }, { radius: 300 }]; let err; // radius: escape driveways/lots
       for (const o of tries) { try { tr = await valhalla(from, to, costingFor(S.truck), o); vias = o.vias || []; break; } catch (e) { err = e; } }
-      if (!tr) throw err;
+      if (!tr || stale()) return tr;
+      if (S.scaleMode === 'avoid') {
+        const got = await avoidAround(from, to, tr, (S.along || 0) + 600, { heading: from.heading, vias }, stale);
+        if (got.route) {
+          const dec = avoidDecision(tr, got.route, { delayThrough: trafficDelay(tr), delayAvoid: trafficDelay(got.route) });
+          if (!dec.huge) tr = got.route; else { S.scaleExcludes = []; toast(`Avoiding the scale adds about ${dec.extraMin} min. Staying on the truck route.`, 5000); }
+        }
+      }
       S.lastRerouteVias = vias.length; setRoute(tr); return tr;
     }
+    S.scaleExcludes = [];
     const [alts, car] = await Promise.all([valhalla(from, to, costingFor(S.truck), { alternates: 2 }), costingFor(S.truck) === 'auto' ? null : valhalla(from, to, 'auto', { avoid: false }).catch(() => null)]);
+    if (stale()) return;
     // Detour check: truck route > 1.5× the car route -> try a relaxed second pass (flagged, never auto-picked) and warn the driver
     S.detour = null; const dt = truckDetour(alts[0], car);
     if (dt?.detour) { S.detour = dt; const rx = await valhalla(from, to, 'truck', { relax: DETOUR_RELAX }).catch(() => null);
       if (rx && rx.length < alts[0].length * 0.8) { rx.restricted = true; dt.relaxed = { length: rx.length, time: rx.time }; alts.push(rx); }
       say(`Heads up. The truck route is ${dt.ratio.toFixed(1)} times the car route. Check the route panel.`); }
-    S.routes = alts; S.carRoute = car; S.sel = 0; setRoute(alts[0]); S.chosen = alts[0];
-    LS.set('routes', alts.map(r => ({ ...r, cum: undefined }))); LS.set('carRoute', car ? { ...car, cum: undefined } : null); LS.set('sel', 0);
+    let routes = alts;
+    const preferThrough = S.scaleMode === 'through';
+    const got = S.truck.avoidWeigh ? await avoidAround(from, to, alts[0], 600, {}, stale) : { scales: await scalesFor(alts[0], 600).then(s => { if (stale()) return s; S.scalesOnTrip = s; paintScales(s); return s; }), route: null };
+    if (stale()) return;
+    if (S.truck.avoidWeigh && got.scales?.length) {
+      alts[0].scaleChoice = 'through';
+      if (got.route) {
+        const dec = avoidDecision(alts[0], got.route, { delayThrough: trafficDelay(alts[0]), delayAvoid: trafficDelay(got.route) });
+        got.route.scaleChoice = 'avoid'; got.route.extraMin = dec.extraMin; got.route.extraMi = dec.extraMi; alts[0].extraMin = dec.extraMin; alts[0].extraMi = dec.extraMi;
+        S.savedScaleExcludes = S.scaleExcludes.slice();
+        S.scaleMode = preferThrough ? 'through' : (dec.pick === 'avoid' ? 'avoid' : 'through');
+        if (S.scaleMode !== 'avoid') S.scaleExcludes = [];
+        routes = S.scaleMode === 'avoid' ? [got.route, alts[0]] : [alts[0], got.route];
+      } else { S.scaleMode = 'through'; alts[0].scaleMiss = true; S.scaleExcludes = []; }
+    } else if (!S.truck.avoidWeigh) S.scaleMode = 'off';
+    if (stale()) return;
+    S.routes = routes; S.carRoute = car; S.sel = 0; setRoute(routes[0]); S.chosen = routes[0];
+    LS.set('routes', routes.map(r => ({ ...r, cum: undefined }))); LS.set('carRoute', car ? { ...car, cum: undefined } : null); LS.set('sel', 0);
     renderRoute(); fitRoute(); ['#goBtn', '#demoBtn', '#facBtn', '#offlineBtn'].forEach(s => $(s).disabled = false);
-    return alts[0];
+    return routes[0];
   } catch (e) { if (!isReroute) $('#routeSummary').textContent = '⚠ ' + (navigator.onLine ? e.message : 'Offline — routing needs a connection'); else toast('Reroute failed: ' + e.message); }
 }
 function setRoute(r) { S.route = r; S.etaSmooth?.reset(); S.hint = 0; S.spoken = {}; S.off.reset(); S.step = 0; S.dangers = []; S.dangerSpoken = {}; LS.set('route', { ...r, cum: undefined }); drawRoute(); renderSteps(); analyzeRoute(r); }
-function selectRoute(i) { if (S.routes[i]?.restricted && !confirm('This shorter route crosses roads mapped as restricted for your rig (no trucks, weight, height or length limit). Only use it if you have verified the signs or hold a permit. Use it?')) return; S.sel = i; S.chosen = S.routes[i]; LS.set('sel', i); setRoute(S.routes[i]); renderRoute(); S.pois = []; S.poiDone = false; clearPois(); }
+function selectRoute(i) { if (S.routes[i]?.restricted && !confirm('This shorter route crosses roads mapped as restricted for your rig (no trucks, weight, height or length limit). Only use it if you have verified the signs or hold a permit. Use it?')) return; S.sel = i; S.chosen = S.routes[i];
+  if (S.routes[i]?.scaleChoice === 'avoid') { S.scaleMode = 'avoid'; S.scaleExcludes = S.savedScaleExcludes || []; }
+  else if (S.routes[i]?.scaleChoice === 'through') { S.scaleMode = 'through'; S.scaleExcludes = []; }
+  LS.set('sel', i); setRoute(S.routes[i]); renderRoute(); S.pois = []; S.poiDone = false; clearPois(); }
 S.plan = plan; S.setDest = setDest; S.selectRoute = selectRoute;
 function fitRoute() { const b = new maplibregl.LngLatBounds(); S.routes.forEach(r => r.line.forEach(c => b.extend(c))); setFollow(false); map.fitBounds(b, { padding: { top: 80, bottom: window.innerHeight * 0.5, left: 40, right: 80 }, pitch: 0, bearing: 0 }); }
 
 function renderRoute() {
   const r = S.route, c = S.carRoute;
-  $('#routeSummary').innerHTML = `Truck routes for ${S.truck.heightFt}'${S.truck.heightIn}" · ${Math.round(S.truck.weightLbs / 1000)}k lbs · ${S.truck.lengthFt}'${S.truck.hazmat ? ' · HAZMAT' : ''}${S.avoids.length ? ` · avoiding ${S.avoids.length} reported road(s)` : ''}`;
+  const nScale = (S.scalesOnTrip || []).length;
+  $('#routeSummary').innerHTML = `Truck routes for ${S.truck.heightFt}'${S.truck.heightIn}" · ${Math.round(S.truck.weightLbs / 1000)}k lbs · ${S.truck.lengthFt}'${S.truck.hazmat ? ' · HAZMAT' : ''}${S.avoids.length ? ` · avoiding ${S.avoids.length} reported road(s)` : ''}${nScale ? ` · ${nScale} weigh station${nScale > 1 ? 's' : ''} on the direct route` : ''}${S.route?.scaleMiss ? ' · no scale-free truck route (truck bans still win)' : ''}`;
+  renderRouteOpts();
   const labels = labelAlternatives(S.routes, c);
-  $('#alts').innerHTML = S.routes.map((x, i) => `<div class="alt ${i === S.sel ? 'sel' : ''}" data-i="${i}"><b>${i === S.sel ? '✔ ' : ''}Route ${i + 1}: ${fmtDur(x.time)} · ${fmtDist(x.length, U())}</b><div>${esc(t('via'))} <span translate="no">${esc(viaNames(x))}</span></div><div class="why">${x.restricted ? '<b class="warn">⚠ Crosses mapped truck restrictions — verify signs/permit</b> · ' : ''}${labels[i].map(x => esc(t(x))).join(' · ')}</div></div>`).join('')
+  const choiceName = x => x.scaleChoice === 'avoid' ? (x.extraMin > 0 ? `Avoid scales (+${x.extraMin} min)` : 'Avoid scales') : x.scaleChoice === 'through' ? 'Through scale' : '';
+  $('#alts').innerHTML = S.routes.map((x, i) => `<div class="alt ${i === S.sel ? 'sel' : ''}" data-i="${i}"><b>${i === S.sel ? '✔ ' : ''}${choiceName(x) || ('Route ' + (i + 1))}: ${fmtDur(x.time + trafficDelay(x))} · ${fmtDist(x.length, U())}</b><div>${esc(t('via'))} <span translate="no">${esc(viaNames(x))}</span></div><div class="why">${x.scaleChoice === 'avoid' ? 'Leaves the highway about 2 miles before each scale. Truck limits still apply.' : x.scaleChoice === 'through' ? 'Passes the weigh station. Open or closed is not guessed.' : ''}${x.restricted ? '<b class="warn">⚠ Crosses mapped truck restrictions — verify signs/permit</b> · ' : ''}${x.scaleChoice ? '' : labels[i].map(x => esc(t(x))).join(' · ')}</div></div>`).join('')
     + (S.routes.length < 3 ? `<div class="muted small">${S.routes.length === 1 ? 'Only one truck‑legal route found for this trip.' : 'Only ' + S.routes.length + ' truck‑legal options found.'}</div>` : '');
   $$('.alt').forEach(el => el.onclick = () => selectRoute(+el.dataset.i));
   const dn = S.detour; $('#detourWarn')?.remove(); if (dn) { const w = document.createElement('div'); w.id = 'detourWarn'; w.className = 'detour-warn'; w.setAttribute('role', 'alert');
@@ -355,7 +412,29 @@ async function startNav(resumed) {
   const first = S.route.maneuvers[0]; if (!resumed) { if (!S.introDone) { S.introDone = true; say('RigRoute GPS. Truck route ready.', 'info'); } say(first.verbal_pre_transition_instruction || first.instruction, 'turn'); } else say('Navigation resumed', 'info');
   if (!S.pois.length) loadPois(true);
   prefetchTiles(true);
-  if (S.pos) { navTick(); paintLimit(); } // the sign must show on Start, not stay "--" until the next GPS tick
+  paintNavSeed(false); // ETA, distance and the first turn are filled even before the truck snaps onto the line
+  if (S.pos) { navTick(); paintLimit(); }
+}
+function paintNavSeed(head) {
+  const r = S.route; if (!r) return;
+  const m = r.maneuvers?.[0];
+  const street = m ? (m.street_names?.join(' / ') || m.instruction || '') : '';
+  if (m) {
+    $('#bArrow').textContent = arrow(m.type);
+    $('#bDist').textContent = fmtDist((m.length || 0) * 1000 || r.length, U());
+    // Off the line: keep the first maneuver on the banner (the then-line collapses on short screens) and say to head to the route. Do not advance the step.
+    $('#bInstr').textContent = head ? t('Head to route') + (street ? ' · ' + street : '') : street;
+  } else if (head) {
+    $('#bArrow').textContent = '↗';
+    $('#bDist').textContent = fmtDist(Math.max(0, S.distFromRoute || 0), U());
+    $('#bInstr').textContent = t('Head to route');
+  }
+  const remT = (r.time || 0) + (S.trafficDelay || 0); S.remT = remT;
+  $('#tEta').textContent = new Date(Date.now() + remT * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  $('#tLeft').textContent = fmtDur(remT);
+  const len = r.length || 0;
+  $('#tDist').textContent = U() === 'km' ? (len / 1000).toFixed(1) : (len / MI).toFixed(1);
+  if ($('#tDist')?.nextElementSibling) $('#tDist').nextElementSibling.textContent = U() === 'km' ? 'km' : 'miles';
 }
 function paintLimit() { if (!S.nav || !S.route || !S.pos) return; try { S.onFixHook?.(S.pos, (S.pos.speed || 0) * 2.23694); } catch (e) { console.warn(e); } }
 S.paintLimit = paintLimit;
@@ -381,7 +460,7 @@ function navTick() {
     plan(true).finally(() => { S.rerouting = false; if (S.demo) S.demo.reset(); });
     return;
   }
-  if (S.off.isOff()) { checkWrongRoad(); return; } // Ferrostar: don't advance steps while (possibly) off route
+  if (S.off.isOff()) { paintNavSeed(true); checkWrongRoad(); return; } // off the line (yard, drift): keep the full-route ETA and say Head to route. Don't advance the turn.
   if (sn.pt && sn.dist < 30) movePuck(sn.pt[0], sn.pt[1], segB ?? S.pos.heading ?? 0); // show the snapped point while on route
   S.hint = sn.seg; S.along = sn.along; LS.set('navActive', { t: Date.now(), sel: S.sel });
   const remaining = Math.max(0, r.length - sn.along);
@@ -467,6 +546,24 @@ async function overpassChunk(pts) {
       if (!r.ok) continue; const j = await r.json(); if (j.remark && !j.elements?.length) continue; LS.set(key, { t: Date.now(), els: j.elements }); return j.elements; } catch {} } }
   S.overpassBusyUntil = Date.now() + 5 * 60e3; return null; // all mirrors busy: back off 5 min, built-in extract covers it
 }
+function poiHidden(kind) {
+  if (S.layers && S.layers.pois === false) return true;
+  if (S.routeOpts?.showFuel === false && (kind === 'fuel' || kind === 'stop')) return true;
+  if (S.routeOpts?.showWeigh === false && kind === 'weigh') return true;
+  return false;
+}
+let scaleMarkers = [];
+function paintScales(scales) {
+  scaleMarkers.forEach(m => m.remove()); scaleMarkers = [];
+  if (S.routeOpts?.showWeigh === false) return;
+  for (const s of scales || []) {
+    const el = document.createElement('div'); el.className = 'scale-marker'; el.textContent = '⚖️'; el.setAttribute('aria-label', s.name || 'Weigh station');
+    const status = (S.reports || []).find(r => /^weigh_/.test(r.type) && haversine([r.lon, r.lat], [s.lon, s.lat]) < 400);
+    const st = status ? (status.type === 'weigh_open' ? 'A driver reported it open.' : 'A driver reported it closed.') : 'Open or closed is not shown unless a driver reported it.';
+    scaleMarkers.push(new maplibregl.Marker({ element: el }).setLngLat([s.lon, s.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<b style="color:#111">${esc(s.name)}</b><br><span style="color:#333">Weigh station · OpenStreetMap<br>${esc(st)}</span>`)).addTo(map));
+  }
+}
+S.paintScales = paintScales;
 function showPois(raw, note) { S.lastPoiRaw = raw; S.lastPoiNote = note;
   const seen = new Set(), base = S.nav ? S.along : 0, r = S.route;
   const pos = e => ({ lon: e.lon ?? e.center?.lon, lat: e.lat ?? e.center?.lat, tags: e.tags || {} });
@@ -479,7 +576,7 @@ function showPois(raw, note) { S.lastPoiRaw = raw; S.lastPoiNote = note;
   const pf = S.poiFilter || 'all', match = p => pf === 'all' || (pf === 'diesel' ? (p.kind === 'fuel' || p.kind === 'stop') && p.tags['fuel:diesel'] !== 'no' : pf === 'truck' ? p.kind === 'stop' || p.tags.hgv === 'yes' || p.tags['fuel:HGV_diesel'] === 'yes' : pf === 'rest' ? p.kind === 'rest' || p.kind === 'parking' : pf === 'showers' ? !!p.amen?.showers : pf === 'restrooms' ? !!p.amen?.restrooms : pf === 'food' ? !!p.amen?.food : p.kind === pf);
   const ahead = S.pois.filter(p => p.along >= base - 50 && match(p));
   poiMarkers.forEach(m => m.remove());
-  poiMarkers = ahead.map(p => { const el = document.createElement('div'); el.className = 'poi-marker'; el.textContent = POI_ICON[p.kind]; el.style.fontSize = '22px';
+  poiMarkers = ahead.map(p => { const el = document.createElement('div'); el.className = 'poi-marker'; el.dataset.kind = p.kind; el.textContent = POI_ICON[p.kind]; el.style.fontSize = '22px'; if (poiHidden(p.kind)) el.style.display = 'none';
     return new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<b style="color:#111">${esc(p.name)}</b><br><span style="color:#333">${POI_NAME[p.kind]} · ${fmtDist(p.along - base, U())} ahead · ≈${detourMinutes(p.off)} min detour</span>${p.amen && amenityLine(p.amen) ? `<br><span style="color:#333">${esc(amenityLine(p.amen))}</span>` : ''}${amenConfirmHTML(p)}`)).addTo(map); });
   $('#poiList').innerHTML = `<div class="muted small">${esc(note)}</div>` + (ahead.length ? ahead.map(p => `<div class="poi" data-i="${S.pois.indexOf(p)}"><i>${POI_ICON[p.kind]}</i><div><b>${esc(p.name)}</b><br><span class="muted small">${POI_NAME[p.kind]} · in ${fmtDist(p.along - base, U())} · ${p.off < 150 ? 'on route' : '≈' + detourMinutes(p.off) + ' min detour'}${p.tags.opening_hours ? ' · ' + esc(p.tags.opening_hours) : ''}${p.tags['capacity:hgv'] ? ' · ' + esc(p.tags['capacity:hgv']) + ' truck spots' : ''}</span>${S.priceFor?.(p) || ''}${amenityLine(p.amen) ? `<div class="amen small">${esc(amenityLine(p.amen))}${Object.values(p.amen).includes('chain') ? ' <i class="muted">(chain standard — confirm 👍)</i>' : ''}</div>` : ''}</div></div>`).join('') : '<p>No mapped truck stops/rest areas within ~1 mile ahead on this route.</p>');
   if (S.layers && !S.layers.pois) poiMarkers.forEach(m => m.getElement().style.display = 'none');
@@ -553,8 +650,8 @@ S.report = report; S.reportPoint = reportPoint;
 function drawAvoids() { avoidMarkers.forEach(m => m.remove()); avoidMarkers = S.avoids.map(a => { const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = '⛔'; return new maplibregl.Marker({ element: el }).setLngLat([a.lon, a.lat]).addTo(map); }); }
 function drawReports() {
   rptMarkers.forEach(m => m.remove());
-  rptMarkers = S.reports.filter(r => reportVisible(r) && !(r.mine && REPORT_TYPES[r.type]?.avoid)).map(r => { const t = REPORT_TYPES[r.type]; if (!t) return null;
-    const el = document.createElement('div'); el.className = 'rpt-marker'; el.textContent = t.icon;
+  rptMarkers = S.reports.filter(r => reportVisible(r) && !(r.mine && REPORT_TYPES[r.type]?.avoid) && (S.routeOpts?.showHazards !== false) && !(r.type === 'police' && S.routeOpts?.showPolice === false)).map(r => { const t = REPORT_TYPES[r.type]; if (!t) return null;
+    const el = document.createElement('div'); el.className = 'rpt-marker'; el.dataset.kind = r.type; el.textContent = t.icon;
     const html = document.createElement('div'); html.innerHTML = MP.head({ kind: 'hazard', icon: t.icon, label: t.label, src: r.mine ? MP.SRC.you : MP.SRC.driver, when: r.t }) + `<span style="color:#333">👍 ${+r.up || 0} · 👎 ${+r.down || 0}</span>${r.mine ? '<br><i style="color:#555">Your report</i>' : r.voted ? `<br><i style="color:#555">You voted: ${r.voted === 'up' ? 'still there' : 'not there'}</i>` : '<div class="vote"><button data-v="up">👍 Still there</button><button data-v="down">👎 Not there</button></div>' + (r.server ? '<button data-abuse style="font-size:11px;margin-top:4px">🚩 Report fake/abusive</button>' : '')}`;
     html.querySelector('[data-abuse]')?.addEventListener('click', async () => { try { await backend.reportAbuse(r.id, prompt('What is wrong with this report? (optional)') || ''); toast('Thanks — flagged for review'); } catch { toast('Could not send the flag right now. Try again later.'); } });
     html.querySelectorAll('[data-v]').forEach(b => b.onclick = () => vote(r, b.dataset.v));
@@ -704,14 +801,34 @@ function renderDT() { $$('[data-dt]').forEach(b => b.classList.toggle('on', b.da
   $('#hazBtn').textContent = `☣ Hazmat: ${S.truck.hazmat ? 'ON' : 'off'}`; $('#hazBtn').classList.toggle('on', !!S.truck.hazmat); $('#weighBtn').textContent = `⚖️ Avoid scales: ${S.truck.avoidWeigh ? 'ON' : 'off'}`; $('#weighBtn').classList.toggle('on', !!S.truck.avoidWeigh); }
 $$('[data-dt]').forEach(b => b.onclick = () => { S.truck.driverType = b.dataset.dt; Object.assign(S.truck, DRIVER_TYPES[b.dataset.dt].set); fillTruck(); tf.dispatchEvent(new Event('change')); renderDT(); hosRender(); toast('Driver type: ' + b.textContent.trim()); });
 $('#hazBtn').onclick = () => { S.truck.hazmat = !S.truck.hazmat; fillTruck(); tf.dispatchEvent(new Event('change')); renderDT(); toast(S.truck.hazmat ? 'Hazmat ON — routing around hazmat-restricted roads & tunnels' : 'Hazmat off'); };
-$('#weighBtn').onclick = () => { S.truck.avoidWeigh = !S.truck.avoidWeigh; fillTruck(); tf.dispatchEvent(new Event('change')); renderDT(); if (S.truck.avoidWeigh) toast('Avoiding scales where possible — you must still stop when signs require it', 5000); };
+$('#weighBtn').onclick = () => { setRouteOpt('avoidWeigh', !S.truck.avoidWeigh); if (S.truck.avoidWeigh) toast('Avoiding scales where possible — you must still stop when signs require it', 5000); };
 tf.addEventListener('change', renderDT); renderDT(); S.DRIVER_TYPES = DRIVER_TYPES;
 // Layers
 const LAYERS = { fuelAll: v => map.getLayer('fuelAll') && map.setLayoutProperty('fuelAll', 'visibility', v ? 'visible' : 'none'), wz: v => map.getLayer('wz') && map.setLayoutProperty('wz', 'visibility', v ? 'visible' : 'none'),
-  pois: v => $$('.poi-marker').forEach(e => e.style.display = v ? '' : 'none'), reports: v => rptMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'), avoids: v => avoidMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'),
+  pois: v => $$('.poi-marker').forEach(e => e.style.display = v && !poiHidden(e.dataset.kind) ? '' : 'none'), reports: v => rptMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'), avoids: v => avoidMarkers.forEach(m => m.getElement().style.display = v ? '' : 'none'),
   car: v => { $('#cmpCar').checked = v; drawRoute(); }, sat: v => setSat(v),
   traffic: v => { ['tf', 'tf-casing', 'tfRoute'].forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', v && !(id === 'tf-casing' && S.traffic?.hasTomTom?.()) ? 'visible' : 'none')); S.traffic?.setTomTom?.(v); } };
 S.layers = { fuelAll: true, pois: true, wz: false, reports: true, avoids: true, car: false, sat: false, traffic: true, ...LS.get('layers', {}) };
+const OPT_DEFAULT = { avoidWeigh: false, showFuel: true, showPolice: true, showWeigh: true, showHazards: true, showIncidents: true };
+S.routeOpts = { ...OPT_DEFAULT, ...(LS.get('routeOpts', null) || { avoidWeigh: !!S.truck.avoidWeigh, showFuel: S.layers.fuelAll !== false, showHazards: S.layers.reports !== false, showIncidents: S.layers.traffic !== false }) };
+S.truck.avoidWeigh = !!S.routeOpts.avoidWeigh; S.scaleMode = S.truck.avoidWeigh ? 'avoid' : 'off';
+const OPT_SUB = { avoidWeigh: ['Off', 'On · leaves the highway about 2 miles before a scale'], showFuel: ['Hidden', 'Along this route'], showPolice: ['Hidden', 'Community reports only. Not a person’s location.'], showWeigh: ['Hidden', 'Open or closed only if a driver reported it'], showHazards: ['Hidden', 'Crashes, debris, closures'], showIncidents: ['Hidden', 'Incidents and slowdowns'] };
+function renderRouteOpts() {
+  const box = $('#routeOpts'); if (!box) return; box.hidden = !S.dest;
+  for (const b of box.querySelectorAll('[data-opt]')) { const on = !!S.routeOpts[b.dataset.opt]; b.setAttribute('aria-pressed', on ? 'true' : 'false'); const sub = b.querySelector('span'); if (sub) sub.textContent = OPT_SUB[b.dataset.opt][on ? 1 : 0]; }
+}
+function applyRouteOpts() {
+  S.layers.fuelAll = S.routeOpts.showFuel !== false; S.layers.reports = S.routeOpts.showHazards !== false; S.layers.traffic = S.routeOpts.showIncidents !== false;
+  LS.set('layers', S.layers); applyLayers(); paintScales(S.scalesOnTrip || []); S.drawReports?.();
+  document.querySelectorAll('.hz-pin').forEach(el => { el.style.display = (S.routeOpts.showHazards === false || (el.dataset.hz === 'police' && S.routeOpts.showPolice === false)) ? 'none' : ''; });
+}
+function setRouteOpt(key, on) {
+  S.routeOpts[key] = on; LS.set('routeOpts', S.routeOpts); renderRouteOpts();
+  if (key === 'avoidWeigh') { S.truck.avoidWeigh = on; S.scaleMode = on ? 'avoid' : 'off'; LS.set('truck', S.truck); renderDT(); if (S.dest && S.pos) plan(!!S.nav); return; }
+  applyRouteOpts();
+}
+S.setRouteOpt = setRouteOpt; S.renderRouteOpts = renderRouteOpts;
+$('#routeOpts')?.addEventListener('click', e => { const b = e.target.closest('[data-opt]'); if (!b) return; setRouteOpt(b.dataset.opt, S.routeOpts[b.dataset.opt] === false || !S.routeOpts[b.dataset.opt]); });
 function applyLayers() { for (const [k, f] of Object.entries(LAYERS)) { try { f(S.layers[k]); } catch {} } $$('[data-layer]').forEach(c => c.checked = !!S.layers[c.dataset.layer]); }
 $$('[data-layer]').forEach(c => c.onchange = () => { S.layers[c.dataset.layer] = c.checked; LS.set('layers', S.layers); applyLayers(); });
 $('#layersBtn').onclick = () => openPanel('layersPanel'); map.on('idle', () => { if (!S._layersApplied) { S._layersApplied = true; applyLayers(); } }); S.applyLayers = applyLayers;

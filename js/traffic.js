@@ -96,7 +96,7 @@ export function init(S, { $, map, say, toast, esc, LS }) {
     // NYC DOT / crowd overlay: thin and casing-free while TomTom draws the network, so it doesn't double up
     for (const [id, v] of [['tf-casing', 'none']]) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); }
   let ttErr = 0; map.on('error', e => { if (!/^tt(flow|inc)$/.test(e.sourceId || '')) return; if (++ttErr < 4) return; T.status.tomtom = 'failed'; ttLayers();
-    toast?.('TomTom traffic unavailable — showing NYC DOT + driver speeds. Tap 🚦 Waze for the live map.'); renderLegend?.(); });
+    toast?.('TomTom traffic unavailable — showing city and driver speeds.'); renderLegend?.(); });
   map.on('sourcedata', e => { if (/^tt(flow|inc)$/.test(e.sourceId || '') && e.tile && T.status.tomtom !== 'failed') T.status.tomtom = 'ok'; });
   T.setTomTom = on => { LS.set('tomtomOn', !!on); if (S.layers) S.layers.traffic = !!on; if (on && T.status.tomtom === 'failed') { T.status.tomtom = null; ttErr = 0; } ttLayers(); renderLegend?.(); };
   T.hasTomTom = () => !!T.keys.tomtom;

@@ -1,5 +1,15 @@
 [
  {
+  "version": "3.31.0",
+  "date": "2026-11-09",
+  "items": [
+   "When you pick a destination, route options are right there: avoid weigh stations, and show fuel, police reports, scales, hazards and live traffic. The choices stay on this phone. No account.",
+   "Avoid weigh stations leaves the highway about two miles before each scale and comes back after it. Truck bans, height and weight still apply. If the detour is long, you choose Avoid or Through scale. Open or closed is shown only when a driver reported it.",
+   "Starting a trip shows the arrival time, distance and first turn right away. If you are still in the yard, it says Head to route until the truck is on the line.",
+   "On a short screen the extra traffic cards tuck in so the map stays visible. Hazard pins and the Me color chips are easier to tap. Lane closed and Road closed use different icons."
+  ]
+ },
+ {
   "version": "3.30.8",
   "date": "2026-11-09",
   "items": [

@@ -14,7 +14,7 @@ export function init(S, h) {
   const ins = (sel, pos, html) => document.querySelector(sel).insertAdjacentHTML(pos, html);
 
   // ---------- UI injection ----------
-  ins('#speedBox', 'afterend', '<div id="limitSign" class="hidden" title="Speed limit for your truck"><small>LIMIT</small><b id="limitVal">--</b><i id="limitSrc"></i></div>');
+  ins('#speedBox', 'afterend', '<div id="limitSign" class="hidden" title="Speed limit for your truck"><small>LIMIT </small><b id="limitVal">--</b><i id="limitSrc"></i></div>');
   ins('#banner', 'afterend', '<div id="lanes" class="hidden" aria-label="Lane guidance"></div>');
   ins('#sideBtns', 'beforeend', '<button id="sosBtn" class="round sos" title="Emergency SOS" aria-label="Emergency SOS">SOS</button>');
   ins('#routeSummary', 'afterend', `<div id="stopsBox"><h3>Stops</h3><ol id="stopList" class="small"></ol>
@@ -108,7 +108,7 @@ export function init(S, h) {
     let lim = null, posted = null, info = null;
     if (S.nav && S.route) { posted = limitAt(S.edges || [], S.along); info = limitInfo(S.edges || [], S.along, S.admins, [f.lon, f.lat], S.opts.maxMph); lim = info.mph; }
     S.limitMph = lim; S.postedKph = posted; S.limitInfo = info;
-    const sign = $('#limitSign'); if (lim) { sign.classList.remove('hidden'); sign.classList.toggle('est', !!info.est); $('#limitVal').textContent = U() === 'km' ? Math.round(lim * 1.609) : lim; $('#limitSrc').textContent = info.src; } else sign.classList.add('hidden');
+    const sign = $('#limitSign'); if (lim) { sign.classList.remove('hidden'); sign.classList.toggle('est', !!info.est); $('#limitVal').textContent = String(U() === 'km' ? Math.round(lim * 1.609) : lim); $('#limitSrc').textContent = info.src ? ' ' + info.src : ''; } else sign.classList.add('hidden');
     const over = !info?.est && isSpeeding(mph, lim); $('#speedBox').classList.toggle('over', over);
     if (over && Date.now() - lastSpeedWarn > 60000) { lastSpeedWarn = Date.now(); say(`Slow down. Limit ${lim}.`, 'danger'); }
     // lanes: show within 1 km before a lane intersection

@@ -2,16 +2,16 @@
 // (a) tap-through of every panel at phone sizes: labels do what they say, no overlap/clipping between controls, screenshots
 // (b) five real truck routes end to end (NYC local, highway, low clearance, multi-stop, reroute offer via TEST-ONLY mock)
 // (c) zero console errors from the app (outside public Nostr relays are listed separately)  (d) report file in /workspace/rigroute/qa/<version>/
-// WebKit: used when the host has its system libraries (GATE_WEBKIT=1); otherwise Chromium with the iPhone profile, noted in the report.
+// WebKit: the iPhone run launches real Playwright WebKit. If that launch throws, the gate records a failing check (it does not pass on a Chromium stand-in).
 import { chromium, webkit, devices } from 'playwright'; import fs from 'node:fs';
 const BASE = process.env.BASE || 'https://ace9x.github.io/truckers-gps/';
 const sw = await (await fetch(BASE + 'sw.js', { cache: 'no-store' })).text(); const VER = sw.match(/tn-v([\d.]+)/)?.[1] || 'unknown';
 const OUT = process.env.OUT || `/workspace/rigroute/qa/${VER}`; fs.mkdirSync(OUT, { recursive: true });
 const R = { version: VER, base: BASE, started: new Date().toISOString(), runs: [] };
-let wk = null; if (process.env.GATE_WEBKIT) { try { wk = await webkit.launch({ env: { ...process.env, ...(fs.existsSync('/opt/wklibs/gio') ? { GIO_EXTRA_MODULES: '/opt/wklibs/gio' } : {}) } }); /* QA box: TLS module unpacked from Debian glib-networking */ R.webkitNote = 'iPhone run uses real WebKit (Playwright ' + wk.version() + ').'; } catch (e) { R.webkitNote = 'WebKit unavailable: ' + e.message.split('\n')[0]; } } else R.webkitNote = 'WebKit system libraries missing on the QA box (Debian mirror down); iPhone run uses Chromium with the iPhone 13 profile at 390x844.';
+let wk = null; try { wk = await webkit.launch({ env: { ...process.env, ...(fs.existsSync('/opt/wklibs/gio') ? { GIO_EXTRA_MODULES: '/opt/wklibs/gio' } : {}) } }); R.webkitNote = 'iPhone run uses real WebKit (Playwright ' + wk.version() + ').'; } catch (e) { R.webkitNote = 'WebKit unavailable: ' + e.message.split('\n')[0]; R.runs.push({ profile: 'webkit', engine: 'none', checks: [{ ok: false, m: 'real WebKit launched', extra: e.message.split('\n')[0] }], overlaps: [], small: [], errors: [], external: [], shots: [] }); }
 const ch = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 const PROFILES = [
-  { name: 'iphone', engine: wk ? 'webkit' : 'chromium', br: wk || ch, dev: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } },
+  ...(wk ? [{ name: 'iphone', engine: 'webkit', br: wk, dev: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 } } }] : []),
   { name: 'pixel7', engine: 'chromium', br: ch, dev: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 } } }];
 const EXTERNAL = /relay\.|nos\.lol|damus|nostr|wss:\/\/|tile|openfreemap|overpass|photon|valhalla|nominatim|geojs|tomtom|ERR_INTERNET_DISCONNECTED|preconnect|esm\.sh|data\.cityofnewyork\.us|api\.weather\.gov|Access-Control-Allow-Origin\. Status code: 5\d\d/i; // browser logs for outside feeds (NYC Open Data 503, NWS). The app catches them.
 // Ask RigRoute allows only the GitHub Pages origin. A gate on localhost still gets the browser's CORS line; the app answers from the built-in guide. The same failure ON Pages stays an app error.

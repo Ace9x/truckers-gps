@@ -85,6 +85,14 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
 <section id="routePanel" class="panel hidden">
   <div class="phead"><h2>Route</h2><button class="close">✕</button></div>
   <div id="routeSummary" class="muted">No destination yet. Tap “Where to?”.</div>
+  <div id="routeOpts" hidden>
+    <button type="button" class="ropt" data-opt="avoidWeigh" aria-pressed="false"><b>Avoid weigh stations</b><span>Off</span></button>
+    <button type="button" class="ropt" data-opt="showFuel" aria-pressed="true"><b>Show fuel and truck stops</b><span>Along this route</span></button>
+    <button type="button" class="ropt" data-opt="showPolice" aria-pressed="true"><b>Show police reports</b><span>Community reports only</span></button>
+    <button type="button" class="ropt" data-opt="showWeigh" aria-pressed="true"><b>Show weigh stations</b><span>Open or closed only if a driver reported it</span></button>
+    <button type="button" class="ropt" data-opt="showHazards" aria-pressed="true"><b>Show driver hazards</b><span>Crashes, debris, closures</span></button>
+    <button type="button" class="ropt" data-opt="showIncidents" aria-pressed="true"><b>Show live traffic</b><span>Incidents and slowdowns</span></button>
+  </div>
   <div class="row">
     <button id="goBtn" class="primary big" disabled>▶ Start navigation</button>
     <button id="demoBtn" class="big" disabled>Demo drive</button>

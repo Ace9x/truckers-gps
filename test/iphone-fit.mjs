@@ -1,10 +1,11 @@
 // Real-iPhone fit check (BUG-025…030): WebKit, iPhone 13 at 390x844 AND 390x664 (Safari's address bar + toolbar eat ~180 px).
 // Fails on: text wrapping inside a button / menu item / tab, overlapping UI, anything clipped off-screen, a tab without an icon, duplicate map (i) buttons.
 // Screens: ⋮ menu, bottom tabs, map, nav turn banner + lanes + alert, windshield (driving) view.  Usage: BASE=… OUT=dir node test/iphone-fit.mjs  (exit 1 on any FAIL)
-import { webkit, chromium, devices } from 'playwright'; import fs from 'node:fs';
+import { webkit, devices } from 'playwright'; import fs from 'node:fs';
 const BASE = process.env.BASE || 'https://ace9x.github.io/truckers-gps/', OUT = process.env.OUT || '/tmp/iphone-fit', TAG = process.env.TAG || '';
 fs.mkdirSync(OUT, { recursive: true });
-const br = await webkit.launch({ env: { ...process.env, ...(fs.existsSync('/opt/wklibs/gio') ? { GIO_EXTRA_MODULES: '/opt/wklibs/gio' } : {}) } }).catch(() => null) || await chromium.launch();
+let br; try { br = await webkit.launch({ env: { ...process.env, ...(fs.existsSync('/opt/wklibs/gio') ? { GIO_EXTRA_MODULES: '/opt/wklibs/gio' } : {}) } }); } catch (e) { console.log('FAIL real WebKit launched ' + String(e.message || e).split('\n')[0]); process.exit(1); }
+console.log('ok   iPhone fit uses real WebKit ' + br.version());
 const res = []; const ok = (c, m, x) => { res.push({ ok: !!c, m, x }); console.log((c ? 'ok   ' : 'FAIL ') + m + (x && !c ? ' ' + JSON.stringify(x).slice(0, 400) : '')); };
 const AUDIT = () => { const vw = innerWidth, vh = innerHeight, out = { wrap: [], ov: [], clip: [] };
   const vis = e => { const s = getComputedStyle(e), b = e.getBoundingClientRect(); return b.width > 1 && b.height > 1 && s.visibility !== 'hidden' && s.display !== 'none' && +s.opacity > 0.05 && !e.closest('.hidden,[hidden],[aria-hidden=true]'); };

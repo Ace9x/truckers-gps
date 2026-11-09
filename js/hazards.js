@@ -115,7 +115,8 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
         m = tapToOpen(new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([r.lon, r.lat]).setPopup(pop).addTo(map), h.label); markers.set(r.id, m); }
       const el = m.getElement(); el.style.opacity = opacity(r, now); el.dataset.op = opacity(r, now);
       const call = el.querySelector('.hz-call'); call.textContent = `${h.label} · ${hz.isHeld(r) ? 'unconfirmed' : ago(now - (r.lastUp || r.t))}`; el.classList.toggle('held', hz.isHeld(r)); call.style.display = d < 3000 ? '' : 'none';
-      el.style.display = S.layers?.reports === false ? 'none' : ''; }
+      const hideHz = S.layers?.reports === false || S.routeOpts?.showHazards === false || (r.type === 'police' && S.routeOpts?.showPolice === false);
+      el.style.display = hideHz ? 'none' : ''; }
     for (const [id, m] of markers) if (!keep.has(id)) { m.remove(); markers.delete(id); }
     checkAhead(); }
   // approaching alerts
@@ -128,7 +129,7 @@ export function init(S, { $, map, say, toast, report: legacyReport, openPanel, c
     document.body.appendChild(banner); S.hzLastBanner = banner.textContent; const bb = banner; setTimeout(() => bb.remove(), 8000); }
   function checkAhead() { const p = S.pos; if (!p) return;
     const route = S.nav && S.route ? { line: S.route.line, cum: S.route.cum, along: S.along || 0 } : null;
-    const list = ahead(hz.visible().filter(r => !hz.isHeld(r)), { pos: p, heading: p.heading, route, snap: snapToRoute }).filter(x => !x.r.mine);
+    const list = ahead(hz.visible().filter(r => !hz.isHeld(r) && S.routeOpts?.showHazards !== false && !(r.type === 'police' && S.routeOpts?.showPolice === false)), { pos: p, heading: p.heading, route, snap: snapToRoute }).filter(x => !x.r.mine);
     S.hzAhead = list.map(x => ({ id: x.r.id, type: x.r.type, d: Math.round(x.d) }));
     for (const { r, d } of list) { const w = warned.get(r.id) || 0, stage = d < 500 ? 2 : 1; if (w >= stage) continue; warned.set(r.id, stage);
       showBanner(r, d); const txt = alertText(r, d); S.hzLastAlert = txt; say(txt, 'hazard', true); break; } }

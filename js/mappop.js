@@ -5,7 +5,7 @@ import { HZ, HZ_ORDER } from './hazlogic.js';
 import { REPORT_TYPES } from './community.js';
 // TomTom Traffic incident iconCategory (Incident Details v5 docs): 0..11 and 14; 12/13 are unused and shown as Unknown.
 export const TT = { 0: ['❗', 'Unknown incident'], 1: ['💥', 'Accident'], 2: ['🌫', 'Fog'], 3: ['⚠', 'Dangerous conditions'], 4: ['💧', 'Rain'], 5: ['❄', 'Ice on the road'],
-  6: ['🚗', 'Traffic jam'], 7: ['⛔', 'Lane closed'], 8: ['⛔', 'Road closed'], 9: ['🚧', 'Road work'], 10: ['💨', 'Strong wind'], 11: ['🌊', 'Flooding'], 14: ['🚘', 'Broken-down vehicle'] };
+  6: ['🚗', 'Traffic jam'], 7: ['〰️', 'Lane closed'], 8: ['🚫', 'Road closed'], 9: ['🚧', 'Road work'], 10: ['💨', 'Strong wind'], 11: ['🌊', 'Flooding'], 14: ['🚘', 'Broken-down vehicle'] };
 export const ttInfo = c => TT[+c] || TT[0];
 export const SRC = { tomtom: 'TomTom traffic', driver: 'RigRoute driver', friend: 'Friend', you: 'You' };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
