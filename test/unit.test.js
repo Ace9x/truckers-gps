@@ -281,6 +281,7 @@ test('invite codes stay short and install prompts land on trips 1, 3 and 10', ()
   assert.equal(installMilestone(10), 10);
 });
 import { corridorPoints, stitchRoutes, driverRouteMessage, rankPlaces, LEG_M } from '../js/routelong.js';
+import { driveFrame, DRIVE_PITCH } from '../js/truck3d.js';
 test('long routes are split under the provider cap and stitched into one line', () => {
   const a = { lat: 40.73, lon: -73.86 }, b = { lat: 34.05, lon: -118.24 };
   const pts = corridorPoints(a, b, LEG_M);
@@ -310,4 +311,12 @@ test('long routes are split under the provider cap and stitched into one line', 
     { lat: 40.64, lon: -73.90, name: 'Canarsie Street', sub: 'Brooklyn, New York' },
   ], { lat: 40.73, lon: -73.85 }, 'Canarsiee Street');
   assert.equal(miss[0].name, 'Canarsie Street');
+});
+test('driving camera keeps the truck in the lower third', () => {
+  for (const h of [664, 844, 915]) {
+    const f = driveFrame(h);
+    assert.equal(f.pitch, DRIVE_PITCH);
+    assert.ok(f.pitch >= 55 && f.pitch <= 60);
+    assert.ok(f.ratio > 0.64 && f.ratio < 0.78, h + ' ' + f.ratio);
+  }
 });

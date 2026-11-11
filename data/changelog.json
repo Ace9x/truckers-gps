@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.33.0",
+  "date": "2026-11-11",
+  "items": [
+   "The truck on the map is a cab and trailer that turns with your heading, with a soft shadow. While you drive, the map tilts and follows, and buildings stand up where the map has them. One tap switches back to a flat north-up map.",
+   "Live reports and traffic share one small Live chip. Tap it for the details. It closes on its own.",
+   "Notes, alerts and popups stay on a corner of the map. Each one has a close button, and you can swipe it away. They do not cover the map."
+  ]
+ },
+ {
   "version": "3.32.2",
   "date": "2026-11-11",
   "items": [

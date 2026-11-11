@@ -7,6 +7,8 @@ import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
 import { scalesOnRoute, corridorsFor, scalesStillHit, usesNoTruckRoad, avoidDecision } from './weighlogic.js';
 import { LEG_M, isDistanceCap, driverRouteMessage, corridorPoints, gcPoint, stitchRoutes, rankPlaces, milesAway } from './routelong.js';
+import { paintTruck, driveFrame, DRIVE_PITCH } from './truck3d.js';
+import { arm, watchNotices } from './notices.js';
 import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
 import { makeBackend, Profile, REPORT_TYPES, POINTS, BADGES, LEVELS, DrivingMonitor, reportVisible, weekKey } from './community.js';
@@ -57,10 +59,14 @@ S.map = map; MP.wireTomTom(map, S); MP.declutter(map);
   document.addEventListener('click', e => { const a = e.target.closest?.('.maplibregl-ctrl-attrib'); if (a) a.dataset.userOpen = '1'; else document.querySelectorAll('.maplibregl-ctrl-attrib[data-user-open]').forEach(x => { delete x.dataset.userOpen; shut(); }); }, true); } setTimeout(MP.mountLegendButton, 0);
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
+const truckCanvas = document.createElement('canvas'); truckCanvas.setAttribute('aria-hidden', 'true'); truckEl.appendChild(truckCanvas);
 S.ride = { type: 'pro', color: 'orange', ...LS.get('ride', {}) };
-const drawRide = () => { truckEl.innerHTML = vehicleSVG(S.ride.type, S.ride.color, 52); };
+S.view3d = LS.get('view3d', true) !== false;
+const rideColor = () => ({ red: '#e53935', orange: '#fb8c00', yellow: '#fdd835', green: '#43a047', blue: '#1e88e5', purple: '#8e24aa', black: '#37474f', white: '#eceff1', chrome: '#b0bec5' }[S.ride.color] || '#fb8c00');
+const truckView = () => (S.nav && S.view3d) ? 'rear' : 'top';
+const drawRide = () => { paintTruck(truckCanvas, { color: rideColor(), view: truckView(), kind: S.ride.type, dpr: Math.min(2, window.devicePixelRatio || 1) }); };
 drawRide();
-const truckMarker = new maplibregl.Marker({ element: truckEl, rotationAlignment: 'map', pitchAlignment: 'map' });
+const truckMarker = new maplibregl.Marker({ element: truckEl, rotationAlignment: 'map', pitchAlignment: 'map', anchor: 'center' });
 { const pop = new maplibregl.Popup({ offset: 24 }); pop.on('open', () => pop.setHTML(MP.head({ kind: 'you', icon: '🚛', label: 'Your truck (live GPS)', src: MP.SRC.you, when: S.pos?.t ?? null, detail: S.pos?.acc ? t('GPS accurate to about {0} m', [Math.round(S.pos.acc)]) : '' }))); truckMarker.setPopup(pop); MP.tapToOpen(truckMarker, 'Your truck (live GPS)'); S.truckMarker = truckMarker; S.mp = MP; }
 const destMarker = new maplibregl.Marker({ color: '#e53935' }); const gateMarker = new maplibregl.Marker({ color: '#ffb300' });
 let poiMarkers = [], rptMarkers = [], avoidMarkers = []; let updateHud = null;
@@ -80,6 +86,15 @@ function addLayers() {
   if (!map.getSource('fuelAll')) map.addSource('fuelAll', { type: 'geojson', data: S.fuelGeo || empty, cluster: true, clusterRadius: 45, clusterMaxZoom: 13 });
   if (!map.getLayer('fuelAll')) map.addLayer({ id: 'fuelAll', type: 'circle', source: 'fuelAll', minzoom: 10, filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': 6, 'circle-color': ['case', ['==', ['get', 'truck'], true], '#ffb300', '#26a69a'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
   drawRoute();
+  ensureBuildings();
+}
+function ensureBuildings() {
+  if (map.getLayer('building-3d') || map.getLayer('rr-buildings') || !map.getSource('openmaptiles')) return;
+  const before = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
+  try {
+    map.addLayer({ id: 'rr-buildings', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14,
+      paint: { 'fill-extrusion-color': curTheme === 'day' ? '#e6dcc8' : '#3c4654', 'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 10], 'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0], 'fill-extrusion-opacity': 0.9 } }, before);
+  } catch (e) { console.warn('buildings', e); }
 }
 map.on('style.load', addLayers);
 map.on('click', 'wz', e => { const p = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${p.closed ? '⛔ Closure' : '🚧 Work zone'}</b><br><span style="color:#333">${esc(p.desc)}<br><i>Source: official ${esc(p.src)} 511/WZDx feed</i></span>`).addTo(map); });
@@ -109,7 +124,8 @@ map.on('contextmenu', e => pickPoint(e.lngLat));
 function pickPoint(ll) { setDest({ lon: ll.lng, lat: ll.lat, name: `Pin ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}` }); }
 
 // ---------- UI helpers ----------
-function toast(msg, ms = 3000) { const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), ms); }
+function toast(msg, ms = 5000) { const t = $('#toast'); let s = t.querySelector('.rr-msg'); if (!s) { t.replaceChildren(); s = document.createElement('span'); s.className = 'rr-msg'; t.appendChild(s); } s.textContent = msg; t.classList.remove('hidden'); arm(t, { fresh: true, ms: Math.min(ms || 5000, 5000) }); }
+S.toast = toast;
 function openPanel(id) { $$('.panel').forEach(p => p.classList.toggle('hidden', p.id !== id || !p.classList.contains('hidden'))); $('#crosshair').classList.toggle('hidden', id !== 'facPanel' || $('#facPanel').classList.contains('hidden')); if (id === 'mePanel') renderMe(); if (id === 'reportPanel') renderReportPanel(); }
 function closePanels() { $$('.panel').forEach(p => p.classList.add('hidden')); $('#crosshair').classList.add('hidden'); }
 $$('#dock button').forEach(b => b.onclick = () => openPanel(b.dataset.panel));
@@ -121,13 +137,21 @@ $('#muteBtn').onclick = () => { voice.enabled = !voice.enabled; LS.set('voice', 
 // ---------- Follow / camera ----------
 function setFollow(v) { S.follow = v; $('#followBtn').classList.toggle('on', v); if (v && S.pos) camera(true); }
 $('#followBtn').onclick = () => setFollow(true);
+$('#viewBtn')?.addEventListener('click', () => setView3d(!S.view3d));
+$('#navView')?.addEventListener('click', () => setView3d(!S.view3d));
+document.addEventListener('click', e => { if (e.target.closest('#dView')) setView3d(!S.view3d); });
+function setView3d(v) { S.view3d = !!v; LS.set('view3d', S.view3d); const label = S.view3d ? 'Switch to flat north-up map' : 'Switch to 3D driving view', txt = S.view3d ? '2D' : '3D';
+  for (const id of ['viewBtn', 'navView', 'dView']) { const b = document.getElementById(id); if (!b) continue; b.textContent = txt; b.classList.toggle('on', S.view3d); b.setAttribute('aria-label', label); b.title = label; }
+  truckMarker.setPitchAlignment(S.nav && S.view3d ? 'viewport' : 'map'); drawRide(); if (!S.view3d) map.easeTo({ pitch: 0, bearing: S.nav ? 0 : map.getBearing(), duration: 450 }); if (S.follow && S.pos) camera(false); }
 function camera(jump) {
   if (!S.pos || !S.follow) return;
   const o = { center: [S.pos.lon, S.pos.lat] };
-  if (S.nav) Object.assign(o, { zoom: Math.max(14, 17 - (S.pos.speed || 0) / 12), pitch: 55, bearing: (S.camBearing = smoothBearing(S.camBearing ?? map.getBearing(), S.pos.heading ?? null)), padding: { top: window.innerHeight * 0.45, bottom: 40 } });
+  if (S.nav && S.view3d) { const f = driveFrame(window.innerHeight); Object.assign(o, { zoom: Math.max(15, 17.2 - (S.pos.speed || 0) / 14), pitch: f.pitch, bearing: (S.camBearing = smoothBearing(S.camBearing ?? map.getBearing(), S.pos.heading ?? null)), padding: { top: f.top, bottom: f.bottom } }); }
+  else if (S.nav) Object.assign(o, { zoom: Math.max(14, 16 - (S.pos.speed || 0) / 14), pitch: 0, bearing: 0, padding: { top: 80, bottom: 80 } });
   else Object.assign(o, { padding: { top: 0, bottom: 0 } });
-  jump ? map.jumpTo(o) : map.easeTo({ ...o, duration: 1000, easing: t => t }); // linear 1 s ease per fix ≈ continuous follow
+  jump ? map.jumpTo(o) : map.easeTo({ ...o, duration: 900, easing: t => 1 - (1 - t) ** 3 });
 }
+S.setView3d = setView3d; S.driveFrame = driveFrame; S.DRIVE_PITCH = DRIVE_PITCH;
 
 // ---------- GPS (high accuracy while moving, low-power when parked) ----------
 let watchId = null;
@@ -450,9 +474,12 @@ async function checkWrongRoad() {
   } catch {}
 }
 function showWrongRoad(w) { const el = $('#wrongRoad'); S.wrongRoad = w;
-  if (!w) { el.classList.add('hidden'); return; } el.textContent = w.short + (S.lastLocate?.length ? ` (${S.lastLocate.filter(n => n.length > 3)[0] || S.lastLocate[0]})` : ''); el.classList.remove('hidden');
-  if (S.lastWrong !== w.short) { S.lastWrong = w.short; say(w.text, 'danger'); mascot.say(w.sev === 'stop' ? 'Yikes! Trucks are not allowed on this road. Find a safe place to turn.' : 'Hmm, this looks like a side street. Let me get you back to the truck route.', 'worried', 8000); }
-  clearTimeout(showWrongRoad._t); showWrongRoad._t = setTimeout(() => { el.classList.add('hidden'); S.lastWrong = null; }, 15000); }
+  if (!w) { el.classList.add('hidden'); return; }
+  const msg = w.short + (S.lastLocate?.length ? ` (${S.lastLocate.filter(n => n.length > 3)[0] || S.lastLocate[0]})` : '');
+  if (el.dataset.dismissed === msg) return;
+  let s = el.querySelector('.rr-msg'); if (!s) { el.replaceChildren(); s = document.createElement('span'); s.className = 'rr-msg'; el.appendChild(s); }
+  s.textContent = msg; el.classList.remove('hidden'); arm(el, { fresh: true, critical: true, ms: 8000 });
+  if (S.lastWrong !== w.short) { S.lastWrong = w.short; say(w.text, 'danger'); mascot.say(w.sev === 'stop' ? 'Yikes! Trucks are not allowed on this road. Find a safe place to turn.' : 'Hmm, this looks like a side street. Let me get you back to the truck route.', 'worried', 5000); } }
 S.checkWrongRoad = checkWrongRoad; S.showWrongRoad = showWrongRoad; S.wrongRoadFn = wrongRoad;
 
 // ---------- Navigation ----------
@@ -462,7 +489,7 @@ let wakeLock = null;
 async function startNav(resumed) {
   if (!S.route) return;
   S.nav = true; S.arrived = false; S.tripStart = S.tripStart && resumed ? S.tripStart : Date.now(); if (!resumed) { S.tripMiles = 0; monitor.hardBrakes = 0; monitor.events = 0; }
-  document.body.classList.add('nav'); closePanels(); setFollow(true); drawRoute();
+  document.body.classList.add('nav'); closePanels(); setFollow(true); drawRoute(); setView3d(S.view3d);
   $('#banner').classList.remove('hidden'); $('#tripBar').classList.remove('hidden');
   try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
   LS.set('navActive', { t: Date.now(), sel: S.sel });
@@ -499,7 +526,7 @@ function endNav(msg) {
   if (S.nav) finishTrip();
   S.nav = false; stopDemo(); document.body.classList.remove('nav'); localStorage.removeItem('tn_navActive');
   $('#banner').classList.add('hidden'); $('#tripBar').classList.add('hidden'); $('#thenBox').classList.add('hidden'); $('#lastMile').classList.add('hidden');
-  try { wakeLock?.release(); } catch {} wakeLock = null; map.easeTo({ pitch: 0, padding: { top: 0, bottom: 0 } }); drawRoute();
+  try { wakeLock?.release(); } catch {} wakeLock = null; truckMarker.setPitchAlignment('map'); drawRide(); map.easeTo({ pitch: 0, bearing: map.getBearing(), padding: { top: 0, bottom: 0 }, duration: 450 }); drawRoute();
   if (msg) toast(msg);
 }
 S.startNav = startNav; S.endNav = endNav;
@@ -554,7 +581,7 @@ function weighAlerts() {
     for (const [k, d, txt] of [['2', 2 * MI, 'two miles'], ['1', MI, 'one mile']]) if (ahead <= d && ahead > d - 0.6 * MI && !a[k]) { a[k] = true; a['2'] = true;
       mascot.say(`Weigh station in ${k} mile${k === '1' ? '' : 's'}! Have your paperwork handy.`, 'wow'); say(`Weigh station in ${txt}. ${p.name !== 'Weigh station' ? p.name + '.' : ''}${status}`, 'weigh'); alertBanner(`⚖️ Weigh station in ${k} mi${status}`); } }
 }
-function alertBanner(txt, kind = 'warn') { const el = document.createElement('div'); el.className = 'alert ' + kind; el.setAttribute('role', 'alert'); el.textContent = txt; $('#alerts').appendChild(el); setTimeout(() => el.remove(), 12000); }
+function alertBanner(txt, kind = 'warn') { const el = document.createElement('div'); el.className = 'alert ' + kind; el.setAttribute('role', 'alert'); const s = document.createElement('span'); s.className = 'rr-msg'; s.textContent = txt; el.appendChild(s); $('#alerts').appendChild(el); arm(el, { critical: kind === 'hazard', ms: kind === 'hazard' ? 8000 : 5000 }); }
 
 // ---------- Last-mile facility mode ----------
 function lastMile(remaining) {
@@ -827,9 +854,8 @@ function hosRender() {
   $('#hDrive').textContent = hm(h.driveLeft); $('#hWin').textContent = hm(h.windowLeft); $('#hBreak').textContent = h.breakLeft === Infinity ? 'exempt' : hm(h.breakLeft); $('#dockHos').title = 'Hours estimate — not an ELD, informational only'; $('#dockHos').textContent = hm(Math.min(h.driveLeft, h.breakLeft));
   $$('[data-duty]').forEach(b => b.classList.toggle('on', b.dataset.duty === h.status));
   $('#hosWarn').innerHTML = h.warnings.map(w => `<div class="alert ${/soon|under/i.test(w) ? 'warn' : ''}">${w}</div>`).join('');
-  $$('#alerts .hosA').forEach(e => e.remove());
   if (!truckUIOn(S.truck)) return;
-  if (h.status === 'drive') for (const w of h.warnings) { const el = document.createElement('div'); el.className = 'alert hosA ' + (/soon|under/i.test(w) ? 'warn' : ''); el.textContent = '⏱ ' + w; const n = document.createElement('small'); n.className = 'eld-note'; n.textContent = ' Not an ELD · informational only'; el.appendChild(n); $('#alerts').prepend(el); }
+  if (h.status === 'drive') for (const w of h.warnings) { if (S.hosSeen?.[w] || [...$$('#alerts .hosA')].some(e => e.dataset.w === w)) continue; S.hosSeen = S.hosSeen || {}; S.hosSeen[w] = 1; const el = document.createElement('div'); el.className = 'alert hosA ' + (/soon|under/i.test(w) ? 'warn' : ''); el.dataset.w = w; const s = document.createElement('span'); s.className = 'rr-msg'; s.textContent = '⏱ ' + w; const n = document.createElement('small'); n.className = 'eld-note'; n.textContent = ' Not an ELD · informational only'; el.append(s, n); $('#alerts').prepend(el); arm(el, { critical: true, ms: 8000 }); }
   for (const w of h.warnings) if (!S.warned[w] && h.status === 'drive') { S.warned[w] = true; say('Hours of service: ' + w, 'hos'); mascot.say(`⏱ ${w}. Time to find a spot to rest.`, 'worried', 9000); }
   $('#hosLog').innerHTML = S.events.slice(-20).reverse().map(e => `<li>${new Date(e.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} — ${labelDuty(e.s)}${e.auto ? ' (auto)' : ''}</li>`).join('');
 }
@@ -944,6 +970,7 @@ const H_ = { $, $$, LS, esc, toast, say, map, plan, openPanel, closePanels, aler
 import('./extras.js').then(m => m.init(S, H_)).catch(e => console.error('extras', e))
   .finally(() => import('./planner.js').then(m => m.init(S, { ...H_, truckCosting })).catch(e => console.error('planner', e)))
   .finally(() => import('./offline.js').then(m => { m.init(S, H_); S.offlineReady = true; }).catch(e => console.error('offline', e)));
+watchNotices(); setView3d(S.view3d);
 S.openPanel = openPanel;
 import('./account.js').then(m => m.init(S, H_)).catch(e => console.error('account', e));
 S.ready = true;

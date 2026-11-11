@@ -209,8 +209,8 @@ export function init(S, { $, map, say, toast, esc, LS }) {
   const warned = new Map(); let banner, lastCheck = 0, suggesting = false;
   function showBanner(html, cls, buttons = [], sug = false) { if (!sug && banner?.isConnected && banner.dataset.sug) return; // a reroute offer outranks repeat jam alerts
     banner?.remove(); banner = document.createElement('div'); banner.id = 'tfBanner'; banner.className = cls || ''; if (sug) banner.dataset.sug = '1'; banner.innerHTML = html;
-    for (const [lbl, fn, x] of buttons) { const b = document.createElement('button'); b.textContent = lbl; if (x) b.className = 'x'; b.onclick = () => { banner.remove(); fn?.(); }; banner.appendChild(b); }
-    document.body.appendChild(banner); const bb = banner; setTimeout(() => bb.remove(), sug ? 60000 : 20000); } // reroute offer stays 60 s, then dismisses (route never changes on its own)
+    for (const [lbl, fn, x] of buttons) { const b = document.createElement('button'); b.textContent = lbl; if (x) { b.className = 'rr-x'; b.setAttribute('aria-label', 'Close'); } b.onclick = () => { banner.remove(); fn?.(); }; banner.appendChild(b); }
+    document.body.appendChild(banner); const bb = banner; setTimeout(() => { if (bb.isConnected) bb.remove(); }, sug ? 8000 : 5000); } // offer never changes the route by itself, and it leaves the map on its own
   function ahead() { const tr = T.cur, along = S.along || 0; if (!tr) return;
     const s = tr.slowdowns.find(x => x.end > along && x.start - along < 8 * MI && (x.level !== 'slow' || x.delay > 60)); T.ahead = s || null;
     if (s) { const d = s.start - along, stage = d < 800 ? 2 : 1, key = Math.round(s.start / 500); if ((warned.get(key) || 0) < stage) { warned.set(key, stage); const txt = jamText(s, along); T.lastAlert = txt; say(txt + '.', 'traffic', true);

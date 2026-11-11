@@ -43,7 +43,7 @@ export function answer(q, log = []) { const w = words(q); if (!w.length) return 
 export function walk(S) { const say = s => { try { const u = new SpeechSynthesisUtterance(s); u.lang = document.documentElement.lang || 'en'; speechSynthesis.speak(u); } catch {} };
   const moving = () => (S?.pos?.speed || 0) > 2.2; let i = 0; const steps = walkSteps(); stop();
   if (moving()) { steps.forEach(g => say(`${t(g.t)}. ${t(g.b)}`)); return { voiceOnly: true, n: steps.length }; }
-  document.body.insertAdjacentHTML('beforeend', '<div id="walkRing" style="position:fixed;z-index:70;border:4px solid #ff9500;border-radius:14px;pointer-events:none;box-shadow:0 0 0 9999px #0007"></div><div id="walkCard" role="dialog" aria-live="polite" style="position:fixed;left:12px;right:12px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:71;background:#161b22;color:#e6edf3;border-radius:16px;padding:14px"></div>');
+  document.body.insertAdjacentHTML('beforeend', '<div id="walkRing" style="position:fixed;z-index:70;border:3px solid #ff9500;border-radius:14px;pointer-events:none"></div><div id="walkCard" role="dialog" aria-live="polite" style="position:fixed;left:12px;right:12px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:71;background:#161b22;color:#e6edf3;border-radius:16px;padding:14px 14px 14px;max-height:46vh;overflow:auto"></div>');
   const ring = document.getElementById('walkRing'), card = document.getElementById('walkCard');
   const show = () => { const g = steps[i], el = g.sel && document.querySelector(g.sel), r = el?.getBoundingClientRect();
     if (r?.width) Object.assign(ring.style, { display: '', left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' }); else ring.style.display = 'none';

@@ -104,7 +104,7 @@ const forceFirst = /[?&]rrfirst=1/.test(location.search);
 if ((!LS.get('tourDone', false) || forceFirst) && (!navigator.webdriver || forceFirst || /[?&]tour=1/.test(location.search)) && !/[?&]notour/.test(location.search)) setTimeout(function go() { if ((S.pos?.speed || 0) > 2 || S.nav) return setTimeout(go, 5000); startTour(); }, 1700); // UX P16: only while parked
 
 // ---------- Right rail: keep the essentials, collapse the rest into a "More" menu ----------
-const RAIL_KEEP = new Set(['followBtn', 'reportBtn', 'layersBtn', 'moreBtn']); // UX P2: few floating buttons; SOS, satellite, HUD, voice etc. live in More
+const RAIL_KEEP = new Set(['followBtn', 'viewBtn', 'reportBtn', 'layersBtn', 'moreBtn']); // UX P2: few floating buttons; SOS, satellite, HUD, voice etc. live in More
 const MORE = '<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>';
 if (side && !$('#moreBtn')) {
   side.insertAdjacentHTML('beforeend', `<button id="moreBtn" class="round" title="More" aria-label="More map tools" aria-expanded="false">${svg(MORE)}</button>`);
@@ -310,7 +310,7 @@ function mtLock() { const b = document.body, locked = S.multiTapLocked(); b.clas
   let card = $('#mtLock'); if (!card) { card = document.createElement('div'); card.id = 'mtLock'; card.setAttribute('role', 'alertdialog'); card.setAttribute('aria-live', 'assertive'); card.hidden = true;
     card.innerHTML = `<b>🚛 Paused while moving</b><p>Menus, forms and lists need several taps, so they're locked above 5 mph (FMCSA single-touch rule). Use voice, or pull over.</p><div class="row"><button id="mtOk">OK</button><button id="mtPass" class="ghost">I'm a passenger</button></div>`;
     document.body.appendChild(card); $('#mtOk').onclick = () => { card.hidden = true; }; $('#mtPass').onclick = () => { S.passenger = true; card.hidden = true; b.classList.remove('mt-locked'); clearTimeout(mtLock.t); mtLock.t = setTimeout(() => { S.passenger = false; }, 10 * 60e3); }; }
-  if (locked && document.querySelector('.panel:not(.hidden):not(#sosPanel), #truckWiz:not(.hidden):not([hidden])')) { if (!b.classList.contains('mt-locked')) { b.classList.add('mt-locked'); card.hidden = false; document.activeElement?.blur?.(); } }
+  if (locked && document.querySelector('.panel:not(.hidden):not(#sosPanel), #truckWiz:not(.hidden):not([hidden])')) { if (!b.classList.contains('mt-locked')) { b.classList.add('mt-locked'); card.hidden = false; card.dataset.rrArmed = ''; document.activeElement?.blur?.(); clearTimeout(mtLock.hide); mtLock.hide = setTimeout(() => { card.hidden = true; }, 5000); } }
   else if (!locked && b.classList.contains('mt-locked')) { b.classList.remove('mt-locked'); card.hidden = true; } }
 setInterval(mtLock, 400);
 

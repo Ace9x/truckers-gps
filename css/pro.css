@@ -509,3 +509,43 @@ html body #hzLive,html body #tfLegend:not(.min) ~ #hzLive,html body:has(#tfLegen
 @media (orientation:landscape) and (max-height:500px){html body:has(#tfLegend:not(.min)) #hzLive{display:none!important}}
 /* v3.30.1: landscape: the traffic legend (open or minimized) and the live-reports pill share one row; the legend wins */
 @media (orientation:landscape) and (max-height:500px){html body:has(#tfLegend) #hzLive{display:none!important}}
+
+/* v3.33.0: 3D truck sprite, one Live chip, notes that leave the map. */
+html body .truck-marker{width:auto;height:auto;background:none;border:0;box-shadow:none}
+html body .truck-marker canvas{display:block;pointer-events:none}
+#viewBtn{font-size:15px;font-weight:800;letter-spacing:-.03em}
+#liveChip{position:fixed;left:10px;top:calc(132px + env(safe-area-inset-top));z-index:8;display:flex;align-items:center;gap:6px;min-width:44px;min-height:44px;padding:0 12px 0 10px;border-radius:999px;border:1px solid #0003;background:#111c;color:#fff;font:700 13px/1 system-ui,sans-serif;box-shadow:0 2px 8px #0006}
+#liveChip .ldot{width:8px;height:8px;border-radius:50%;background:#f5a524;box-shadow:0 0 0 3px #f5a52433}
+#liveChip.ok .ldot{background:#3dd68c;box-shadow:0 0 0 3px #3dd68c33}
+#liveChip.wait .ldot{background:#f5a524}
+#liveDetail{position:fixed;left:10px;top:calc(184px + env(safe-area-inset-top));z-index:8;width:min(280px,calc(100vw - 20px));max-height:34vh;overflow:auto;background:#141a22;color:#e8eef5;border-radius:14px;padding:8px 12px;box-shadow:0 8px 24px #0008;font:600 12px/1.35 system-ui,sans-serif}
+#liveDetail[hidden]{display:none!important}
+body.nav #liveChip,body.driving #liveChip,body.st-nav #liveChip{top:auto;bottom:calc(168px + env(safe-area-inset-bottom))}
+body.nav #liveDetail,body.driving #liveDetail,body.st-nav #liveDetail{top:auto;bottom:calc(220px + env(safe-area-inset-bottom))}
+html body:has(.panel:not(.hidden)) #liveChip,html body:has(.panel:not(.hidden)) #liveDetail,html body:has(#hzSheet) #liveChip,html body:has(#hzSheet) #liveDetail{display:none!important}
+html body #hzLive,html body #tfLegend{position:static!important;display:block!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:auto!important;max-width:none!important;height:auto!important;min-height:0!important;margin:0!important;padding:4px 0!important;background:transparent!important;border:0!important;box-shadow:none!important;color:inherit!important;pointer-events:none!important;white-space:normal!important;overflow:visible!important}
+html body #liveDetail[hidden] #hzLive,html body #liveDetail[hidden] #tfLegend,html body #hzLive,html body #tfLegend{display:none!important}
+html body #liveDetail:not([hidden]) #hzLive,html body #liveDetail:not([hidden]) #tfLegend{display:block!important}
+.rr-x,#mascot .mX{position:absolute;right:4px;top:4px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:12px;background:#0003;color:inherit;font:800 22px/44px system-ui,sans-serif;z-index:2}
+html body #toast{pointer-events:auto;display:flex;align-items:center;gap:8px;text-align:left;padding:10px 52px 10px 14px;max-width:min(92vw,420px)}
+html body #toast.hidden{display:none}
+html body #alerts{pointer-events:none}
+html body #alerts .alert,html body #wrongRoad,html body #detourWarn,html body #areaAsk,html body #tourCard,html body #walkCard{position:relative;pointer-events:auto;padding-right:56px}
+html body #hzBanner,html body #tfBanner,html body #wnPop,html body #lastMile,html body #mtLock{pointer-events:auto;padding-right:56px;box-sizing:border-box}
+html body #wnPop ul{padding-right:8px}
+#navView{margin-left:auto;flex:none;align-self:center;min-width:64px;min-height:44px;padding:0 10px;border-radius:12px;border:2px solid #fff;background:#000a;color:#fff;font:800 16px/1 system-ui,sans-serif}
+html body #dView{position:static;flex:none;align-self:flex-start;min-width:44px!important;min-height:44px!important;width:48px;padding:0;border-radius:12px;border:2px solid #fff;background:#000a;color:#fff;font:800 15px/1 system-ui,sans-serif}
+html body.nav #toast,html body.driving #toast{bottom:auto;top:calc(136px + env(safe-area-inset-top))}
+html body:has(.panel:not(.hidden)) #toast{bottom:auto;top:calc(72px + env(safe-area-inset-top))}
+html body #wrongRoad{top:calc(64px + var(--safe-t))}
+#lockout{background:transparent!important;pointer-events:none;align-items:flex-end;padding:12px}
+#lockout>div{pointer-events:auto;position:relative;width:min(420px,100%);padding-right:56px}
+#lockClose{min-width:44px;min-height:44px}
+#shareAsk{background:transparent!important;pointer-events:none}
+#shareAsk .sa-card{pointer-events:auto;position:relative;padding-right:56px}
+#tripReceipt{background:transparent!important;backdrop-filter:none!important;pointer-events:none;align-items:flex-end}
+#tripReceipt .trc-paper{pointer-events:auto;position:relative;max-height:70vh;overflow:auto}
+#langFirst{background:transparent!important;pointer-events:none;align-items:flex-end}
+#langFirst .lf-card{pointer-events:auto;position:relative;margin-bottom:12px}
+#tourDim{display:none!important}
+.maplibregl-popup-close-button{width:44px;height:44px;font-size:22px;line-height:44px}

@@ -14,7 +14,7 @@ body.st-nav #bArrow{font-size:2.125rem}
 /* #3 the arrow turns orange within 500 ft — the only change */
 #banner.near #bArrow,#banner.near #bArrow svg{color:var(--d2-route);fill:var(--d2-route)}
 /* #1 drive mode: only maneuver, distance, ETA and a hazard slot while moving */
-body.moving.st-nav #topbar,body.moving.st-nav #dock,body.moving.st-nav #thenBox,body.moving.st-nav #restrictRail,body.moving.st-nav #tfBanner .x,body.moving.st-nav #sideBtns>:not(#muteBtn):not(#followBtn){display:none!important}
+body.moving.st-nav #topbar,body.moving.st-nav #dock,body.moving.st-nav #thenBox,body.moving.st-nav #restrictRail,body.moving.st-nav #tfBanner .x,body.moving.st-nav #sideBtns>:not(#muteBtn):not(#followBtn):not(#viewBtn){display:none!important}
 /* #2 motion lock: while moving, only short opacity fades; nothing slides */
 html body.moving *:not(.maplibregl-canvas):not(.maplibregl-marker):not(.maplibregl-marker *),html body.moving *::before,html body.moving *::after{transition-property:opacity!important;transition-duration:120ms!important;animation:none!important;scroll-behavior:auto!important}
 /* #5 day/night cross-fade only when stopped */
