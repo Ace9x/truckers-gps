@@ -62,7 +62,7 @@ const SCAN = [
   ['#lockout:not(.hidden)', { ms: 5000 }],
   ['#lastMile:not(.hidden)', {}],
   ['#wnPop', { ms: 5000 }],
-  ['#shareAsk .sa-card', { ms: 8000, hold: true }],
+  ['#shareAsk .sa-card', { ms: 20000, hold: true }],
   ['#areaAsk', { ms: 8000 }],
   ['#tripReceipt .trc-paper', { ms: 8000, hold: true }],
   ['#tourCard', { ms: 0 }],
