@@ -6,6 +6,7 @@ import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
 import { scalesOnRoute, corridorsFor, scalesStillHit, usesNoTruckRoad, avoidDecision } from './weighlogic.js';
+import { LEG_M, isDistanceCap, driverRouteMessage, corridorPoints, gcPoint, stitchRoutes, rankPlaces, milesAway } from './routelong.js';
 import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
 import { makeBackend, Profile, REPORT_TYPES, POINTS, BADGES, LEVELS, DrivingMonitor, reportVisible, weekKey } from './community.js';
@@ -182,19 +183,47 @@ let qTimer;
 $('#searchBtn').onclick = () => { if (S.lockedOut?.()) return; openPanel('searchPanel'); setTimeout(() => $('#q').focus(), 50); };
 $('#q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(search, 450); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(qTimer); search(); } });
+function biasPoint() {
+  if (S.pos && Number.isFinite(S.pos.lat) && Number.isFinite(S.pos.lon)) return { lat: S.pos.lat, lon: S.pos.lon };
+  try { const c = map.getCenter(); if (Number.isFinite(c.lat)) return { lat: c.lat, lon: c.lng }; } catch {}
+  return { lat: 40.73, lon: -73.87 };
+}
+function fromNominatim(x, bias) {
+  const a = x.address || {};
+  const city = a.city || a.town || a.village || a.hamlet || a.suburb || a.county;
+  const state = a.state;
+  const name = [a.house_number, a.road || a.pedestrian || a.highway].filter(Boolean).join(' ') || x.name || (x.display_name || '').split(',')[0];
+  return { lon: +x.lon, lat: +x.lat, name, sub: [city, state].filter(Boolean).join(', ') || x.display_name, city, state, dist: haversine([bias.lon, bias.lat], [+x.lon, +x.lat]) };
+}
+function fromPhoton(f, bias) {
+  const p = f.properties || {}, lon = f.geometry.coordinates[0], lat = f.geometry.coordinates[1];
+  return { lon, lat, name: p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.city || 'Place', sub: [p.city || p.county, p.state].filter(Boolean).join(', '), city: p.city, state: p.state, dist: haversine([bias.lon, bias.lat], [lon, lat]) };
+}
 async function geocode(q) {
-  const near = S.pos || { lat: 40.81, lon: -73.88 };
-  try { const r = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=7&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${near.lat}&lon=${near.lon}`); if (!r.ok) throw 0; const j = await r.json();
-    return j.features.map(f => { const p = f.properties; return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], name: p.name || [p.housenumber, p.street].filter(Boolean).join(' ') || p.city, sub: [p.street, p.city, p.state, p.postcode].filter(Boolean).join(', ') }; });
-  } catch { const r = await fetch(`${NOMINATIM}?format=jsonv2&limit=6&accept-language=${globalThis.RRI18N?.geoLang?.() || 'en'}&q=${encodeURIComponent(q)}`); const j = await r.json(); return j.map(x => ({ lon: +x.lon, lat: +x.lat, name: x.name || x.display_name.split(',')[0], sub: x.display_name })); }
+  const bias = biasPoint(), lang = globalThis.RRI18N?.geoLang?.() || 'en', span = 1.15;
+  const viewbox = `${bias.lon - span},${bias.lat + span},${bias.lon + span},${bias.lat - span}`;
+  const nom = extra => fetch(`${NOMINATIM}?format=jsonv2&addressdetails=1&limit=8&accept-language=${encodeURIComponent(lang)}&q=${encodeURIComponent(q)}&${extra}`, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : []).catch(() => []);
+  const photon = fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=8&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${bias.lat}&lon=${bias.lon}`, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : { features: [] }).catch(() => ({ features: [] }));
+  const [local, wide, ph] = await Promise.all([nom(`viewbox=${viewbox}&bounded=1`), nom(`lat=${bias.lat}&lon=${bias.lon}`), photon]);
+  const rows = [];
+  for (const x of local || []) rows.push(fromNominatim(x, bias));
+  for (const x of wide || []) rows.push(fromNominatim(x, bias));
+  for (const f of ph.features || []) rows.push(fromPhoton(f, bias));
+  return rankPlaces(rows, bias, q);
+}
+function showResults(res) {
+  const ul = $('#results'); if (!ul) return;
+  const far = res[0] && res[0].dist > 80000;
+  ul.innerHTML = res.length ? (far ? '<li class="muted">These matches are not near you. Check the city.</li>' : '') : '<li class="muted">No results</li>';
+  for (const r of res) { const li = document.createElement('li'); li.innerHTML = `${esc(r.name)}<small>${esc(r.sub || '')}${esc(milesAway(r.dist))}</small>`; li.onclick = () => { closePanels(); setDest(r); }; ul.appendChild(li); }
 }
 async function search() {
   const q = $('#q').value.trim(), ul = $('#results'); if (q.length < 3) { ul.innerHTML = ''; return; }
   ul.innerHTML = '<li class="muted">Searching…</li>';
-  try { const res = await geocode(q); ul.innerHTML = res.length ? '' : '<li class="muted">No results</li>';
-    for (const r of res) { const li = document.createElement('li'); li.innerHTML = `${esc(r.name)}<small>${esc(r.sub)}</small>`; li.onclick = () => { closePanels(); setDest(r); }; ul.appendChild(li); }
-  } catch { ul.innerHTML = '<li class="muted">Search unavailable (offline?)</li>'; }
+  try { showResults(await geocode(q)); }
+  catch { ul.innerHTML = '<li class="muted">Search unavailable (offline?)</li>'; }
 }
+S.geocode = geocode; S.showResults = showResults;
 
 // ---------- Routing ----------
 const facKey = d => d ? `${d.lat.toFixed(4)},${d.lon.toFixed(4)}` : '';
@@ -218,17 +247,42 @@ function mergeLegs(trip, costing) {
     ln.push(...pts); man.push(...ms); }
   return { line: ln, cum: cumulative(ln), maneuvers: man, length: trip.summary.length * 1000, time: trip.summary.time, summary: trip.summary, costing };
 }
-async function valhalla(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = S.stops || [], exclude = [], relax = null } = {}) {
-  const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
+async function valhallaOnce(from, to, costing, { heading = null, vias = [], alternates = 0, avoid = true, radius = 0, stops = [], exclude = [], relax = null } = {}) {
+  const loc0 = { lat: from.lat, lon: from.lon }; if (radius) { loc0.radius = radius; loc0.minimum_reachability = 500; } if (heading != null && Number.isFinite(heading)) { loc0.heading = Math.round(heading); loc0.heading_tolerance = 45; }
   const body = { locations: [loc0, ...vias.map(([lon, lat]) => ({ lat, lon, type: 'through' })), ...stops.map(s => ({ lat: s.lat, lon: s.lon, type: 'break' })), { lat: to.lat, lon: to.lon }], costing, units: 'kilometers', language: valhallaLang(), directions_options: { units: 'kilometers', language: valhallaLang() } };
   if (costing === 'truck') { body.costing_options = costingOptions(S.truck, { from, to }); if (relax) body.costing_options.truck = { ...body.costing_options.truck, ...relax }; }
-  { const ex = [...(avoid ? excludePolys(from, to) : []), ...exclude]; if (ex.length) body.exclude_polygons = ex; } // exclude: e.g. a live traffic jam
+  { const ex = [...(avoid ? excludePolys(from, to) : []), ...exclude]; if (ex.length) body.exclude_polygons = ex; }
   if (alternates && !stops.length) body.alternates = alternates;
-  const r = await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
-  const j = await r.json(); if (!r.ok || !j.trip) throw new Error(j.error || 'No route found');
+  const r = await fetch(VALHALLA, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000) });
+  const j = await r.json().catch(() => ({})); if (!r.ok || !j.trip) throw new Error(j.error || j.message || 'No route found');
   const main = mergeLegs(j.trip, costing);
   if (alternates) return [main, ...(j.alternates || []).map(a => mergeLegs(a.trip, costing))];
   return main;
+}
+async function routeHop(a, b, costing, opts, depth = 0) {
+  try { const r = await valhallaOnce(a, b, costing, { ...opts, alternates: 0 }); return Array.isArray(r) ? r[0] : r; }
+  catch (e) {
+    if (!isDistanceCap(e) || depth > 5 || haversine([a.lon, a.lat], [b.lon, b.lat]) < 50000) throw e;
+    const mid = gcPoint(a, b, 0.5);
+    const left = await routeHop(a, mid, costing, { ...opts, heading: null, radius: Math.max(opts.radius || 0, 3000) }, depth + 1);
+    const right = await routeHop(mid, b, costing, { ...opts, heading: null, radius: 3000 }, depth + 1);
+    const st = stitchRoutes([left, right]); st.cum = cumulative(st.line); st.costing = costing; st.summary = { length: st.length / 1000, time: st.time }; return st;
+  }
+}
+async function valhalla(from, to, costing, opts = {}) {
+  const stops = opts.stops !== undefined ? opts.stops : (S.stops || []);
+  const anchors = [{ lat: from.lat, lon: from.lon }, ...stops.map(s => ({ lat: s.lat, lon: s.lon })), { lat: to.lat, lon: to.lon }];
+  const long = anchors.some((p, i) => i > 0 && haversine([anchors[i - 1].lon, anchors[i - 1].lat], [p.lon, p.lat]) > LEG_M);
+  if (!long) {
+    try { return await valhallaOnce(from, to, costing, { ...opts, stops }); }
+    catch (e) { if (!isDistanceCap(e)) throw e; }
+  }
+  const hops = [];
+  for (let i = 0; i < anchors.length - 1; i++) { const seq = corridorPoints(anchors[i], anchors[i + 1], LEG_M); for (let j = 0; j < seq.length - 1; j++) hops.push([seq[j], seq[j + 1]]); }
+  const parts = [];
+  for (let i = 0; i < hops.length; i++) parts.push(await routeHop(hops[i][0], hops[i][1], costing, { ...opts, stops: [], heading: i === 0 ? opts.heading : null, radius: i === 0 ? (opts.radius || 0) : Math.max(opts.radius || 0, 3000), vias: i === 0 ? (opts.vias || []) : [] }));
+  const st = stitchRoutes(parts); st.cum = cumulative(st.line); st.costing = costing; st.summary = { length: st.length / 1000, time: st.time };
+  return opts.alternates ? [st] : st;
 }
 S.valhalla = valhalla;
 
@@ -281,7 +335,10 @@ async function plan(isReroute = false) {
       S.lastRerouteVias = vias.length; setRoute(tr); return tr;
     }
     S.scaleExcludes = [];
-    const [alts, car] = await Promise.all([valhalla(from, to, costingFor(S.truck), { alternates: 2 }), costingFor(S.truck) === 'auto' ? null : valhalla(from, to, 'auto', { avoid: false }).catch(() => null)]);
+    const far = haversine([from.lon, from.lat], [to.lon, to.lat]) > LEG_M;
+    const truckRaw = await valhalla(from, to, costingFor(S.truck), { alternates: far ? 0 : 2 });
+    const alts = Array.isArray(truckRaw) ? truckRaw : [truckRaw];
+    const car = far || costingFor(S.truck) === 'auto' ? null : await valhalla(from, to, 'auto', { avoid: false }).catch(() => null);
     if (stale()) return;
     // Detour check: truck route > 1.5× the car route -> try a relaxed second pass (flagged, never auto-picked) and warn the driver
     S.detour = null; const dt = truckDetour(alts[0], car);
@@ -308,7 +365,7 @@ async function plan(isReroute = false) {
     LS.set('routes', routes.map(r => ({ ...r, cum: undefined }))); LS.set('carRoute', car ? { ...car, cum: undefined } : null); LS.set('sel', 0);
     renderRoute(); fitRoute(); ['#goBtn', '#demoBtn', '#facBtn', '#offlineBtn'].forEach(s => $(s).disabled = false);
     return routes[0];
-  } catch (e) { if (!isReroute) $('#routeSummary').textContent = '⚠ ' + (navigator.onLine ? e.message : 'Offline — routing needs a connection'); else toast('Reroute failed: ' + e.message); }
+  } catch (e) { const msg = driverRouteMessage(e, navigator.onLine); if (!isReroute) { $('#routeSummary').innerHTML = `⚠ ${esc(msg)} <button type="button" id="routeRetry" class="small-btn">Try again</button>`; const b = $('#routeRetry'); if (b) b.onclick = () => plan(); ['#goBtn', '#demoBtn', '#facBtn', '#offlineBtn'].forEach(s => { if ($(s)) $(s).disabled = true; }); } else toast(msg); }
 }
 function setRoute(r) { S.route = r; S.etaSmooth?.reset(); S.hint = 0; S.spoken = {}; S.off.reset(); S.step = 0; S.dangers = []; S.dangerSpoken = {}; LS.set('route', { ...r, cum: undefined }); drawRoute(); renderSteps(); analyzeRoute(r); }
 function selectRoute(i) { if (S.routes[i]?.restricted && !confirm('This shorter route crosses roads mapped as restricted for your rig (no trucks, weight, height or length limit). Only use it if you have verified the signs or hold a permit. Use it?')) return; S.sel = i; S.chosen = S.routes[i];
@@ -783,7 +840,10 @@ const lf = $('#loadForm'); const load = LS.get('load', {}); for (const [k, v] of
 const syncCall = () => { const ph = lf.elements.dispatch.value.replace(/[^\d+]/g, ''); $('#callDispatch').href = ph ? 'tel:' + ph : '#'; };
 lf.addEventListener('input', () => { LS.set('load', Object.fromEntries(new FormData(lf))); syncCall(); }); syncCall();
 async function navTo(field) { const q = lf.elements[field].value.trim(); if (!q) { toast('Enter the address first'); return; }
-  toast('Looking up ' + q); try { const r = await geocode(q); if (!r.length) return toast('Address not found'); closePanels(); setDest({ ...r[0], name: q }); } catch { toast('Search unavailable'); } }
+  toast('Looking up ' + q); try { const r = await geocode(q); if (!r.length) return toast('Address not found');
+    if (r.length === 1 && r[0].dist < 80000) { closePanels(); setDest(r[0]); return; }
+    openPanel('searchPanel'); const box = $('#q'); if (box) box.value = q; showResults(r);
+  } catch { toast('Search unavailable'); } }
 $('#navPickup').onclick = () => navTo('pickup'); $('#navDelivery').onclick = () => navTo('delivery');
 
 // ---------- Truck profile ----------

@@ -280,3 +280,34 @@ test('invite codes stay short and install prompts land on trips 1, 3 and 10', ()
   assert.equal(installMilestone(9), 3);
   assert.equal(installMilestone(10), 10);
 });
+import { corridorPoints, stitchRoutes, driverRouteMessage, rankPlaces, LEG_M } from '../js/routelong.js';
+test('long routes are split under the provider cap and stitched into one line', () => {
+  const a = { lat: 40.73, lon: -73.86 }, b = { lat: 34.05, lon: -118.24 };
+  const pts = corridorPoints(a, b, LEG_M);
+  assert.ok(pts.length >= 5);
+  for (let i = 1; i < pts.length; i++) assert.ok(haversine([pts[i - 1].lon, pts[i - 1].lat], [pts[i].lon, pts[i].lat]) <= LEG_M + 1);
+  const leg = (x0, y0, x1, y1) => ({ line: [[x0, y0], [(x0 + x1) / 2, (y0 + y1) / 2], [x1, y1]], maneuvers: [{ type: 3, begin_shape_index: 0, end_shape_index: 1, length: 1, instruction: 'Depart' }, { type: 8, begin_shape_index: 1, end_shape_index: 2, length: 10, instruction: 'Continue' }, { type: 4, begin_shape_index: 2, end_shape_index: 2, length: 0, instruction: 'Arrive' }], length: 1000, time: 60 });
+  const st = stitchRoutes([leg(0, 0, 1, 0), leg(1, 0, 2, 0)]);
+  assert.equal(st.chained, true);
+  assert.equal(st.line[0][0], 0); assert.equal(st.line.at(-1)[0], 2);
+  assert.equal(st.length, 2000); assert.equal(st.time, 120);
+  assert.ok(!st.maneuvers.some((m, i) => i < st.maneuvers.length - 1 && m.type === 4));
+  const raw = 'Path distance exceeds the max distance limit: 1500000 meters';
+  const msg = driverRouteMessage(new Error(raw), true);
+  assert.equal(/1500000|Path distance|max distance/i.test(msg), false);
+  assert.match(msg, /Try again/);
+  const ranked = rankPlaces([{ lat: 30.65, lon: -97.82, name: 'Far' }, { lat: 40.6, lon: -73.75, name: 'Near' }], { lat: 40.73, lon: -73.85 });
+  assert.equal(ranked[0].name, 'Near'); assert.ok(ranked[0].dist < ranked[1].dist);
+  const local = rankPlaces([
+    { lat: 40.75, lon: -73.82, name: '90-15 Parsons Boulevard', sub: 'New York, New York' },
+    { lat: 40.73, lon: -73.87, name: '90-15 Queens Boulevard', sub: 'New York, New York' },
+    { lat: 30.65, lon: -97.82, name: '224 Canis Street', sub: 'Georgetown, Texas' },
+  ], { lat: 40.73, lon: -73.85 }, '90-15 Queens Boulevard');
+  assert.equal(local[0].name, '90-15 Queens Boulevard');
+  assert.equal(local.at(-1).sub, 'Georgetown, Texas');
+  const miss = rankPlaces([
+    { lat: 40.72, lon: -73.81, name: 'Queens Hospital Center', sub: 'New York, New York' },
+    { lat: 40.64, lon: -73.90, name: 'Canarsie Street', sub: 'Brooklyn, New York' },
+  ], { lat: 40.73, lon: -73.85 }, 'Canarsiee Street');
+  assert.equal(miss[0].name, 'Canarsie Street');
+});

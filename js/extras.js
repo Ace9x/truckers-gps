@@ -130,8 +130,10 @@ export function init(S, h) {
   $('#iAmPassenger').onclick = () => { if (!confirm('You are the passenger? Typing stays open for 10 minutes.')) return; S.passenger = true; $('#lockout').classList.add('hidden'); setTimeout(() => S.passenger = false, 10 * 60e3); $('#searchBtn').click(); };
   $('#voiceDest').onclick = () => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { toast('Voice input not supported in this browser — pull over to type'); return; }
     const rec = new SR(); rec.lang = 'en-US'; rec.onresult = async e => { const q = e.results[0][0].transcript; $('#lockout').classList.add('hidden'); toast('Searching: ' + q);
-      try { const near = S.pos; const j = await (await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=${globalThis.RRI18N?.photonLang?.() || 'en'}&lat=${near.lat}&lon=${near.lon}`)).json(); const f = j.features[0];
-        if (!f) { say('No result for ' + q, 'info'); return; } const name = f.properties.name || q; say('Adding stop ' + name, 'info'); addStop({ lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], name }); } catch { say('Search failed', 'info'); } };
+      try { const r = await S.geocode?.(q); if (!r?.length) { say('No result for ' + q, 'info'); return; }
+        if (r.length === 1 && r[0].dist < 80000) { say(r[0].name, 'info'); closePanels(); S.setDest(r[0]); return; }
+        openPanel('searchPanel'); const box = $('#q'); if (box) box.value = q; S.showResults?.(r);
+      } catch { say('Search failed', 'info'); } };
     rec.onerror = () => toast('Did not catch that'); rec.start(); say('Where to?', 'info'); };
 
   // ---------- SOS ----------

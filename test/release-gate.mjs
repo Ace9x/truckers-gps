@@ -113,6 +113,22 @@ for (const P of PROFILES) {
   const r3 = await ev(async () => { const S = window.TruckNav; S.truck = { ...S.truck, heightFt: 14, heightIn: 0 }; S.route = null; S.stops = []; S.setDest({ lon: -73.8648, lat: 40.8501, name: 'Bronx (parkway corridor)' }); for (let i = 0; i < 90 && !S.route; i++) await new Promise(r => setTimeout(r, 500)); const r = S.route; return r ? { km: +(r.length / 1000).toFixed(1), parkway: (r.maneuvers || r.steps || []).some(m => /parkway|pkwy/i.test(m.street || m.name || m.instruction || '')) } : null; });
   ok(r3 && !r3.parkway, 'Route 3 low clearance (14 ft rig): route found and no parkway (NYC parkways have low bridges) ' + JSON.stringify(r3));
   const r4 = await route({ lon: -74.1724, lat: 40.7357, name: 'Newark, NJ' }, { stops: [{ lat: 40.7282, lon: -74.0776, name: 'Jersey City' }] }); ok(r4 && r4.km > 15, 'Route 4 multi-stop via Jersey City ' + JSON.stringify(r4));
+  if (P.name === 'iphone') {
+    const geo = await ev(async () => { const S = window.TruckNav; S.pos = { lat: 40.73, lon: -73.85, speed: 0, heading: 0, acc: 8, t: Date.now() };
+      const beach = await S.geocode('224 Beach 19th Street'); const canis = await S.geocode('224 Canis Street'); const plain = await S.geocode('90-15 Queens Boulevard'); const miss = await S.geocode('Canarsiee Street Queens');
+      return { beach: beach[0] && { sub: beach[0].sub, lat: +beach[0].lat.toFixed(2), lon: +beach[0].lon.toFixed(2) }, canis: (canis[0] && { sub: canis[0].sub, mi: Math.round((canis[0].dist || 0) / 1609) }), plain: plain[0]?.sub || '', miss: (miss[0]?.sub || '').slice(0, 80), nCanis: canis.length }; });
+    ok(geo.beach && /New York|Queens/i.test(geo.beach.sub) && geo.beach.lat > 40 && geo.beach.lon < -73, 'Queens address ranks nearby ' + JSON.stringify(geo.beach));
+    ok(geo.canis && /Texas|Georgetown/i.test(geo.canis.sub) && geo.canis.mi > 200, 'misspelled or distant street shows its city, not a silent pick ' + JSON.stringify(geo.canis));
+    ok(/New York|Queens/i.test(geo.plain), 'address with no extra city still finds Queens ' + geo.plain);
+    const longWait = async (dest, pos, avoid) => ev(async ([dest, pos, avoid]) => { const S = window.TruckNav; S.stops = []; localStorage.tn_stops = '[]'; S.pos = { ...pos, speed: 0, heading: 0, acc: 8, t: Date.now() }; S.truck.avoidWeigh = !!avoid; S.scaleMode = avoid ? 'avoid' : 'off'; if (S.routeOpts) S.routeOpts.avoidWeigh = !!avoid; S.route = null; S.setDest(dest);
+      for (let i = 0; i < 240 && !(S.route && S.route.length > 500000 && !document.querySelector('#goBtn')?.disabled); i++) await new Promise(r => setTimeout(r, 1000));
+      const sum = document.querySelector('#routeSummary')?.textContent || ''; return { km: S.route ? +(S.route.length / 1000).toFixed(0) : 0, min: S.route ? Math.round(S.route.time / 60) : 0, go: !document.querySelector('#goBtn')?.disabled, raw: /1500000|Path distance|max distance/i.test(sum), chained: !!S.route?.chained, avoid: !!S.truck.avoidWeigh, turns: S.route?.maneuvers?.length || 0 }; }, [dest, pos, avoid]);
+    const la = await longWait({ lon: -118.2437, lat: 34.0522, name: 'Los Angeles, CA' }, { lat: 40.7282, lon: -73.7949 }, false);
+    ok(la.km > 3500 && la.go && !la.raw && la.turns > 20, 'Queens to Los Angeles is one route ' + JSON.stringify(la));
+    const sea = await longWait({ lon: -122.3321, lat: 47.6062, name: 'Seattle, WA' }, { lat: 25.7617, lon: -80.1918 }, true);
+    ok(sea.km > 4000 && sea.go && !sea.raw && sea.avoid && sea.turns > 20, 'Miami to Seattle with avoid weigh stations ' + JSON.stringify(sea));
+    await ev(() => { const S = window.TruckNav; S.truck.avoidWeigh = false; S.scaleMode = 'off'; if (S.routeOpts) S.routeOpts.avoidWeigh = false; S.pos = { lat: 40.7506, lon: -73.9935, speed: 0, heading: 0, acc: 8, t: Date.now() }; });
+  }
   const r5 = await ev(async () => { const S = window.TruckNav, T = S.traffic; const ov = S.valhalla, ort = T.routeTraffic, orem = S.remT; const alt = { ...S.route, time: S.route.time - 600, length: S.route.length - 1500, _mock: true };
     S.valhalla = async () => [alt]; T.routeTraffic = () => ({ delay: 0, slowdowns: [], sources: [], coverage: 0, newest: 0 }); S.remT = S.route.time + 1200; S.trafficDelay = 0; // TEST-ONLY mock: production code unchanged
     await T.suggest({ delay: 1200, slowdowns: [] }); const b = document.querySelector('#tfBanner'); const offered = !!b && /Faster/.test(b.textContent); [...(b?.querySelectorAll('button') || [])].find(x => x.textContent === 'Switch')?.click(); await new Promise(r => setTimeout(r, 600));

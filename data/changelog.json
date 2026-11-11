@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.32.2",
+  "date": "2026-11-11",
+  "items": [
+   "A trip of any length works. A coast-to-coast route is built in sections and shown as one route, with one arrival time.",
+   "Search prefers places near you and shows the city and state when more than one place matches. A far match is never chosen for you.",
+   "If a route cannot be built, the message is plain and you can try again."
+  ]
+ },
+ {
   "version": "3.32.1",
   "date": "2026-11-09",
   "items": [
