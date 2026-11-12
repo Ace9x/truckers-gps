@@ -37,16 +37,21 @@ function laneState() { const l = $('#lanes'); document.body.classList.toggle('la
 // BUG-028: the lane bar, hazard card and alerts were pinned at fixed offsets, so a taller turn banner (or the windshield banner) covered them. Stack them under whatever banner is showing.
 const shown = e => e && !e.classList.contains('hidden') && getComputedStyle(e).display !== 'none';
 function stackTop() { const B = document.body, drive = B.classList.contains('driving'), top = drive ? $('#dTurn') : $('#banner'); const L = $('#lanes'), H = $('#hzBanner'), T = $('#tfBanner'), A = $('#alerts');
-  if (!(B.classList.contains('nav') || drive) || !shown(top) || (drive && !shown($('#drive')))) { [L, H, T, A, $('#thenBox')].forEach(x => x && (x.style.top = '')); const C = $('.maplibregl-ctrl-bottom-right'); if (C) C.style.bottom = ''; return; }
+  if (!(B.classList.contains('nav') || drive) || !shown(top) || (drive && !shown($('#drive')))) { [L, H, T, A, $('#thenBox'), $('#toast'), $('#wrongRoad')].forEach(x => { if (!x) return; x.style.top = ''; if (x.id === 'toast' || x.id === 'wrongRoad') { x.style.bottom = ''; x.style.zIndex = ''; } }); const C = $('.maplibregl-ctrl-bottom-right'); if (C) C.style.bottom = ''; return; }
   let y = Math.round(top.getBoundingClientRect().bottom);
   if (shown(L) && L.children.length) { L.style.top = y + 'px'; y = Math.round(L.getBoundingClientRect().bottom); } else if (L) L.style.top = '';
   const TB = $('#thenBox'); if (TB && shown(TB) && !drive) { TB.style.top = (y + 6) + 'px'; y = Math.round(TB.getBoundingClientRect().bottom); } else if (TB) TB.style.top = '';
   if (H && shown(H)) { H.style.top = (y + 8) + 'px'; y = Math.round(H.getBoundingClientRect().bottom); } else if (H) H.style.top = '';
   if (T && shown(T)) { T.style.top = (y + 8) + 'px'; y = Math.round(T.getBoundingClientRect().bottom); } else if (T) T.style.top = '';
   if (A) A.style.top = (y + 8) + 'px';
+  // Notes sit fully under the turn card. A fixed top used to leave the duty-status line peeking out underneath it.
+  for (const el of [$('#toast'), $('#wrongRoad')]) {
+    if (el && shown(el)) { el.style.top = (y + 10) + 'px'; el.style.bottom = 'auto'; el.style.zIndex = '40'; y = Math.round(el.getBoundingClientRect().bottom); }
+    else if (el) { el.style.top = ''; el.style.bottom = ''; el.style.zIndex = ''; }
+  }
   // map credits (i) sit just above whichever bottom bar is showing
   const C = $('.maplibregl-ctrl-bottom-right'); if (C) { const bars = ['#dMid', '#dBtns', '#tripBar', '#navStack', '#nsMute', '#nsRecenter', '#nsReport'].map(s => $(s)).filter(e => shown(e) && e.getBoundingClientRect().height); const topB = Math.min(innerHeight, ...bars.map(e => e.getBoundingClientRect().top)); C.style.bottom = Math.max(0, Math.round(innerHeight - topB + 6)) + 'px'; const ib = C.querySelector('.maplibregl-ctrl-attrib-button')?.getBoundingClientRect(); if (ib?.height && ib.bottom > topB - 4) C.style.bottom = (parseFloat(C.style.bottom) + ib.bottom - topB + 6) + 'px'; /* the 44px (i) overflows its compact box */ } }
-let stRaf = 0; const stack = () => { if (!stRaf) stRaf = requestAnimationFrame(() => { stRaf = 0; stackTop(); }); };
+let stRaf = 0; const stack = () => { if (!stRaf) stRaf = requestAnimationFrame(() => { stRaf = 0; stackTop(); }); }; S.restack = stack;
 addEventListener('resize', stack); setInterval(stackTop, 700); new MutationObserver(stack).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 // ---------- Splash / brand ----------
@@ -63,7 +68,7 @@ function tuneStyle() {
     if (dark) { const c = DARK[l.id]; if (c) map.setPaintProperty(l.id, l.type === 'background' ? 'background-color' : l.type === 'fill' ? 'fill-color' : 'line-color', c);
       if (l.id === 'highway_motorway_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.4], ['zoom'], 5, 1, 9, 1.6, 14, 5, 18, 16]);
       if (l.id === 'highway_major_inner') map.setPaintProperty(l.id, 'line-width', ['interpolate', ['exponential', 1.3], ['zoom'], 8, 1, 14, 5, 18, 16]);
-      if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', /motorway/.test(l.id) ? '#c9a46e' : '#a3a9b3'); map.setPaintProperty(l.id, 'text-halo-color', '#0f141a'); map.setPaintProperty(l.id, 'text-halo-width', 1.5); } }
+      if (l.type === 'symbol' && /place_|highway_name|road_/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', /motorway/.test(l.id) ? '#e6d3a8' : '#d5dbe3'); map.setPaintProperty(l.id, 'text-halo-color', '#0c1016'); map.setPaintProperty(l.id, 'text-halo-width', 1.8); } }
     else if (l.type === 'symbol' && /place_|highway_name/.test(l.id)) { map.setPaintProperty(l.id, 'text-color', '#000'); map.setPaintProperty(l.id, 'text-halo-color', '#fff'); map.setPaintProperty(l.id, 'text-halo-width', 2); }
     else if (/^road_motorway$|^bridge_motorway$|^tunnel_motorway$/.test(l.id)) map.setPaintProperty(l.id, 'line-color', '#f4a53a');
     if (l.id === 'route-casing') map.setPaintProperty(l.id, 'line-color', dark ? '#0b3d91' : '#0d47a1');

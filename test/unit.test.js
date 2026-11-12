@@ -1,4 +1,4 @@
-import test from 'node:test'; import assert from 'node:assert/strict';
+import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
 import { haversine, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, truckCosting, hosStatus, H, fmtDist, classifyPoi, overpassQuery } from '../js/logic.js';
 import { cleanRef, installMilestone } from '../js/growth.js';
 
@@ -311,6 +311,13 @@ test('long routes are split under the provider cap and stitched into one line', 
     { lat: 40.64, lon: -73.90, name: 'Canarsie Street', sub: 'Brooklyn, New York' },
   ], { lat: 40.73, lon: -73.85 }, 'Canarsiee Street');
   assert.equal(miss[0].name, 'Canarsie Street');
+});
+test('the semi model is a small public-domain glTF', () => {
+  const b = fs.readFileSync(new URL('../data/semi.glb', import.meta.url));
+  const lic = fs.readFileSync(new URL('../data/semi-license.txt', import.meta.url), 'utf8');
+  assert.equal(b.toString('utf8', 0, 4), 'glTF');
+  assert.ok(b.length < 300 * 1024);
+  assert.match(lic, /CC0/);
 });
 test('driving camera keeps the truck in the lower third', () => {
   for (const h of [664, 844, 915]) {

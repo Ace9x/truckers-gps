@@ -1,0 +1,53 @@
+// Driving-view shots: two zoom levels and a close-up of the lit semi.
+import { chromium, devices } from 'playwright';
+import fs from 'node:fs';
+const BASE = process.env.BASE || 'http://localhost:8765/';
+const OUT = process.env.OUT || '/opt/cursor/artifacts';
+fs.mkdirSync(OUT, { recursive: true });
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ ...devices['iPhone 13'], viewport: { width: 390, height: 844 }, permissions: ['geolocation'], geolocation: { latitude: 40.7282, longitude: -73.7949 } });
+await ctx.addInitScript(() => { localStorage.setItem('tn_locWhySeen', '1'); localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_lang', '"en"'); localStorage.setItem('tn_truckSetDone', '1'); localStorage.setItem('rr_area_asked', '1'); localStorage.setItem('tn_greeted', 'true'); localStorage.setItem('rr_whatsnew_seen', '3.33.1'); localStorage.setItem('tn_hos', '[]'); });
+const p = await ctx.newPage();
+const errs = [];
+p.on('pageerror', e => errs.push('page ' + e.message));
+p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+await p.goto(BASE, { waitUntil: 'domcontentloaded' });
+await p.waitForFunction(() => window.TruckNav?.map, null, { timeout: 30000 });
+if (await p.$('#lfGo')) await p.click('#lfGo');
+if (await p.$('#tSkip')) await p.click('#tSkip');
+const ready = await p.evaluate(async () => {
+  const S = window.TruckNav;
+  await S.truckModel?.ready;
+  S.pos = { lat: 40.7282, lon: -73.7949, speed: 0, heading: 250, acc: 8, t: Date.now() };
+  S.stops = []; S.events = [];
+  S.setDest({ lon: -73.8648, lat: 40.759, name: 'Flushing, NY' });
+  for (let i = 0; i < 40 && !S.route; i++) await new Promise(r => setTimeout(r, 500));
+  if (!S.route) return { route: false };
+  document.querySelectorAll('.panel').forEach(x => x.classList.add('hidden'));
+  S.startNav();
+  S.onFix({ lat: 40.7282, lon: -73.7949, speed: 0, heading: 250, acc: 8, t: Date.now() });
+  const lock = document.querySelector('#mtLock'); if (lock) lock.hidden = true;
+  document.querySelector('#toast')?.classList.add('hidden');
+  return { route: true, model: !!S.truckModel?.ok };
+});
+console.log('READY', JSON.stringify(ready));
+await p.waitForTimeout(1200);
+const shoot = async (name, zoom, pitch = 58) => {
+  await p.evaluate(async ({ zoom, pitch }) => {
+    const S = window.TruckNav, m = S.map;
+    document.querySelector('#toast')?.classList.add('hidden');
+    const lock = document.querySelector('#mtLock'); if (lock) lock.hidden = true;
+    const ll = S.truckMarker.getLngLat();
+    m.jumpTo({ center: [ll.lng, ll.lat], zoom, pitch, bearing: S.truckMarker.getRotation() || 250 });
+    m.triggerRepaint();
+    await new Promise(r => { m.once('idle', r); setTimeout(r, 2500); });
+  }, { zoom, pitch });
+  await p.waitForTimeout(400);
+  await p.screenshot({ path: `${OUT}/${name}.png` });
+};
+await shoot('v3331_drive_far', 16.4, 58);
+await shoot('v3331_drive_near', 17.6, 60);
+await shoot('v3331_truck_close', 18.8, 64);
+console.log('ERRS', errs.filter(e => !/relay|damus|nostr|favicon/i.test(e)).slice(0, 12));
+await browser.close();
+if (!ready.route || !ready.model) process.exit(1);

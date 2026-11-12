@@ -7,7 +7,8 @@ import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
 import { scalesOnRoute, corridorsFor, scalesStillHit, usesNoTruckRoad, avoidDecision } from './weighlogic.js';
 import { LEG_M, isDistanceCap, driverRouteMessage, corridorPoints, gcPoint, stitchRoutes, rankPlaces, milesAway } from './routelong.js';
-import { paintTruck, driveFrame, DRIVE_PITCH } from './truck3d.js';
+import { driveFrame, DRIVE_PITCH } from './truck3d.js';
+import { attachTruckModel } from './trucklayer.js';
 import { arm, watchNotices } from './notices.js';
 import { Mascot, TIPS } from './mascot.js';
 import { VEHICLES, COLORS, vehicleSVG, unlocked, colorUnlocked } from './garage.js';
@@ -59,13 +60,11 @@ S.map = map; MP.wireTomTom(map, S); MP.declutter(map);
   document.addEventListener('click', e => { const a = e.target.closest?.('.maplibregl-ctrl-attrib'); if (a) a.dataset.userOpen = '1'; else document.querySelectorAll('.maplibregl-ctrl-attrib[data-user-open]').forEach(x => { delete x.dataset.userOpen; shut(); }); }, true); } setTimeout(MP.mountLegendButton, 0);
 map.addControl(new maplibregl.ScaleControl({ unit: S.truck.units === 'km' ? 'metric' : 'imperial' }), 'bottom-right');
 const truckEl = document.createElement('div'); truckEl.className = 'truck-marker';
-const truckCanvas = document.createElement('canvas'); truckCanvas.setAttribute('aria-hidden', 'true'); truckEl.appendChild(truckCanvas);
+const CHEVRON = '<svg viewBox="0 0 48 64" width="34" height="44" aria-hidden="true"><ellipse cx="24" cy="56" rx="9" ry="3.5" fill="#000" opacity=".28"/><path d="M24 6 L40 48 L24 38 L8 48 Z" fill="#ff9500" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>';
+truckEl.innerHTML = CHEVRON;
 S.ride = { type: 'pro', color: 'orange', ...LS.get('ride', {}) };
 S.view3d = LS.get('view3d', true) !== false;
-const rideColor = () => ({ red: '#e53935', orange: '#fb8c00', yellow: '#fdd835', green: '#43a047', blue: '#1e88e5', purple: '#8e24aa', black: '#37474f', white: '#eceff1', chrome: '#b0bec5' }[S.ride.color] || '#fb8c00');
-const truckView = () => (S.nav && S.view3d) ? 'rear' : 'top';
-const drawRide = () => { paintTruck(truckCanvas, { color: rideColor(), view: truckView(), kind: S.ride.type, dpr: Math.min(2, window.devicePixelRatio || 1) }); };
-drawRide();
+const drawRide = () => { truckEl.classList.toggle('model-on', !!(S.truckModel?.ok && S.view3d)); };
 const truckMarker = new maplibregl.Marker({ element: truckEl, rotationAlignment: 'map', pitchAlignment: 'map', anchor: 'center' });
 { const pop = new maplibregl.Popup({ offset: 24 }); pop.on('open', () => pop.setHTML(MP.head({ kind: 'you', icon: '🚛', label: 'Your truck (live GPS)', src: MP.SRC.you, when: S.pos?.t ?? null, detail: S.pos?.acc ? t('GPS accurate to about {0} m', [Math.round(S.pos.acc)]) : '' }))); truckMarker.setPopup(pop); MP.tapToOpen(truckMarker, 'Your truck (live GPS)'); S.truckMarker = truckMarker; S.mp = MP; }
 const destMarker = new maplibregl.Marker({ color: '#e53935' }); const gateMarker = new maplibregl.Marker({ color: '#ffb300' });
@@ -87,13 +86,18 @@ function addLayers() {
   if (!map.getLayer('fuelAll')) map.addLayer({ id: 'fuelAll', type: 'circle', source: 'fuelAll', minzoom: 10, filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': 6, 'circle-color': ['case', ['==', ['get', 'truck'], true], '#ffb300', '#26a69a'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
   drawRoute();
   ensureBuildings();
+  S.truckModel?.remount?.();
 }
 function ensureBuildings() {
+  const fade = ['interpolate', ['linear'], ['zoom'], 16.4, 0, 17.2, 0.1, 18.2, 0.2];
+  const color = curTheme === 'day' ? '#e7e0d4' : '#1e2836';
+  const soften = id => { if (!map.getLayer(id)) return; try { map.setPaintProperty(id, 'fill-extrusion-opacity', fade); map.setPaintProperty(id, 'fill-extrusion-color', color); map.setLayerZoomRange(id, 15.5, 24); } catch (e) { console.warn('buildings', e); } };
+  soften('building-3d');
   if (map.getLayer('building-3d') || map.getLayer('rr-buildings') || !map.getSource('openmaptiles')) return;
   const before = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
   try {
-    map.addLayer({ id: 'rr-buildings', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14,
-      paint: { 'fill-extrusion-color': curTheme === 'day' ? '#e6dcc8' : '#3c4654', 'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 10], 'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0], 'fill-extrusion-opacity': 0.9 } }, before);
+    map.addLayer({ id: 'rr-buildings', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 15.5,
+      paint: { 'fill-extrusion-color': color, 'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 8], 'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0], 'fill-extrusion-opacity': fade } }, before);
   } catch (e) { console.warn('buildings', e); }
 }
 map.on('style.load', addLayers);
@@ -124,7 +128,7 @@ map.on('contextmenu', e => pickPoint(e.lngLat));
 function pickPoint(ll) { setDest({ lon: ll.lng, lat: ll.lat, name: `Pin ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}` }); }
 
 // ---------- UI helpers ----------
-function toast(msg, ms = 5000) { const t = $('#toast'); let s = t.querySelector('.rr-msg'); if (!s) { t.replaceChildren(); s = document.createElement('span'); s.className = 'rr-msg'; t.appendChild(s); } s.textContent = msg; t.classList.remove('hidden'); arm(t, { fresh: true, ms: Math.min(ms || 5000, 5000) }); }
+function toast(msg, ms = 5000) { const t = $('#toast'); let s = t.querySelector('.rr-msg'); if (!s) { t.replaceChildren(); s = document.createElement('span'); s.className = 'rr-msg'; t.appendChild(s); } s.textContent = msg; t.classList.remove('hidden'); arm(t, { fresh: true, ms: Math.min(ms || 5000, 5000) }); S.restack?.(); }
 S.toast = toast;
 function openPanel(id) { $$('.panel').forEach(p => p.classList.toggle('hidden', p.id !== id || !p.classList.contains('hidden'))); $('#crosshair').classList.toggle('hidden', id !== 'facPanel' || $('#facPanel').classList.contains('hidden')); if (id === 'mePanel') renderMe(); if (id === 'reportPanel') renderReportPanel(); }
 function closePanels() { $$('.panel').forEach(p => p.classList.add('hidden')); $('#crosshair').classList.add('hidden'); }
@@ -180,7 +184,7 @@ function movePuck(lon, lat, heading) { if (!truckMarker._map) { truckMarker.setL
   const from = truckMarker.getLngLat(), r0 = truckMarker.getRotation(), dr = ((heading - r0) % 360 + 540) % 360 - 180, t0 = performance.now(), D = S.demo ? 950 : 800;
   if (Math.abs(from.lng - lon) + Math.abs(from.lat - lat) > 0.02 || document.hidden) { truckMarker.setLngLat([lon, lat]).setRotation(heading); return; }
   cancelAnimationFrame(puckAnim); const step = now => { const k = Math.min(1, (now - t0) / D), e = k * (2 - k), kr = Math.min(1, (now - t0) / 300), er = 1 - (1 - kr) ** 3; // heading: ≤300 ms ease-out (design_v2 #15)
-    truckMarker.setLngLat([from.lng + (lon - from.lng) * e, from.lat + (lat - from.lat) * e]).setRotation(r0 + dr * er); if (k < 1) puckAnim = requestAnimationFrame(step); };
+    truckMarker.setLngLat([from.lng + (lon - from.lng) * e, from.lat + (lat - from.lat) * e]).setRotation(r0 + dr * er); map.triggerRepaint(); if (k < 1) puckAnim = requestAnimationFrame(step); };
   puckAnim = requestAnimationFrame(step); }
 S.movePuck = movePuck;
 function onFix(f) {
@@ -971,6 +975,8 @@ import('./extras.js').then(m => m.init(S, H_)).catch(e => console.error('extras'
   .finally(() => import('./planner.js').then(m => m.init(S, { ...H_, truckCosting })).catch(e => console.error('planner', e)))
   .finally(() => import('./offline.js').then(m => { m.init(S, H_); S.offlineReady = true; }).catch(e => console.error('offline', e)));
 watchNotices(); setView3d(S.view3d);
+S.truckModel = attachTruckModel(map, truckMarker);
+S.truckModel.ready.then(() => { drawRide(); map.triggerRepaint(); });
 S.openPanel = openPanel;
 import('./account.js').then(m => m.init(S, H_)).catch(e => console.error('account', e));
 S.ready = true;

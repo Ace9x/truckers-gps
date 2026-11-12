@@ -535,9 +535,9 @@ html body #hzBanner,html body #tfBanner,html body #wnPop,html body #lastMile,htm
 html body #wnPop ul{padding-right:8px}
 #navView{margin-left:auto;flex:none;align-self:center;min-width:64px;min-height:44px;padding:0 10px;border-radius:12px;border:2px solid #fff;background:#000a;color:#fff;font:800 16px/1 system-ui,sans-serif}
 html body #dView{position:static;flex:none;align-self:flex-start;min-width:44px!important;min-height:44px!important;width:48px;padding:0;border-radius:12px;border:2px solid #fff;background:#000a;color:#fff;font:800 15px/1 system-ui,sans-serif}
-html body.nav #toast,html body.driving #toast{bottom:auto;top:calc(136px + env(safe-area-inset-top))}
 html body:has(.panel:not(.hidden)) #toast{bottom:auto;top:calc(72px + env(safe-area-inset-top))}
-html body #wrongRoad{top:calc(64px + var(--safe-t))}
+html body .truck-marker svg{display:block;filter:drop-shadow(0 1px 1px #0008)}
+html body .truck-marker.model-on svg{visibility:hidden}
 #lockout{background:transparent!important;pointer-events:none;align-items:flex-end;padding:12px}
 #lockout>div{pointer-events:auto;position:relative;width:min(420px,100%);padding-right:56px}
 #lockClose{min-width:44px;min-height:44px}

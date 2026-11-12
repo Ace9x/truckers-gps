@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.33.1",
+  "date": "2026-11-12",
+  "items": [
+   "The truck on the map is a lit cab and trailer that sits on the road, turns with your heading, and gets bigger as you zoom in.",
+   "Buildings in the driving view are lighter and only appear when you are close. Road names stay readable.",
+   "Notes sit below the turn card, so a status line no longer peeks out from under it."
+  ]
+ },
+ {
   "version": "3.33.0",
   "date": "2026-11-11",
   "items": [
