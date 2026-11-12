@@ -193,8 +193,8 @@ setInterval(() => { state(); placeChip(); }, 1000); state();
 // ---- Round 2: route line coloured by traffic (UX P7 / code D5) ----
 // The route line itself carries congestion colour via line-gradient (source has lineMetrics) instead of a second overlay line.
 function routeTraffic() { if (!map?.getLayer('route')) return;
-  const W = ['interpolate', ['exponential', 1.5], ['zoom'], 8, 4, 14, 8, 18, 14], WC = ['interpolate', ['exponential', 1.5], ['zoom'], 8, 6, 14, 12, 18, 20];
-  if (!routeTraffic.styled) { try { map.setPaintProperty('route', 'line-width', W); map.setPaintProperty('route-casing', 'line-width', WC); map.setPaintProperty('route-casing', 'line-color', '#0b2e59'); map.setPaintProperty('route', 'line-color', '#38bdf8'); if (map.getLayer('done')) map.setPaintProperty('done', 'line-opacity', 0.4); routeTraffic.styled = true; } catch {} }
+  const W = ['interpolate', ['linear'], ['zoom'], 8, 8, 13, 9, 16, 10, 19, 10], WC = ['interpolate', ['linear'], ['zoom'], 8, 12, 13, 14, 16, 16, 19, 16];
+  if (!routeTraffic.styled) { try { map.setPaintProperty('route', 'line-width', W); map.setPaintProperty('route-casing', 'line-width', WC); map.setPaintProperty('route-casing', 'line-color', '#d7f3ff'); map.setPaintProperty('route', 'line-color', '#1a8cff'); if (map.getLayer('done')) map.setPaintProperty('done', 'line-opacity', 0.35); routeTraffic.styled = true; } catch {} }
   const T = S.traffic, r = S.route, g = r && T?.cur ? routeGradient(T.cur.slowdowns, r.length) : null, key = g ? JSON.stringify(g) : '';
   if (key === routeTraffic.key) return; routeTraffic.key = key;
   try { map.setPaintProperty('route', 'line-gradient', g || ['interpolate', ['linear'], ['line-progress'], 0, '#38bdf8', 1, '#38bdf8']);

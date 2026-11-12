@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.33.2",
+  "date": "2026-11-12",
+  "items": [
+   "The truck stays easy to see while you drive. It is about the same size on the screen at every zoom, with an orange cab, a white trailer, and a soft glow.",
+   "The cab points along the route. The route line ahead of the truck is thicker, with a light edge.",
+   "Buildings no longer pile up as gray blocks on the night map."
+  ]
+ },
+ {
   "version": "3.33.1",
   "date": "2026-11-12",
   "items": [

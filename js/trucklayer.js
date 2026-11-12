@@ -38,7 +38,7 @@ function meshesFromGlb(buf, THREE) {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     geo.setIndex(new THREE.BufferAttribute(idx, 1));
-    const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0], c[1], c[2]) });
+    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(c[0], c[1], c[2]) });
     out.push(new THREE.Mesh(geo, material));
   }
   return out;
@@ -51,13 +51,32 @@ export function attachTruckModel(map, marker) {
     const THREE = await import(THREE_URL);
     const buf = await (await fetch(MODEL)).arrayBuffer();
     scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 1.05));
-    const sun = new THREE.DirectionalLight(0xfff6ea, 0.85);
-    sun.position.set(40, 70, 24);
-    scene.add(sun);
     const group = new THREE.Group();
-    for (const mesh of meshesFromGlb(buf, THREE)) group.add(mesh);
-    group.position.z = -0.6; // cab sits on the GPS point; the trailer trails behind
+    let minZ = Infinity, maxZ = -Infinity;
+    for (const mesh of meshesFromGlb(buf, THREE)) {
+      group.add(mesh);
+      mesh.geometry.computeBoundingBox();
+      const b = mesh.geometry.boundingBox;
+      minZ = Math.min(minZ, b.min.z); maxZ = Math.max(maxZ, b.max.z);
+    }
+    api.lengthM = Math.max(6, maxZ - minZ);
+    const disc = (rgba, opacity) => {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d');
+      const grd = g.createRadialGradient(64, 64, 6, 64, 64, 64);
+      grd.addColorStop(0, rgba); grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+      const mesh = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity }));
+      mesh.rotation.x = -Math.PI / 2;
+      return mesh;
+    };
+    const mid = (minZ + maxZ) / 2;
+    const shadow = disc('rgba(0,0,0,0.92)', 1);
+    shadow.scale.set(5.2, 12.2, 1); shadow.position.set(0, 0.02, mid); group.add(shadow);
+    const glow = disc('rgba(255,140,0,0.5)', 0.9);
+    glow.material.blending = THREE.AdditiveBlending;
+    glow.scale.set(4.6, 11.2, 1); glow.position.set(0, 0.05, mid); group.add(glow);
+    group.position.z = -maxZ; // nose of the cab sits on the GPS point
     scene.add(group);
     camera = new THREE.Camera();
     layer = {
@@ -74,13 +93,20 @@ export function attachTruckModel(map, marker) {
         if (!ll) return;
         const heading = marker.getRotation() || 0;
         const mc = maplibregl.MercatorCoordinate.fromLngLat([ll.lng, ll.lat], 0);
-        const s = mc.meterInMercatorCoordinateUnits();
+        const meters = mc.meterInMercatorCoordinateUnits();
+        const rad = heading * Math.PI / 180;
+        const dNorth = (api.lengthM || 20) / 111320;
+        const ahead = [ll.lng + Math.sin(rad) * dNorth / Math.cos(ll.lat * Math.PI / 180), ll.lat + Math.cos(rad) * dNorth];
+        const pa = map.project([ll.lng, ll.lat]), pb = map.project(ahead);
+        const px = Math.max(8, Math.hypot(pb.x - pa.x, pb.y - pa.y));
+        const s = meters * (36 / px); // projected body stays inside 56–72px at every zoom
+        api.px = px; api.scale = s;
         const m = new THREE.Matrix4().fromArray(matrix);
         const l = new THREE.Matrix4()
           .makeTranslation(mc.x, mc.y, mc.z || 0)
           .scale(new THREE.Vector3(s, -s, s))
           .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2))
-          .multiply(new THREE.Matrix4().makeRotationZ(Math.PI - heading * Math.PI / 180));
+          .multiply(new THREE.Matrix4().makeRotationY(heading * Math.PI / 180 - Math.PI / 2));
         camera.projectionMatrix.copy(m.multiply(l));
         renderer.resetState();
         renderer.render(scene, camera);

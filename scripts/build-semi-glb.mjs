@@ -37,6 +37,10 @@ const ORANGE = [1, 0.48, 0.06], WHITE = [0.96, 0.97, 0.98], BLACK = [0.08, 0.09,
 box(0, 0.55, -6.2, 1.15, 0.28, 16.4, BLACK, 0.2, 0.45);
 // 53 ft trailer body. Rear at -z.
 box(0, 2.55, -9.6, 2.55, 3.55, 16.15, WHITE, 0.08, 0.42);
+// Orange brand stripe along both sides and the roof edge so the trailer reads at a glance.
+box(1.3, 2.55, -9.6, 0.06, 0.42, 15.5, ORANGE, 0.05, 0.35);
+box(-1.3, 2.55, -9.6, 0.06, 0.42, 15.5, ORANGE, 0.05, 0.35);
+box(0, 4.36, -9.6, 2.58, 0.1, 15.7, ORANGE, 0.05, 0.35);
 // Rear door seam
 box(0, 2.5, -17.64, 2.4, 3.2, 0.06, [0.78, 0.8, 0.82], 0.1, 0.4);
 // Cab

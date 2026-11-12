@@ -45,9 +45,10 @@ const shoot = async (name, zoom, pitch = 58) => {
   await p.waitForTimeout(400);
   await p.screenshot({ path: `${OUT}/${name}.png` });
 };
-await shoot('v3331_drive_far', 16.4, 58);
-await shoot('v3331_drive_near', 17.6, 60);
-await shoot('v3331_truck_close', 18.8, 64);
+await shoot('v3332_drive_far', 16.2, 58);
+await shoot('v3332_drive_near', 17.4, 60);
+const box = await p.evaluate(() => { const S = window.TruckNav, ll = S.truckMarker.getLngLat(), pt = S.map.project([ll.lng, ll.lat]); return { x: pt.x, y: pt.y }; });
+await p.screenshot({ path: `${OUT}/v3332_truck_close.png`, clip: { x: Math.max(0, box.x - 130), y: Math.max(0, box.y - 150), width: 260, height: 280 } });
 console.log('ERRS', errs.filter(e => !/relay|damus|nostr|favicon/i.test(e)).slice(0, 12));
 await browser.close();
 if (!ready.route || !ready.model) process.exit(1);

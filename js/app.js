@@ -77,8 +77,8 @@ function addLayers() {
   for (const id of ['car', 'alts', 'route', 'done']) if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: empty, ...(id === 'route' ? { lineMetrics: true } : {}) }); // lineMetrics: route coloured by traffic via line-gradient
   if (!map.getLayer('car')) map.addLayer({ id: 'car', type: 'line', source: 'car', paint: { 'line-color': '#9e9e9e', 'line-width': 4, 'line-dasharray': [2, 2] } });
   if (!map.getLayer('alts')) map.addLayer({ id: 'alts', type: 'line', source: 'alts', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#78909c', 'line-width': 7, 'line-opacity': 0.8 } });
-  if (!map.getLayer('route-casing')) map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#0d47a1', 'line-width': 13 } });
-  if (!map.getLayer('route')) map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#29b6f6', 'line-width': 8 } });
+  if (!map.getLayer('route-casing')) map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#d7f3ff', 'line-width': 14 } });
+  if (!map.getLayer('route')) map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#1a8cff', 'line-width': 9 } });
   if (!map.getLayer('done')) map.addLayer({ id: 'done', type: 'line', source: 'done', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#607d8b', 'line-width': 8 } });
   if (!map.getSource('wz')) map.addSource('wz', { type: 'geojson', data: S.closureGeo || empty, cluster: true, clusterRadius: 45, clusterMaxZoom: 13, clusterProperties: { closed: ['max', ['case', ['get', 'closed'], 1, 0]] } }); // UX P8 / C3: clustered in the source
   if (!map.getLayer('wz')) map.addLayer({ id: 'wz', type: 'circle', source: 'wz', minzoom: 11, filter: ['!', ['has', 'point_count']], paint: { 'circle-radius': ['case', ['get', 'closed'], 8, 5], 'circle-color': ['case', ['get', 'closed'], '#ff1744', '#ff9100'], 'circle-stroke-color': '#111', 'circle-stroke-width': 1.5 } });
@@ -89,16 +89,8 @@ function addLayers() {
   S.truckModel?.remount?.();
 }
 function ensureBuildings() {
-  const fade = ['interpolate', ['linear'], ['zoom'], 16.4, 0, 17.2, 0.1, 18.2, 0.2];
-  const color = curTheme === 'day' ? '#e7e0d4' : '#1e2836';
-  const soften = id => { if (!map.getLayer(id)) return; try { map.setPaintProperty(id, 'fill-extrusion-opacity', fade); map.setPaintProperty(id, 'fill-extrusion-color', color); map.setLayerZoomRange(id, 15.5, 24); } catch (e) { console.warn('buildings', e); } };
-  soften('building-3d');
-  if (map.getLayer('building-3d') || map.getLayer('rr-buildings') || !map.getSource('openmaptiles')) return;
-  const before = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
-  try {
-    map.addLayer({ id: 'rr-buildings', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 15.5,
-      paint: { 'fill-extrusion-color': color, 'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 8], 'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0], 'fill-extrusion-opacity': fade } }, before);
-  } catch (e) { console.warn('buildings', e); }
+  // Night driving stays flat. Extrusions read as gray slabs on this basemap and hide the route.
+  for (const id of ['building-3d', 'rr-buildings']) if (map.getLayer(id)) { try { map.setLayoutProperty(id, 'visibility', 'none'); } catch {} }
 }
 map.on('style.load', addLayers);
 map.on('click', 'wz', e => { const p = e.features[0].properties; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b style="color:#111">${p.closed ? '⛔ Closure' : '🚧 Work zone'}</b><br><span style="color:#333">${esc(p.desc)}<br><i>Source: official ${esc(p.src)} 511/WZDx feed</i></span>`).addTo(map); });
