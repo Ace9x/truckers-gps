@@ -139,15 +139,38 @@ document.addEventListener('click', e => { if (e.target.closest('#dView')) setVie
 function setView3d(v) { S.view3d = !!v; LS.set('view3d', S.view3d); const label = S.view3d ? 'Switch to flat north-up map' : 'Switch to 3D driving view', txt = S.view3d ? '2D' : '3D';
   for (const id of ['viewBtn', 'navView', 'dView']) { const b = document.getElementById(id); if (!b) continue; b.textContent = txt; b.classList.toggle('on', S.view3d); b.setAttribute('aria-label', label); b.title = label; }
   truckMarker.setPitchAlignment(S.nav && S.view3d ? 'viewport' : 'map'); drawRide(); if (!S.view3d) map.easeTo({ pitch: 0, bearing: S.nav ? 0 : map.getBearing(), duration: 450 }); if (S.follow && S.pos) camera(false); }
+function normBearing(b) { return ((b % 360) + 360) % 360; }
+// While navigating, the cab and the camera follow the road under the truck.
+// Parked GPS headings are often stale, so a stop uses the route segment instead.
+function syncTravelHeading() {
+  const p = S.pos, r = S.route;
+  if (!p) return null;
+  if (!(S.nav && r?.line?.length > 1)) { S.travelHeading = p.heading ?? null; return S.travelHeading; }
+  const line = r.line, cum = r.cum || cumulative(line);
+  const sn = snapToRoute([p.lon, p.lat], line, cum, S.hint || 0);
+  const si = Math.min(Math.max(sn.seg, 0), line.length - 2);
+  const segB = bearing(line[si], line[si + 1]);
+  const slow = (p.speed || 0) < 2;
+  S.travelHeading = segB != null && (slow || sn.dist < 40) ? segB : (p.heading ?? segB);
+  S.segBearing = segB;
+  return S.travelHeading;
+}
 function camera(jump) {
   if (!S.pos || !S.follow) return;
   const o = { center: [S.pos.lon, S.pos.lat] };
-  if (S.nav && S.view3d) { const f = driveFrame(window.innerHeight); Object.assign(o, { zoom: Math.max(15, 17.2 - (S.pos.speed || 0) / 14), pitch: f.pitch, bearing: (S.camBearing = smoothBearing(S.camBearing ?? map.getBearing(), S.pos.heading ?? null)), padding: { top: f.top, bottom: f.bottom } }); }
+  if (S.nav && S.view3d) {
+    syncTravelHeading();
+    const f = driveFrame(window.innerHeight);
+    const aim = S.travelHeading ?? S.pos.heading ?? map.getBearing();
+    const bearing = (jump || S.camBearing == null) ? normBearing(aim) : smoothBearing(S.camBearing, aim, 1, 120);
+    S.camBearing = bearing;
+    Object.assign(o, { zoom: Math.max(15, 17.2 - (S.pos.speed || 0) / 14), pitch: f.pitch, bearing, padding: { top: f.top, bottom: f.bottom } });
+  }
   else if (S.nav) Object.assign(o, { zoom: Math.max(14, 16 - (S.pos.speed || 0) / 14), pitch: 0, bearing: 0, padding: { top: 80, bottom: 80 } });
   else Object.assign(o, { padding: { top: 0, bottom: 0 } });
   jump ? map.jumpTo(o) : map.easeTo({ ...o, duration: 900, easing: t => 1 - (1 - t) ** 3 });
 }
-S.setView3d = setView3d; S.driveFrame = driveFrame; S.DRIVE_PITCH = DRIVE_PITCH;
+S.setView3d = setView3d; S.driveFrame = driveFrame; S.DRIVE_PITCH = DRIVE_PITCH; S.camera = camera; S.syncTravelHeading = syncTravelHeading;
 
 // ---------- GPS (high accuracy while moving, low-power when parked) ----------
 let watchId = null;
@@ -545,7 +568,11 @@ function navTick() {
     return;
   }
   if (S.off.isOff()) { paintNavSeed(true); checkWrongRoad(); return; } // off the line (yard, drift): keep the full-route ETA and say Head to route. Don't advance the turn.
-  if (sn.pt && sn.dist < 30) movePuck(sn.pt[0], sn.pt[1], segB ?? S.pos.heading ?? 0); // show the snapped point while on route
+  const slow = (S.pos.speed || 0) < 2;
+  const travel = segB != null && (slow || sn.dist < 40) ? segB : (S.pos.heading ?? segB ?? 0);
+  S.travelHeading = travel; S.segBearing = segB;
+  if (sn.pt && sn.dist < 30) movePuck(sn.pt[0], sn.pt[1], travel); // snapped point, cab along this segment
+  else if (slow && travel != null) { const ll = truckMarker.getLngLat(); if (ll) movePuck(ll.lng, ll.lat, travel); } // parked: ignore a stale GPS heading
   S.hint = sn.seg; S.along = sn.along; LS.set('navActive', { t: Date.now(), sel: S.sel });
   const remaining = Math.max(0, r.length - sn.along);
   const idx = currentStep(r.maneuvers, sn.seg), m = r.maneuvers[idx];

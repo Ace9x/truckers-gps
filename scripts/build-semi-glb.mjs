@@ -32,40 +32,42 @@ function cyl(cx, cy, cz, r, len, axis, color, metal = 0.02, rough = 0.7, sides =
   for (let i = 0; i < sides; i++) { const j = (i + 1) % sides; ix.push(a0 + i, a1 + i, a1 + j, a0 + i, a1 + j, a0 + j); }
   addMesh(color, metal, rough, Float32Array.from(p), Float32Array.from(nrm), Uint16Array.from(ix));
 }
-const ORANGE = [1, 0.48, 0.06], WHITE = [0.96, 0.97, 0.98], BLACK = [0.08, 0.09, 0.1], GLASS = [0.15, 0.45, 0.72], CHROME = [0.82, 0.84, 0.86], RUBBER = [0.02, 0.02, 0.025], AMBER = [1, 0.72, 0.1];
+const ORANGE = [1, 0.42, 0.02], WHITE = [0.96, 0.97, 0.98], BLACK = [0.08, 0.09, 0.1], GLASS = [0.55, 0.84, 0.98], CHROME = [0.82, 0.84, 0.86], RUBBER = [0.02, 0.02, 0.025], AMBER = [1, 0.72, 0.1];
+// Nose at +Z. Cab + hood is about 30% of the length so it still reads as a semi when the body is ~64px on screen.
 // Chassis
-box(0, 0.55, -6.2, 1.15, 0.28, 16.4, BLACK, 0.2, 0.45);
-// 53 ft trailer body. Rear at -z.
-box(0, 2.55, -9.6, 2.55, 3.55, 16.15, WHITE, 0.08, 0.42);
-// Orange brand stripe along both sides and the roof edge so the trailer reads at a glance.
-box(1.3, 2.55, -9.6, 0.06, 0.42, 15.5, ORANGE, 0.05, 0.35);
-box(-1.3, 2.55, -9.6, 0.06, 0.42, 15.5, ORANGE, 0.05, 0.35);
-box(0, 4.36, -9.6, 2.58, 0.1, 15.7, ORANGE, 0.05, 0.35);
-// Rear door seam
-box(0, 2.5, -17.64, 2.4, 3.2, 0.06, [0.78, 0.8, 0.82], 0.1, 0.4);
-// Cab
-box(0, 1.85, 0.55, 2.45, 2.55, 2.35, ORANGE, 0.12, 0.38);
-// Hood
-box(0, 1.15, 1.85, 2.2, 1.05, 0.85, ORANGE, 0.12, 0.38);
+box(0, 0.55, -5.6, 1.15, 0.28, 16.6, BLACK, 0.2, 0.45);
+// Trailer. Rear near z = -16.2, front at z = -3.8. The orange cab sits ahead of it.
+box(0, 2.5, -10.0, 2.55, 3.7, 12.4, WHITE, 0.08, 0.42);
+box(1.31, 2.55, -10.0, 0.08, 0.55, 11.8, ORANGE, 0.05, 0.35);
+box(-1.31, 2.55, -10.0, 0.08, 0.55, 11.8, ORANGE, 0.05, 0.35);
+box(1.15, 4.38, -10.0, 0.18, 0.08, 12.0, ORANGE, 0.05, 0.35);
+box(-1.15, 4.38, -10.0, 0.18, 0.08, 12.0, ORANGE, 0.05, 0.35);
+box(0, 2.5, -16.22, 2.4, 3.3, 0.08, [0.78, 0.8, 0.82], 0.1, 0.4);
+// Cab stands taller than the trailer so the chase camera still sees it. About a third of the length.
+box(0, 2.45, -1.25, 2.6, 4.6, 3.8, ORANGE, 0.12, 0.38);
+// Hood, long enough that the nose is obviously a truck nose.
+box(0, 1.28, 1.55, 2.35, 1.4, 2.2, ORANGE, 0.12, 0.38);
 // Sleeper / roof fairing
-box(0, 3.35, -0.15, 2.35, 0.55, 1.5, ORANGE, 0.1, 0.4);
-// Windshield
-box(0, 2.35, 1.62, 2.15, 0.95, 0.08, GLASS, 0.0, 0.15);
+box(0, 4.9, -1.4, 2.45, 0.4, 2.4, ORANGE, 0.1, 0.4);
+// Windshield: tall front glass plus a roof panel so the cab reads from the chase camera.
+box(0, 3.35, 0.78, 2.3, 1.9, 0.16, GLASS, 0.0, 0.08);
+box(0, 5.14, -0.7, 2.0, 0.08, 1.7, GLASS, 0.0, 0.08);
+box(-1.32, 3.15, -0.55, 0.08, 1.35, 1.8, GLASS, 0.0, 0.08);
+box(1.32, 3.15, -0.55, 0.08, 1.35, 1.8, GLASS, 0.0, 0.08);
 // Grille
-box(0, 1.15, 2.26, 1.5, 0.7, 0.06, CHROME, 0.6, 0.25);
+box(0, 1.22, 2.7, 1.75, 0.9, 0.08, CHROME, 0.6, 0.25);
 // Bumper
-box(0, 0.55, 2.15, 2.35, 0.28, 0.18, CHROME, 0.5, 0.3);
+box(0, 0.55, 2.55, 2.5, 0.34, 0.24, CHROME, 0.5, 0.3);
 // Mirrors
-box(-1.4, 2.15, 1.15, 0.12, 0.42, 0.22, BLACK, 0.1, 0.4);
-box(1.4, 2.15, 1.15, 0.12, 0.42, 0.22, BLACK, 0.1, 0.4);
+box(-1.5, 2.35, 0.35, 0.16, 0.58, 0.32, BLACK, 0.1, 0.4);
+box(1.5, 2.35, 0.35, 0.16, 0.58, 0.32, BLACK, 0.1, 0.4);
 // Marker lights
-box(-0.9, 0.55, 2.28, 0.16, 0.1, 0.06, AMBER, 0, 0.3);
-box(0.9, 0.55, 2.28, 0.16, 0.1, 0.06, AMBER, 0, 0.3);
-box(-1.05, 1.15, -17.7, 0.14, 0.18, 0.05, [0.8, 0.05, 0.05], 0, 0.3);
-box(1.05, 1.15, -17.7, 0.14, 0.18, 0.05, [0.8, 0.05, 0.05], 0, 0.3);
+box(-0.95, 0.55, 2.72, 0.18, 0.12, 0.06, AMBER, 0, 0.3);
+box(0.95, 0.55, 2.72, 0.18, 0.12, 0.06, AMBER, 0, 0.3);
+box(-1.05, 1.2, -16.3, 0.16, 0.22, 0.06, [0.85, 0.05, 0.05], 0, 0.3);
+box(1.05, 1.2, -16.3, 0.16, 0.22, 0.06, [0.85, 0.05, 0.05], 0, 0.3);
 // Wheels: steer, drive, trailer
-const wheels = [[1.15, 1.35], [1.15, -0.15], [-1.15, -0.15], [-7.2, -7.2], [-8.5, -8.5], [-14.6, -14.6], [-15.9, -15.9]];
-for (const [z, z2] of [[1.35, null], [-0.2, null], [-7.4, -8.6], [-14.8, -16.0]]) {
+for (const [z, z2] of [[1.7, null], [-0.35, -1.7], [-8.6, -9.9], [-13.2, -14.5]]) {
   for (const side of [-1, 1]) {
     cyl(side * 1.22, 0.52, z, 0.52, 0.38, 0, RUBBER);
     cyl(side * 1.22, 0.52, z, 0.28, 0.4, 0, CHROME, 0.7, 0.25);

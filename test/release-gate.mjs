@@ -299,6 +299,11 @@ for (const P of PROFILES) {
   ok(!!await p.$('#tourCard, #tSkip'), 'forced first run shows the tour');
   await p.waitForTimeout(3500); ok(!(await p.$('#wnPop')), 'What\'s New stays off on first run');
   await ctx.close(); }
+{ const { spawnSync } = await import('node:child_process'); const r = spawnSync('node', ['test/truck-heading.mjs'], { env: { ...process.env, BASE }, encoding: 'utf8', timeout: 180000 });
+  const run = { profile: 'truck-heading', engine: 'chromium', checks: [], overlaps: [], small: [], errors: [], external: [], shots: [] }; R.runs.push(run);
+  for (const l of (r.stdout || '').split('\n')) { const m = l.match(/^(ok  |FAIL) (.*)$/); if (m) run.checks.push({ ok: m[1] === 'ok  ', m: m[2] }); }
+  if (r.status !== 0 && !run.checks.some(c => !c.ok)) run.checks.push({ ok: false, m: 'truck heading gate', extra: ((r.stderr || '') + '\n' + (r.stdout || '')).slice(0, 500) });
+  console.log((r.stdout || '').trim()); if (r.stderr) console.log(r.stderr.slice(0, 400)); }
 await ch.close(); if (wk) await wk.close();
 // (e) real-iPhone fit (3.30.2, after Fan's iPhone screenshots): WebKit 390x844 and 390x664 (Safari bars), menu / tabs / turn banner / windshield view
 { const { spawnSync } = await import('node:child_process'); const r = spawnSync('node', ['test/iphone-fit.mjs'], { env: { ...process.env, BASE, OUT: OUT + '/iphone-fit' }, encoding: 'utf8', timeout: 600000 });

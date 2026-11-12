@@ -1,5 +1,6 @@
 import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
 import { haversine, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, truckCosting, hosStatus, H, fmtDist, classifyPoi, overpassQuery } from '../js/logic.js';
+import { truckPose, poseElements } from '../js/trucklayer.js';
 import { cleanRef, installMilestone } from '../js/growth.js';
 
 test('haversine NYC→Newark ≈ 16 km', () => { const d = haversine([-73.9857, 40.7484], [-74.1724, 40.7357]); assert.ok(d > 15500 && d < 16500, d); });
@@ -312,12 +313,55 @@ test('long routes are split under the provider cap and stitched into one line', 
   ], { lat: 40.73, lon: -73.85 }, 'Canarsiee Street');
   assert.equal(miss[0].name, 'Canarsie Street');
 });
-test('the semi model is a small public-domain glTF', () => {
+function glbParts(buf) {
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const jsonLen = view.getUint32(12, true);
+  const json = JSON.parse(new TextDecoder().decode(buf.subarray(20, 20 + jsonLen)));
+  const binOff = 20 + jsonLen;
+  const bin = buf.subarray(binOff + 8, binOff + 8 + view.getUint32(binOff, true));
+  const src = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
+  return json.meshes[0].primitives.map(prim => {
+    const acc = json.accessors[prim.attributes.POSITION];
+    const bv = json.bufferViews[acc.bufferView];
+    const stride = bv.byteStride || 12, start = (bv.byteOffset || 0) + (acc.byteOffset || 0);
+    const zs = [];
+    let minZ = Infinity, maxZ = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < acc.count; i++) {
+      const o = start + i * stride;
+      const x = src.getFloat32(o, true), y = src.getFloat32(o + 4, true), z = src.getFloat32(o + 8, true);
+      zs.push([x, y, z]); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    return { c: json.materials[prim.material].pbrMetallicRoughness.baseColorFactor, minZ, maxZ, minY, maxY, zs };
+  });
+}
+test('the semi model is a small public-domain glTF with a readable cab', () => {
   const b = fs.readFileSync(new URL('../data/semi.glb', import.meta.url));
   const lic = fs.readFileSync(new URL('../data/semi-license.txt', import.meta.url), 'utf8');
   assert.equal(b.toString('utf8', 0, 4), 'glTF');
   assert.ok(b.length < 300 * 1024);
   assert.match(lic, /CC0/);
+  const parts = glbParts(b);
+  let minZ = Infinity, maxZ = -Infinity, glassY = 0; const cab = [];
+  for (const p of parts) {
+    minZ = Math.min(minZ, p.minZ); maxZ = Math.max(maxZ, p.maxZ);
+    const [r, g, bl] = p.c;
+    if (r > 0.4 && g > 0.7 && bl > 0.9) glassY = Math.max(glassY, p.maxY - p.minY);
+    if (r > 0.9 && g < 0.6 && bl < 0.2) for (const v of p.zs) if (v[2] > -3.6) cab.push(v[2]);
+  }
+  const ratio = (Math.max(...cab) - Math.min(...cab)) / (maxZ - minZ);
+  assert.ok(ratio > 0.27 && ratio < 0.38, 'cab share ' + ratio.toFixed(3));
+  assert.ok(glassY >= 1.4, 'windshield height ' + glassY);
+});
+test('truck nose follows the compass heading', () => {
+  for (const h of [0, 90, 180, 270, 37, 250]) {
+    const r = h * Math.PI / 180, p = truckPose(h), e = poseElements(h, 2, 10, 20, 3);
+    assert.ok(Math.abs(p.nose[0] - Math.sin(r)) < 1e-9 && Math.abs(p.nose[1] + Math.cos(r)) < 1e-9, h);
+    assert.ok(Math.abs(e[8] + e[12] - (10 + 2 * Math.sin(r))) < 1e-9, h);
+    assert.ok(Math.abs(e[9] + e[13] - (20 - 2 * Math.cos(r))) < 1e-9, h);
+    assert.ok(Math.abs(e[10] + e[14] - 3) < 1e-9, h);
+  }
+  const north = truckPose(0);
+  assert.ok(Math.abs(north.nose[1] + 1) < 1e-9 && Math.abs(north.right[0] - 1) < 1e-9);
 });
 test('driving camera keeps the truck in the lower third', () => {
   for (const h of [664, 844, 915]) {

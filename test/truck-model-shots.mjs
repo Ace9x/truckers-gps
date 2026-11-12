@@ -6,7 +6,7 @@ const OUT = process.env.OUT || '/opt/cursor/artifacts';
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const ctx = await browser.newContext({ ...devices['iPhone 13'], viewport: { width: 390, height: 844 }, permissions: ['geolocation'], geolocation: { latitude: 40.7282, longitude: -73.7949 } });
-await ctx.addInitScript(() => { localStorage.setItem('tn_locWhySeen', '1'); localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_lang', '"en"'); localStorage.setItem('tn_truckSetDone', '1'); localStorage.setItem('rr_area_asked', '1'); localStorage.setItem('tn_greeted', 'true'); localStorage.setItem('rr_whatsnew_seen', '3.33.1'); localStorage.setItem('tn_hos', '[]'); });
+await ctx.addInitScript(() => { localStorage.setItem('tn_locWhySeen', '1'); localStorage.setItem('tn_tourDone', 'true'); localStorage.setItem('tn_lang', '"en"'); localStorage.setItem('tn_truckSetDone', '1'); localStorage.setItem('rr_area_asked', '1'); localStorage.setItem('tn_greeted', 'true'); localStorage.setItem('rr_whatsnew_seen', '3.33.3'); localStorage.setItem('tn_hos', '[]'); });
 const p = await ctx.newPage();
 const errs = [];
 p.on('pageerror', e => errs.push('page ' + e.message));
@@ -32,23 +32,25 @@ const ready = await p.evaluate(async () => {
 });
 console.log('READY', JSON.stringify(ready));
 await p.waitForTimeout(1200);
-const shoot = async (name, zoom, pitch = 58) => {
-  await p.evaluate(async ({ zoom, pitch }) => {
+const shoot = async (name, zoom) => {
+  await p.evaluate(async (zoom) => {
     const S = window.TruckNav, m = S.map;
     document.querySelector('#toast')?.classList.add('hidden');
     const lock = document.querySelector('#mtLock'); if (lock) lock.hidden = true;
-    const ll = S.truckMarker.getLngLat();
-    m.jumpTo({ center: [ll.lng, ll.lat], zoom, pitch, bearing: S.truckMarker.getRotation() || 250 });
+    S.follow = true; S.nav = true; S.view3d = true;
+    S.map.stop(); S.camera(true);
+    const ll = S.truckMarker.getLngLat(), f = S.driveFrame(window.innerHeight);
+    m.jumpTo({ center: [ll.lng, ll.lat], zoom, pitch: f.pitch, bearing: m.getBearing(), padding: { top: f.top, bottom: f.bottom } });
     m.triggerRepaint();
     await new Promise(r => { m.once('idle', r); setTimeout(r, 2500); });
-  }, { zoom, pitch });
-  await p.waitForTimeout(400);
+  }, zoom);
+  await p.waitForTimeout(500);
   await p.screenshot({ path: `${OUT}/${name}.png` });
 };
-await shoot('v3332_drive_far', 16.2, 58);
-await shoot('v3332_drive_near', 17.4, 60);
+await shoot('v3333_drive_far', 16.2);
+await shoot('v3333_drive_near', 17.4);
 const box = await p.evaluate(() => { const S = window.TruckNav, ll = S.truckMarker.getLngLat(), pt = S.map.project([ll.lng, ll.lat]); return { x: pt.x, y: pt.y }; });
-await p.screenshot({ path: `${OUT}/v3332_truck_close.png`, clip: { x: Math.max(0, box.x - 130), y: Math.max(0, box.y - 150), width: 260, height: 280 } });
+await p.screenshot({ path: `${OUT}/v3333_truck_close.png`, clip: { x: Math.max(0, box.x - 130), y: Math.max(0, box.y - 90), width: 260, height: 280 } });
 console.log('ERRS', errs.filter(e => !/relay|damus|nostr|favicon/i.test(e)).slice(0, 12));
 await browser.close();
 if (!ready.route || !ready.model) process.exit(1);
