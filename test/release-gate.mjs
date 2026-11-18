@@ -68,13 +68,11 @@ for (const P of PROFILES) {
     (run.a11y ||= []).push(...v.map(x => where + ': ' + x)); ok(!v.length, `${where}: accessibility (contrast AA, labels, names)`, v); };
   await axe('map screen');
 
-  // HOS: each duty button sets + highlights exactly its status; timers + log follow (BUG-001)
-  ok(await openPanel('hosPanel'), 'HOS opens'); await shot('01-hos');
-  for (const d of ['off', 'sb', 'on', 'drive', 'sb', 'off']) { await tap(`[data-duty="${d}"]`); const st = await ev(() => ({ on: [...document.querySelectorAll('[data-duty].on')].map(x => x.dataset.duty), last: JSON.parse(localStorage.tn_hos || '[]').at(-1)?.s, status: window.TruckNav.hos?.status, log: document.querySelector('#hosLog li')?.textContent || '' }));
-    const L = { off: 'Off duty', sb: 'Sleeper', on: 'On duty', drive: 'Driving' }[d]; ok(st.on.length === 1 && st.on[0] === d && st.last === d && st.status === d && st.log.includes(L), `HOS tap "${L}" sets+highlights ${d}, log says ${L}`, st); }
-  await tap('[data-duty="off"]'); // double tap does not add twice
-  const nOff = await ev(() => JSON.parse(localStorage.tn_hos).length); await tap('[data-duty="off"]'); ok(await ev(() => JSON.parse(localStorage.tn_hos).length) === nOff, 'HOS: double-tap does not log twice');
-  await audit('HOS'); await axe('HOS'); await close();
+  ok(!await p.$('#hosPanel, [data-panel=hosPanel], #dockHos, [data-duty]'), 'hours log is not in the app');
+  await ev(() => { localStorage.setItem('tn_hos', '[{"t":1,"s":"drive"}]'); localStorage.setItem('tn_hosOpts', '{}'); });
+  await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForFunction(() => window.TruckNav?.map, null, { timeout: 30000 }); await p.waitForTimeout(1500);
+  ok(await ev(() => localStorage.getItem('tn_hos') == null && localStorage.getItem('tn_hosOpts') == null && !document.querySelector('#hosPanel')), 'old hours log is cleared on load and the panel stays gone');
+  await shot('01-dock');
 
   // Truck setup persists across reload
   await ev(() => { const S = window.TruckNav; S.truck = { ...S.truck, heightFt: 13, heightIn: 6, weightLbs: 80000 }; localStorage.tn_truck = JSON.stringify(S.truck); });

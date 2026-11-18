@@ -1,5 +1,4 @@
-import { hosEngine } from './hos.js';
-// Pure, testable navigation + HOS logic (no DOM).
+// Pure, testable navigation logic (no DOM).
 export const R = 6371008.8;
 const rad = d => d * Math.PI / 180;
 
@@ -224,11 +223,7 @@ export function truckCosting(p) {
   return o;
 }
 
-// ===== Hours of Service helper (US FMCSA property-carrying: 11h drive, 14h window, 30-min break after 8h driving, 10h reset). =====
-// events: [{t:ms, s:'off'|'sb'|'on'|'drive'}], chronological. Returns remaining limits at time `now`.
 export const H = 3600e3;
-// Delegates to the exact engine in hos.js (split sleeper, adverse, short-haul). Planning aid — not an ELD.
-export function hosStatus(events, now = Date.now(), opts = {}) { return hosEngine(events, now, opts); }
 
 
 // Sample a line to ~n points for Overpass "around" polyline queries.

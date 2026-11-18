@@ -1,5 +1,13 @@
 [
  {
+  "version": "3.33.4",
+  "date": "2026-11-18",
+  "items": [
+   "The hours log is gone. RigRoute no longer tracks duty status or driving hours.",
+   "Use your company's own log for hours of service. Navigation is unchanged."
+  ]
+ },
+ {
   "version": "3.33.3",
   "date": "2026-11-12",
   "items": [

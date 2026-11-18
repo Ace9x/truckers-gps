@@ -11,7 +11,7 @@ const SIZE = {
 const STEPS = [
   { k: 'vehicle', title: 'What are you driving?', hint: 'A semi at 13′6″ and 80,000 lb is ready if that is your rig. Cars use normal roads. You can change this later in Truck.' },
   { k: 'size', title: 'Does this size look right?', hint: 'Height, weight and length are set from the truck you picked. Change a number only if yours is different.' },
-  { k: 'voice', title: 'Spoken directions?', hint: 'Voice keeps your eyes on the road: turns, low bridges, weigh stations and HOS warnings are read out. You can mute any time with 🔊.' }];
+  { k: 'voice', title: 'Spoken directions?', hint: 'Voice keeps your eyes on the road: turns, low bridges and weigh stations are read out. You can mute any time with 🔊.' }];
 export const done = () => localStorage.getItem(DONE) === '1';
 function silhouette(v) { const h = 20 + (v.height - 96) / 66 * 50, L = 120 + (v.length - 20) / 80 * 160;
   return `<svg viewBox="0 0 320 110" aria-hidden="true" class="wz-truck"><line x1="0" y1="100" x2="320" y2="100" stroke="#3a424d" stroke-width="2"/>

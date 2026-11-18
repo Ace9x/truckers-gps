@@ -1,7 +1,7 @@
 // Driver tools: crowd parking status (open/some/full), shared facility notes, HOS "short of destination → last parking" helper,
 // weekly settlement (linehaul + detention + lumper, from RigRoute dispatch loads), CDL / med-card expiry reminders.
 import * as cloud from './cloud.js';
-import { parkingNow, hosParking, fmtH, credAlerts, CREDS, expiry } from './jobslogic.js';
+import { parkingNow, credAlerts, CREDS, expiry } from './jobslogic.js';
 import { settlement, stopsOf } from './freightlogic.js';
 let S; const $ = s => document.querySelector(s), esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => localStorage.setItem('tn_' + k, JSON.stringify(v)) };
@@ -20,15 +20,6 @@ function fillPk(all) { document.querySelectorAll('[data-pk]').forEach(el => { if
 export async function reportParking(id, name, [lat, lon], status) { if (!signedIn()) return toast('Sharing parking reports is paused for now. Thanks for helping!'); const c = await cloud.sb();
   const { data, error } = await c.rpc('report_parking', { p_poi: String(id), p_name: name, p_lat: lat, p_lng: lon, p_status: status }); if (error) return toast('⚠ ' + error.message);
   (pkReports[id] ||= []).push(data); S.parking = { ...(S.parking || {}), [id]: parkingNow(pkReports[id]) }; fillPk(true); toast(`🅿️ Thanks — ${PK[status][1].toLowerCase()} reported`); }
-// ---- HOS short → last parking
-let hpSaid = null;
-function hosPark() { const r = S.route, h = S.hos; let el = $('#hosPark'); const res = r && h ? hosParking({ pois: S.pois || [], along: S.nav ? S.along : 0, length: r.length, timeSec: r.time, driveLeftMs: h.driveLeft, status: S.parking || {} }) : null; S.hosParking = res;
-  if (!res) { el?.remove(); return; } if (!el) { el = document.createElement('div'); el.id = 'hosPark'; el.setAttribute('role', 'alert'); }
-  const host = S.nav ? $('#alerts') : $('#hosEta')?.parentElement || $('#routePanel'); if (host && el.parentElement !== host) (S.nav ? host.prepend(el) : ($('#hosEta') ? $('#hosEta').before(el) : host.appendChild(el)));
-  const p = res.pick, txt = `${fmtH(res.shortMs)} short of the destination on today's hours`;
-  el.className = 'hos-park' + (S.nav ? ' alert warn' : ''); el.innerHTML = `<b>⏰ ${txt}</b> <small class="eld-note">Not an ELD · informational only</small><div>${p ? `Last truck parking before your clock runs out: <b>${esc(p.name || 'Truck parking')}</b>, ${p.mi.toFixed(0)} mi${p.park ? ' · ' + PK[p.park.status][1].toLowerCase() + ' (' + p.park.ageMin + ' min ago)' : ''}` : `No truck parking found within the ${res.reachMi.toFixed(0)} mi you can still drive — load stops along the route (🅿️ button) or plan a shorter day.`}${res.skippedFull ? ` · ${res.skippedFull} closer lot${res.skippedFull > 1 ? 's' : ''} reported full` : ''}</div>${p ? '<button class="small-btn" data-hpgo>Stop there</button>' : ''}`;
-  const b = el.querySelector('[data-hpgo]'); if (b) b.onclick = () => { S.stops = [{ lat: p.lat, lon: p.lon, name: '🅿️ ' + (p.name || 'Truck parking') }]; localStorage.setItem('tn_stops', JSON.stringify(S.stops)); S.plan?.(S.nav); toast('Parking added as a stop'); };
-  const sayKey = p ? p.id : 'none'; if (S.nav && hpSaid !== sayKey) { hpSaid = sayKey; S.voiceObj?.say(p ? `Heads up. You are ${fmtH(res.shortMs).replace('h', ' hours').replace('m', ' minutes')} short on hours. Last truck parking before your clock runs out is ${p.name || 'a truck parking area'}, in ${p.mi.toFixed(0)} miles.` : 'Heads up. You do not have enough driving hours to reach the destination.', 'warn'); } }
 // ---- facility notes (local + shared with RigRoute drivers)
 let facShared = [], facDestK = '';
 function facUI() { const fp = $('#facPanel'); if (!fp || $('#facGate')) return; const box = document.createElement('div'); box.id = 'facMore';
@@ -73,5 +64,5 @@ function banner(force) { const a = credAlerts(LS.get('creds', {})); $('#credBann
   b.querySelector('[data-credok]').onclick = () => { LS.set('credSeen', today); b.remove(); };
   try { if (Notification?.permission === 'granted' && seen !== today) new Notification('RigRoute', { body: worst.text, icon: 'icons/icon.svg', tag: 'rr-cred' }); } catch {} }
 export function start() { S = window.TruckNav; S.jobs = { reportParking, loadParking, facSummary, banner };
-  setInterval(() => { const dk = facKey(S.dest) + signedIn(); if (dk !== facDestK) { facDestK = dk; loadFac().catch(() => {}); } fillPk(); loadParking().catch(() => {}); hosPark(); facUI(); facFill(); creds(); pay().catch(() => {}); }, 1000);
+  setInterval(() => { const dk = facKey(S.dest) + signedIn(); if (dk !== facDestK) { facDestK = dk; loadFac().catch(() => {}); } fillPk(); loadParking().catch(() => {}); facUI(); facFill(); creds(); pay().catch(() => {}); }, 1000);
   setInterval(() => loadParking(true).catch(() => {}), 120e3); setTimeout(() => banner(), 4000); }

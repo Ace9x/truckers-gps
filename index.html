@@ -73,7 +73,6 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
 
 <nav id="dock">
   <button data-panel="routePanel">🧭<span>Route</span></button>
-  <button data-panel="hosPanel">⏱<span id="dockHos">HOS</span></button>
   <button data-panel="loadPanel">📦<span>Load</span></button>
   <button data-panel="truckPanel">🚛<span>Truck</span></button>
   <button data-panel="mePanel" id="meBtn">😎<span id="dockPts">0 pts</span></button>
@@ -114,24 +113,6 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
   <h3>Along this route</h3>
   <div class="row" id="poiFilter"><button class="small-btn on" data-pf="all">All</button><button class="small-btn" data-pf="diesel">⛽ Diesel</button><button class="small-btn" data-pf="truck">🚛 Truck lanes</button><button class="small-btn" data-pf="weigh">⚖️ Scales</button><button class="small-btn" data-pf="rest">🅿️ Rest/parking</button><button class="small-btn" data-pf="showers">🚿 Showers</button><button class="small-btn" data-pf="restrooms">🚻 Restrooms</button><button class="small-btn" data-pf="food">🍔 Food</button></div>
   <div id="poiList" class="muted small">Plan a route, then tap ⛽ to find truck stops, rest areas and weigh stations.</div>
-</section>
-
-<section id="hosPanel" class="panel hidden">
-  <div class="phead"><h2>Hours of Service</h2><button class="close">✕</button></div>
-  <p class="warnnote"><b class="eld-note">Not an ELD · informational only.</b> Helper only — not a legal log. Use your carrier's ELD for compliance.</p>
-  <div class="hosGrid">
-    <div><b id="hDrive">11:00</b><span>Drive left (11h)</span></div>
-    <div><b id="hWin">14:00</b><span>Window left (14h)</span></div>
-    <div><b id="hBreak">8:00</b><span>Until 30‑min break</span></div>
-  </div>
-  <div class="hosGrid" style="grid-template-columns:1fr;margin-top:8px"><div><b id="hCycle">70:00</b><span id="hCycleLbl">Left on 70‑hour / 8‑day cycle (34‑h restart resets)</span></div></div>
-  <div class="row duty">
-    <button data-duty="off">Off duty</button><button data-duty="sb">Sleeper</button>
-    <button data-duty="on">On duty</button><button data-duty="drive">Driving</button>
-  </div>
-  <label class="chk"><input type="checkbox" id="autoDrive" checked> Auto‑switch to Driving above 5 mph while navigating</label>
-  <div id="hosWarn"></div>
-  <details><summary>Today's status log</summary><ul id="hosLog" class="small"></ul><button id="hosReset" class="small-btn">Clear log</button></details>
 </section>
 
 <section id="loadPanel" class="panel hidden">

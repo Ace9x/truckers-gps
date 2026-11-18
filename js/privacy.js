@@ -26,7 +26,7 @@ export const DATA_MAP = [
   { item: 'Anonymous traffic speeds', where: 'Nostr relays, only if "Share my speed" is on', sync: 'opt-in' },
   { item: 'Live location for friends', where: 'Off by default. Only friends you said Yes to, only while sharing is on', sync: 'opt-in' },
   { item: 'Loads from dispatch', where: 'Your paired dispatcher', sync: 'opt-in' },
-  { item: 'Routes, stops, trips, receipts, HOS log, facility notes, voice settings', where: 'This phone only', sync: false },
+  { item: 'Routes, stops, trips, receipts, facility notes, voice settings', where: 'This phone only', sync: false },
 ];
 export function exportAll() { const out = { exported: new Date().toISOString(), app: 'RigRoute GPS', data: {} };
   for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k.startsWith('tn_')) continue; if (/sk$|devkey|hzsk|tfsk/.test(k)) { out.data[k] = '(private key — not exported)'; continue; }
@@ -44,5 +44,5 @@ export function privacyHTML() {
     <p class="small muted">Hazard reports already sent to public relays can't be recalled. <a href="privacy.html" target="_blank" rel="noopener">Privacy policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>`; }
 export function wirePrivacy(root) {
   root.querySelector('#pvExport').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(exportAll(), null, 2)], { type: 'application/json' })); a.download = `rigroute-data-${new Date().toISOString().slice(0, 10)}.json`; a.click(); };
-  root.querySelector('#pvDelete').onclick = async () => { if (!confirm('Delete everything RigRoute stored on this phone (truck profile, trips, receipts, HOS, settings) and sign out? This cannot be undone.')) return; await deleteAll(); location.reload(); }; }
+  root.querySelector('#pvDelete').onclick = async () => { if (!confirm('Delete everything RigRoute stored on this phone (truck profile, trips, receipts, settings) and sign out? This cannot be undone.')) return; await deleteAll(); location.reload(); }; }
 export const NOT_ELD = 'Not a certified ELD. Truck restrictions come from OpenStreetMap and may be incomplete — always obey posted signs.';

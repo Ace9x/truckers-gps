@@ -3,7 +3,6 @@
 import { t, speechLang, I18N } from './i18n.js';
 const $ = (s, r = document) => r.querySelector(s);
 export const TERMS = {
-  HOS: 'HOS means Hours of Service. These are the rules for how long you may drive and work before you must rest.',
   ETA: 'ETA means the time we think you will get there.',
   POD: 'POD means proof of delivery. It is the paper or photo that shows you dropped off the load.',
   BOL: 'BOL means bill of lading. It is the paper that lists what you are hauling and who it is for.',
@@ -20,7 +19,6 @@ const RE = new RegExp(`(^|[^A-Za-z])(${Object.keys(TERMS).join('|')})(?![A-Za-z]
 export const HELP = {
   searchPanel: ['Find a place', 'Type an address, a city, or a company name. Tap a result to see the route. You can also press and hold the map to pick a spot.', 'Nothing here yet. Type where you want to go.'],
   routePanel: ['Your route', 'Pick a route, then tap Start. The phone will tell you each turn out loud. The route keeps away from low bridges and roads closed to trucks.', 'No route yet. Tap "Where to?" and pick a place.'],
-  hosPanel: ['Driving hours', 'This shows how long you can still drive today. Tap the button that matches what you are doing now. This is a helper only. Your company\'s ELD is your legal log.', 'No hours logged today. Tap Driving when you start.'],
   loadPanel: ['Your load', 'Write down the load number, pickup, and drop-off. Tap a button to get the route there. This is saved only on this phone.', 'No load yet. Fill in the pickup and drop-off.'],
   truckPanel: ['Your truck', 'Enter how tall, heavy, and long your truck is. We use this to keep you off roads that are too low or not allowed for trucks.', 'Pick a truck type or enter your sizes.'],
   reportPanel: ['Report a problem', 'Tap a picture to tell other drivers about a crash, police, road work, or a closed road just ahead of you.', 'You have not blocked any roads yet.'],
@@ -29,7 +27,7 @@ export const HELP = {
   dispatch: ['Dispatch console', 'Add your drivers. Make a load with a pickup and a drop-off, then send it to a driver. You can see where each driver is and if the load is done.', 'No loads yet. Tap New load to make one.'],
   layersPanel: ['Map layers', 'Turn things on or off on the map, like traffic, fuel, and driver reports.', ''],
 };
-const EMPTY = { avoidList: 'You have not blocked any roads yet.', hosLog: 'No hours logged today. Tap Driving when you start.', badges: 'No badges yet. Drive and report problems to earn them.', leader: 'No one on the board yet this week.', results: 'Nothing here yet. Type where you want to go.' };
+const EMPTY = { avoidList: 'You have not blocked any roads yet.', badges: 'No badges yet. Drive and report problems to earn them.', leader: 'No one on the board yet this week.', results: 'Nothing here yet. Type where you want to go.' };
 
 export function speak(text) {
   const v = window.TruckNav?.voice; try { if (v?.say) return v.say(text, 'help', true); } catch {}

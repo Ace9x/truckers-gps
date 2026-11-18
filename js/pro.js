@@ -8,6 +8,7 @@ import { railItems, distLabel } from './rail.js';
 import { routeGradient } from './trafficlogic.js';
 import { freshness, ageHTML, receipt, receiptCSV } from './fresh.js';
 import { privacyHTML, wirePrivacy, NOT_ELD } from './privacy.js';
+import { truckCosting } from './logic.js';
 const S = window.TruckNav || (window.TruckNav = {}), $ = s => document.querySelector(s);
 import * as NYCT from './nyctruck.js'; import * as WIZ from './wizard.js'; import * as D2 from './design2.js'; import * as FX from './freight.js'; import * as JOBS from './jobs.js'; import * as GROWTH from './growth.js'; import * as FLEETD from './fleetdriver.js'; NYCT.start(); WIZ.start(); FX.start(); JOBS.start(); GROWTH.start(); FLEETD.start();
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
@@ -249,7 +250,6 @@ function showReceipt(t, end = Date.now()) {
     if (t.arrived) try { navigator.vibrate?.(30); } catch {}
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) el.querySelectorAll('.trc-big b').forEach(b => { const fin = b.textContent, n = parseFloat(fin); if (!(n > 0) || /h/.test(fin)) return; const dec = /\./.test(fin) ? 1 : 0, t0 = performance.now();
       const step = now => { const k = Math.min(1, (now - t0) / 600); b.textContent = (n * (1 - Math.pow(1 - k, 3))).toFixed(dec); if (k < 1) requestAnimationFrame(step); else b.textContent = fin; }; requestAnimationFrame(step); });
-    if (t.arrived) el.querySelector('.trc-meta').insertAdjacentHTML('afterend', '<p class="trc-hos">Log your hours — update your duty status in the HOS clock.</p>');
     const upd = () => { r.unit = $('#trcUnit').value.trim(); const o = $('#trcOdo').value.trim(); r.odoStart = o === '' ? null : +o; r.odoEnd = r.odoStart != null && !isNaN(r.odoStart) ? Math.round((r.odoStart + r.miles) * 10) / 10 : null; $('#trcOdoEnd').textContent = r.odoEnd ?? '—'; saveTrip(r);
       if (S.truck) { S.truck.unit = r.unit; if (r.odoEnd != null) S.truck.odometer = r.odoEnd; try { localStorage.setItem('tn_truck', JSON.stringify(S.truck)); } catch {} } };
     $('#trcUnit').onchange = upd; $('#trcOdo').onchange = upd;
@@ -276,8 +276,7 @@ function mePrivacy() { const me = $('#mePanel'); if (!me) return;
     tr.querySelectorAll('[data-trip]').forEach(b => b.onclick = () => { const x = S.trips().find(y => y.id === b.dataset.trip); if (x) showReceipt({ saved: x, arrived: true }); }); }
   if (!$('#mePriv')) { const d = document.createElement('div'); d.id = 'mePriv'; d.innerHTML = privacyHTML(); me.appendChild(d); wirePrivacy(d); } }
 setInterval(mePrivacy, 1000);
-function eldNotes() { const hp = $('#hosPanel .warnnote'); if (hp && !hp.dataset.v) { hp.dataset.v = 1; hp.innerHTML = '⚠ <b>Not an ELD · informational only.</b> Not a certified ELD or legal log — use your carrier\'s ELD for compliance.'; }
-  const rp = $('#routePanel'); if (rp && S.route && !LS.get('firstRouteNote', false) && !$('#eldRoute')) { const n = document.createElement('div'); n.id = 'eldRoute'; n.className = 'eld-note'; n.setAttribute('role', 'note');
+function eldNotes() { const rp = $('#routePanel'); if (rp && S.route && !LS.get('firstRouteNote', false) && !$('#eldRoute')) { const n = document.createElement('div'); n.id = 'eldRoute'; n.className = 'eld-note'; n.setAttribute('role', 'note');
     n.innerHTML = `<span>⚠ ${NOT_ELD}</span><button class="textlink" id="eldOk">Got it</button>`; ($('#alts') || rp.lastChild).before(n); $('#eldOk').onclick = () => { LS.set('firstRouteNote', true); n.remove(); }; } }
 setInterval(eldNotes, 700);
 // Locate button also (re)starts GPS if the driver skipped the location screen
@@ -319,33 +318,10 @@ function mtLock() { const b = document.body, locked = S.multiTapLocked(); b.clas
   else if (!locked && b.classList.contains('mt-locked')) { b.classList.remove('mt-locked'); card.hidden = true; } }
 setInterval(mtLock, 400);
 
-// ---- HOS options: adverse conditions + short-haul (exact engine in hos.js); label stays "planning aid, not an ELD" ----
-S.hosOpts = () => LS.get('hosOpts', {});
-function hosOptsUI() { const hp = $('#hosPanel'); if (!hp || $('#hosOpts')) return; const d = document.createElement('div'); d.id = 'hosOpts';
-  const o = S.hosOpts(); d.innerHTML = `<label class="chk"><input type="checkbox" id="hoAdverse" ${o.adverse ? 'checked' : ''}> Adverse driving conditions today (+2h to the 11 and 14)</label>
-    <label class="chk"><input type="checkbox" id="hoShort" ${o.shortHaul ? 'checked' : ''}> Short-haul (within 150 air-miles, back within 14h): no 30-min break</label>
-    <p class="small muted">Split sleeper (7/3, 8/2 …) is detected automatically from Sleeper and Off periods. Planning aid — not an ELD.</p>`;
-  (hp.querySelector('.warnnote') || hp.firstChild).after(d);
-  const save = () => { LS.set('hosOpts', { adverse: $('#hoAdverse').checked, shortHaul: $('#hoShort').checked }); S.renderHos?.(); };
-  $('#hoAdverse').onchange = save; $('#hoShort').onchange = save; }
-setInterval(hosOptsUI, 1000);
-
-// ---- ETA with required HOS breaks + "make my appointment?" (deep_dive #38/#39); router settings shown (#1) ----
-import { planBreaks } from './hos.js';
-import { truckCosting } from './logic.js';
-const hmS = s => `${Math.floor(s / 3600)}h ${String(Math.round(s % 3600 / 60)).padStart(2, '0')}m`;
-function hosEta() { const rp = $('#routePanel'); if (!rp || !S.route) return; let el = $('#hosEta');
-  if (!el) { el = document.createElement('div'); el.id = 'hosEta'; ($('#tfOnce') || $('#alts'))?.before(el); }
-  const st = S.hos; if (!st) { el.hidden = true; return; } el.hidden = false;
-  const p = planBreaks(S.route.time || 0, st), arr = Date.now() + p.totalSec * 1000, appt = LS.get('load', {})?.deliveryTime ? Date.parse(LS.get('load', {}).deliveryTime) : null;
-  const tm = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + (new Date(t).toDateString() !== new Date().toDateString() ? ' ' + new Date(t).toLocaleDateString([], { weekday: 'short' }) : '');
-  const br = p.breaks.length ? p.breaks.map(b => b.kind === '10h' ? '10-hr rest' : '30-min break').join(' + ') : 'no break needed';
-  let ap = ''; if (appt && !isNaN(appt)) { const spare = (appt - arr) / 1000; ap = spare >= 0 ? `<div class="he-appt ok">✓ Makes your ${tm(appt)} appointment · ${hmS(spare)} spare</div>` : `<div class="he-appt late">✕ Misses your ${tm(appt)} appointment by ${hmS(-spare)} — call the receiver</div>`; }
-  const html = `<div class="he-row"><span>Arrive with HOS breaks</span><b>${tm(arr)}</b></div><div class="he-sub">${br} · <span class="eld-note">Not an ELD · informational only</span></div>${ap}`;
-  if (el.innerHTML !== html) el.innerHTML = html;
+function routeUsed() { if (!$('#routePanel') || !S.route) return;
   const c = truckCosting(S.truck || {}); let ts = $('#rpUsed'); if (!ts) { ts = document.createElement('div'); ts.id = 'rpUsed'; ts.className = 'small muted'; $('#rpTruck')?.after(ts); }
   const tx = `Router uses ${c.height} m high · ${c.weight} t · ${c.length} m long · ${c.width} m wide · ${c.axle_count} axles${c.hazmat ? ' · hazmat' : ''}`; if (ts.textContent !== tx) ts.textContent = tx; }
-setInterval(hosEta, 1000);
+setInterval(routeUsed, 1000);
 // Layout state follows nav end immediately (no 1 s lag hiding the dock after Exit)
 { const wrap = () => { const pe = S.endNav; if (!pe || pe.__pro) return !!pe; const f = (...a) => { const r = pe(...a); try { state(); } catch {} return r; }; f.__pro = true; S.endNav = f; return true; };
   if (!wrap()) { const t = setInterval(() => wrap() && clearInterval(t), 300); } }

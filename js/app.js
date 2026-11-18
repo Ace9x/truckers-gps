@@ -1,7 +1,7 @@
 import { t, valhallaLang, locale as uiLocale } from './i18n.js'; import * as MP from './mappop.js';
 import { locGate } from './privacy.js';
 import { haversine, bearing, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, promptFor, fmtDist, fmtDur, truckCosting, VEHICLES as VTYPES, vehOf, costingFor, costingOptions, truckUIOn,
-  hosStatus, H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, truckDetour, DETOUR_RELAX, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
+  H, smoothBearing, encodePolyline, overpassQuery, classifyPoi, isHelperAmenity, attachAmenities, amenityLine, nextWithAmenity, sampleLine, rejoinVias, squarePolygon, truckDetour, DETOUR_RELAX, pointAlong, detourMinutes, labelAlternatives, tilesForLine, etaRemaining, EtaSmoother, PuckFilter, isDaylight } from './logic.js';
 import { Voice, PERSONALITIES } from './voice.js';
 import { MyVoice, SCRIPT, COMMON, recMime } from './myvoice.js';
 import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
@@ -23,6 +23,7 @@ const STYLES = { night: 'https://tiles.openfreemap.org/styles/dark', dim: 'https
 const MI = 1609.344;
 const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
 const LS = { get: (k, d) => { try { return JSON.parse(localStorage.getItem('tn_' + k)) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem('tn_' + k, JSON.stringify(v)); } catch {} } };
+try { localStorage.removeItem('tn_hos'); localStorage.removeItem('tn_hosOpts'); } catch {}
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // popup buttons: delegated handlers (no inline JS, CSP-safe)
 document.addEventListener('click', e => { const b = e.target.closest('[data-rprice],[data-amen]'); if (!b) return; if (b.dataset.rprice) S.reportPrice(b.dataset.rprice); else S.confirmAmenity(b.dataset.amen, b.dataset.ak, b.dataset.av === '1'); });
@@ -35,7 +36,7 @@ const S = {
   pos: LS.get('lastPos', null), dest: LS.get('dest', null), // BUG-003: these were inside the comment above, so the destination was lost on reload
   route: null, routes: [], sel: 0, chosen: null, carRoute: null, nav: false, demo: null, follow: true,
   hint: 0, spoken: {}, off: new OffRouteDetector({ threshold: 50, needed: 3, minAccuracy: 30 }), rerouting: false, lastReroute: 0, rerouteCount: 0,
-  step: 0, along: 0, pois: [], events: LS.get('hos', []), stoppedSince: null, warned: {}, avoids: LS.get('avoids', []), facilities: LS.get('facilities', {}),
+  step: 0, along: 0, pois: [], stoppedSince: null, warned: {}, avoids: LS.get('avoids', []), facilities: LS.get('facilities', {}),
   gpsMode: 'high', parkedSince: null, weighAlerted: {}, tripMiles: 0, sat: false,
 };
 window.TruckNav = S;
@@ -217,7 +218,7 @@ function onFix(f) {
   if (S.nav) monitor.update(f, null);
   if (S.nav && S.route) navTick();
   try { S.onFixHook?.(f, mph); } catch (e) { console.warn(e); }
-  hosAuto(mph); powerManage(f); camera(false); updateHud?.();
+  powerManage(f); camera(false); updateHud?.();
 }
 S.onFix = onFix;
 
@@ -860,29 +861,6 @@ $('#mvCache').onclick = async () => { try { const n = await myVoice.pregenerate(
 $('#mvDelete').onclick = async () => { await myVoice.remove(); mvStatus('Voice profile deleted from this phone and ElevenLabs.'); mvRefresh(); };
 mvRefresh();
 $('#vPreview').onclick = () => { saveVoice(); say('In one mile, take exit 13A toward I 95 S / NJ Tpke.', 'turn', true); setTimeout(() => say('Weigh station in two miles.', 'weigh', true), 4500); };
-
-// ---------- HOS helper ----------
-function hosSet(s, auto) { const last = S.events.at(-1); if (last?.s === s) return;
-  const before = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70, ...(S.hosOpts?.() || {}) }); if (['off', 'sb'].includes(last?.s) && s === 'drive' && Date.now() - last.t >= 30 * 60e3 && before.driveUsed > 2 * H && before.breakLeft > 0) { profile.p.stats.breaks++; award(POINTS.breakTaken, 'HOS break before it was due'); }
-  S.events.push({ t: Date.now(), s, auto: !!auto }); S.events = S.events.filter(e => e.t > Date.now() - 8 * 24 * H); LS.set('hos', S.events); hosRender(); if (auto) toast(`Duty status → ${labelDuty(s)} (auto)`); }
-const labelDuty = s => ({ off: 'Off duty', sb: 'Sleeper', on: 'On duty', drive: 'Driving' }[s]);
-$$('[data-duty]').forEach(b => b.onclick = () => hosSet(b.dataset.duty));
-$('#hosReset').onclick = () => { if (confirm('Clear the HOS helper log on this phone?')) { S.events = []; LS.set('hos', []); hosRender(); } };
-function hosAuto(mph) { if (!$('#autoDrive').checked || !S.nav) return; const cur = S.events.at(-1)?.s;
-  if (mph > 5) { S.stoppedSince = null; if (cur !== 'drive') hosSet('drive', true); } else if (cur === 'drive') { S.stoppedSince ??= Date.now(); if (Date.now() - S.stoppedSince > 5 * 60e3) hosSet('on', true); } }
-const hm = ms => { const m = Math.max(0, Math.floor(ms / 60e3)); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
-function hosRender() {
-  const h = hosStatus(S.events, Date.now(), { cycle: +S.truck.cycle || 70, ...(S.hosOpts?.() || {}) }); S.hos = h;
-  $('#hCycle').textContent = hm(h.cycleLeft); $('#hCycleLbl').textContent = `Left on ${S.truck.cycle || 70}‑hour / ${+S.truck.cycle === 60 ? 7 : 8}‑day cycle (34‑h restart resets)`;
-  $('#hDrive').textContent = hm(h.driveLeft); $('#hWin').textContent = hm(h.windowLeft); $('#hBreak').textContent = h.breakLeft === Infinity ? 'exempt' : hm(h.breakLeft); $('#dockHos').title = 'Hours estimate — not an ELD, informational only'; $('#dockHos').textContent = hm(Math.min(h.driveLeft, h.breakLeft));
-  $$('[data-duty]').forEach(b => b.classList.toggle('on', b.dataset.duty === h.status));
-  $('#hosWarn').innerHTML = h.warnings.map(w => `<div class="alert ${/soon|under/i.test(w) ? 'warn' : ''}">${w}</div>`).join('');
-  if (!truckUIOn(S.truck)) return;
-  if (h.status === 'drive') for (const w of h.warnings) { if (S.hosSeen?.[w] || [...$$('#alerts .hosA')].some(e => e.dataset.w === w)) continue; S.hosSeen = S.hosSeen || {}; S.hosSeen[w] = 1; const el = document.createElement('div'); el.className = 'alert hosA ' + (/soon|under/i.test(w) ? 'warn' : ''); el.dataset.w = w; const s = document.createElement('span'); s.className = 'rr-msg'; s.textContent = '⏱ ' + w; const n = document.createElement('small'); n.className = 'eld-note'; n.textContent = ' Not an ELD · informational only'; el.append(s, n); $('#alerts').prepend(el); arm(el, { critical: true, ms: 8000 }); }
-  for (const w of h.warnings) if (!S.warned[w] && h.status === 'drive') { S.warned[w] = true; say('Hours of service: ' + w, 'hos'); mascot.say(`⏱ ${w}. Time to find a spot to rest.`, 'worried', 9000); }
-  $('#hosLog').innerHTML = S.events.slice(-20).reverse().map(e => `<li>${new Date(e.t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} — ${labelDuty(e.s)}${e.auto ? ' (auto)' : ''}</li>`).join('');
-}
-setInterval(hosRender, 30e3); hosRender(); S.renderHos = hosRender;
 
 // ---------- Load / trip ----------
 const lf = $('#loadForm'); const load = LS.get('load', {}); for (const [k, v] of Object.entries(load)) if (lf.elements[k]) lf.elements[k].value = v;

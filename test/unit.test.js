@@ -1,5 +1,5 @@
 import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs';
-import { haversine, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, truckCosting, hosStatus, H, fmtDist, classifyPoi, overpassQuery } from '../js/logic.js';
+import { haversine, decodePolyline, cumulative, snapToRoute, OffRouteDetector, currentStep, truckCosting, fmtDist, classifyPoi, overpassQuery } from '../js/logic.js';
 import { truckPose, poseElements } from '../js/trucklayer.js';
 import { cleanRef, installMilestone } from '../js/growth.js';
 
@@ -17,26 +17,6 @@ test('currentStep picks next maneuver', () => { const m = [{ begin_shape_index: 
 test('truckCosting converts imperial', () => { const c = truckCosting({ heightFt: 13, heightIn: 6, weightLbs: 80000, lengthFt: 70, widthFt: 8.5, axles: 5, hazmat: true });
   assert.equal(c.height, 4.11); assert.equal(c.weight, 36.29); assert.equal(c.length, 21.34); assert.equal(c.hazmat, true); assert.equal(c.axle_count, 5); });
 test('fmtDist', () => { assert.equal(fmtDist(100), '350 ft'); assert.equal(fmtDist(1609.344 * 2.5), '2.5 mi'); assert.equal(fmtDist(500, 'km'), '500 m'); });
-const T0 = Date.UTC(2026, 9, 21, 0);
-test('HOS fresh shift', () => { const s = hosStatus([{ t: T0 - 12 * H, s: 'off' }], T0); assert.equal(s.driveLeft, 11 * H); assert.equal(s.windowLeft, 14 * H); });
-test('HOS 8h driving requires break; 30m off clears it', () => {
-  const ev = [{ t: T0 - 12 * H, s: 'off' }, { t: T0, s: 'on' }, { t: T0 + 0.5 * H, s: 'drive' }];
-  let s = hosStatus(ev, T0 + 8.5 * H); assert.equal(s.breakLeft, 0); assert.ok(s.warnings.includes('30-minute break required now'));
-  assert.equal(s.driveLeft, 3 * H); assert.equal(s.windowLeft, 5.5 * H);
-  ev.push({ t: T0 + 8.5 * H, s: 'off' }, { t: T0 + 9 * H, s: 'drive' });
-  s = hosStatus(ev, T0 + 9 * H); assert.equal(s.breakLeft, 8 * H);
-});
-test('HOS 11h limit and 14h window', () => {
-  const ev = [{ t: T0 - 11 * H, s: 'off' }, { t: T0, s: 'drive' }, { t: T0 + 6 * H, s: 'off' }, { t: T0 + 7 * H, s: 'drive' }];
-  let s = hosStatus(ev, T0 + 12 * H); assert.equal(s.driveLeft, 0); assert.ok(s.warnings.includes('11-hour driving limit reached'));
-  const ev2 = [{ t: T0 - 11 * H, s: 'off' }, { t: T0, s: 'on' }, { t: T0 + 1 * H, s: 'off' }, { t: T0 + 13.5 * H, s: 'drive' }];
-  // 12.5h off is a reset → new shift
-  s = hosStatus(ev2, T0 + 14 * H); assert.equal(s.windowLeft, 13.5 * H);
-  const ev3 = [{ t: T0 - 11 * H, s: 'off' }, { t: T0, s: 'on' }, { t: T0 + 1 * H, s: 'off' }, { t: T0 + 5 * H, s: 'drive' }];
-  s = hosStatus(ev3, T0 + 14.2 * H); assert.equal(s.windowLeft, 0); assert.equal(s.driveLeft, 0);
-});
-test('10h split of off+sleeper counts as reset', () => { const ev = [{ t: T0, s: 'drive' }, { t: T0 + 5 * H, s: 'off' }, { t: T0 + 7 * H, s: 'sb' }, { t: T0 + 15 * H, s: 'drive' }];
-  assert.equal(hosStatus(ev, T0 + 16 * H).driveLeft, 10 * H); });
 test('POI classify + query', () => { assert.equal(classifyPoi({ amenity: 'fuel', name: "Love's Travel Stop" }), 'stop'); assert.equal(classifyPoi({ amenity: 'weighbridge' }), 'weigh'); assert.equal(classifyPoi({ highway: 'rest_area' }), 'rest');
   assert.match(overpassQuery([[-74, 40], [-74.1, 40.1]]), /around:1500,40\.00000,-74\.00000,40\.10000,-74\.10000/); });
 import { speakable } from '../js/logic.js';
@@ -97,11 +77,6 @@ test('WZDx closures parsing', () => { const now = Date.parse('2026-10-21T20:00:0
   assert.equal(z.length, 2); assert.equal(z[0].closed, false); assert.equal(z[1].closed, true); });
 import { encodePolyline } from '../js/logic.js';
 test('polyline encode/decode roundtrip', () => { const c = [[-73.88031, 40.81281], [-74.158, 40.6879], [-74.2, 40.7]]; assert.deepEqual(decodePolyline(encodePolyline(c)).map(p => p.map(v => +v.toFixed(5))), c); });
-test('HOS 70-hour/8-day cycle and 34-hour restart', () => { const ev = []; let t = T0;
-  for (let d = 0; d < 6; d++) { ev.push({ t, s: 'drive' }, { t: t + 11 * H, s: 'on' }, { t: t + 12 * H, s: 'off' }); t += 24 * H; } // 6 days × 12h on duty = 72h
-  let s = hosStatus(ev, t); assert.equal(s.cycleLeft, 0); assert.equal(s.driveLeft, 0); assert.ok(s.warnings.some(w => /70-hour cycle used up/.test(w)));
-  assert.equal(hosStatus(ev, t, { cycle: 60 }).cycleLeft, 0);
-  ev.push({ t: t + 34 * H, s: 'drive' }); s = hosStatus(ev, t + 35 * H); assert.equal(s.cycleLeft, 69 * H); });
 import { milesByState, tollMiles, tollSegments, limitAt, effectiveLimitMph, isSpeeding, laneIntersections, lanesHTML, fuelPlan, weatherForTrucks, fatigueDue, remainingStops } from '../js/trip.js';
 test('IFTA miles by state + tolls', () => { const e = [{ length: 1609.344 * 3, end_node: { admin_index: 0 }, toll: false, along: 0 }, { length: 1609.344 * 2, end_node: { admin_index: 1 }, toll: true, names: ['NJ Turnpike'], along: 4828 }];
   assert.deepEqual(milesByState(e, [{ state_code: 'NY' }, { state_code: 'NJ' }]), { NY: 3, NJ: 2 }); assert.equal(tollMiles(e), 2); assert.deepEqual(tollSegments(e)[0].names, ['NJ Turnpike']); });
