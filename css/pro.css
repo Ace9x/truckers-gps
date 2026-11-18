@@ -527,6 +527,12 @@ html body #hzLive,html body #tfLegend{position:static!important;display:block!im
 html body #liveDetail[hidden] #hzLive,html body #liveDetail[hidden] #tfLegend,html body #hzLive,html body #tfLegend{display:none!important}
 html body #liveDetail:not([hidden]) #hzLive,html body #liveDetail:not([hidden]) #tfLegend{display:block!important}
 .rr-x,#mascot .mX{position:absolute;right:4px;top:4px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:12px;background:#0003;color:inherit;font:800 22px/44px system-ui,sans-serif;z-index:2}
+#revEntry{display:flex;flex-direction:column;gap:8px;margin:8px 0 12px}#revEntry .big{width:100%;flex:none}
+.feat{display:inline-block;margin-right:6px;padding:1px 6px;border-radius:999px;background:#ff9500;color:#111;font-size:11px;font-weight:800;letter-spacing:.02em;vertical-align:1px}
+#dispatchAsk{position:fixed;left:12px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:12;width:min(280px,calc(100vw - 24px));max-height:34vh;overflow:auto;background:#161c24;color:#f4f7fb;border-radius:16px;padding:12px 52px 12px 14px;box-shadow:0 8px 24px #0008}
+#dispatchAsk.hidden,body.nav #dispatchAsk{display:none!important}
+#dispatchAsk p{margin:6px 0 10px;font-size:14px;line-height:1.35}
+#dispatchAsk button{min-height:44px;width:100%}
 html body #toast{pointer-events:auto;display:flex;align-items:center;gap:8px;text-align:left;padding:10px 52px 10px 14px;max-width:min(92vw,420px)}
 html body #toast.hidden{display:none}
 html body #alerts{pointer-events:none}

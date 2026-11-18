@@ -74,6 +74,7 @@ const SCAN = [
   ['#alerts .alert', {}],
   ['#detourWarn', { ms: 8000 }],
   ['#mtLock:not([hidden])', { ms: 5000 }],
+  ['#dispatchAsk:not(.hidden)', { ms: 0 }],
 ];
 
 function scan() {

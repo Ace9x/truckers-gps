@@ -8,6 +8,7 @@ import { dangersAhead, detectCurves, wrongRoad } from './safety.js';
 import { scalesOnRoute, corridorsFor, scalesStillHit, usesNoTruckRoad, avoidDecision } from './weighlogic.js';
 import { LEG_M, isDistanceCap, driverRouteMessage, corridorPoints, gcPoint, stitchRoutes, rankPlaces, milesAway } from './routelong.js';
 import { driveFrame, DRIVE_PITCH } from './truck3d.js';
+import { mergeSearch, decorateRoutePois } from './dealslogic.js';
 import { attachTruckModel } from './trucklayer.js';
 import { arm, watchNotices } from './notices.js';
 import { Mascot, TIPS } from './mascot.js';
@@ -255,16 +256,17 @@ async function geocode(q) {
   for (const f of ph.features || []) rows.push(fromPhoton(f, bias));
   return rankPlaces(rows, bias, q);
 }
-function showResults(res) {
+function showResults(res, q) {
   const ul = $('#results'); if (!ul) return;
-  const far = res[0] && res[0].dist > 80000;
-  ul.innerHTML = res.length ? (far ? '<li class="muted">These matches are not near you. Check the city.</li>' : '') : '<li class="muted">No results</li>';
-  for (const r of res) { const li = document.createElement('li'); li.innerHTML = `${esc(r.name)}<small>${esc(r.sub || '')}${esc(milesAway(r.dist))}</small>`; li.onclick = () => { closePanels(); setDest(r); }; ul.appendChild(li); }
+  const rows = mergeSearch(res, S.featured || [], q ?? $('#q')?.value, biasPoint());
+  const far = rows[0] && !rows[0].featured && rows[0].dist > 80000;
+  ul.innerHTML = rows.length ? (far ? '<li class="muted">These matches are not near you. Check the city.</li>' : '') : '<li class="muted">No results</li>';
+  for (const r of rows) { const li = document.createElement('li'); li.innerHTML = `${r.featured ? '<span class="feat">Featured</span> ' : ''}${esc(r.name)}<small>${esc(r.sub || '')}${esc(milesAway(r.dist))}</small>`; li.onclick = () => { closePanels(); setDest(r); }; ul.appendChild(li); }
 }
 async function search() {
   const q = $('#q').value.trim(), ul = $('#results'); if (q.length < 3) { ul.innerHTML = ''; return; }
   ul.innerHTML = '<li class="muted">Searching…</li>';
-  try { showResults(await geocode(q)); }
+  try { showResults(await geocode(q), q); }
   catch { ul.innerHTML = '<li class="muted">Search unavailable (offline?)</li>'; }
 }
 S.geocode = geocode; S.showResults = showResults;
@@ -686,13 +688,13 @@ function showPois(raw, note) { S.lastPoiRaw = raw; S.lastPoiNote = note;
   if (!truckUIOn(S.truck)) S.pois = S.pois.filter(p => p.kind !== 'weigh' && p.kind !== 'stop'); // cars / vans without truck tools: no weigh stations or truck stops
   attachAmenities(S.pois, helpers, 250, LS.get('amenConf', {}));
   const pf = S.poiFilter || 'all', match = p => pf === 'all' || (pf === 'diesel' ? (p.kind === 'fuel' || p.kind === 'stop') && p.tags['fuel:diesel'] !== 'no' : pf === 'truck' ? p.kind === 'stop' || p.tags.hgv === 'yes' || p.tags['fuel:HGV_diesel'] === 'yes' : pf === 'rest' ? p.kind === 'rest' || p.kind === 'parking' : pf === 'showers' ? !!p.amen?.showers : pf === 'restrooms' ? !!p.amen?.restrooms : pf === 'food' ? !!p.amen?.food : p.kind === pf);
-  const ahead = S.pois.filter(p => p.along >= base - 50 && match(p));
+  const ahead = decorateRoutePois(S.pois.filter(p => p.along >= base - 50 && match(p)), S.featured || [], (lon, lat) => snapToRoute([lon, lat], r.line, r.cum, 0));
   poiMarkers.forEach(m => m.remove());
-  poiMarkers = ahead.map(p => { const el = document.createElement('div'); el.className = 'poi-marker'; el.dataset.kind = p.kind; el.textContent = POI_ICON[p.kind]; el.style.fontSize = '22px'; if (poiHidden(p.kind)) el.style.display = 'none';
-    return new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<b style="color:#111">${esc(p.name)}</b><br><span style="color:#333">${POI_NAME[p.kind]} · ${fmtDist(p.along - base, U())} ahead · ≈${detourMinutes(p.off)} min detour</span>${p.amen && amenityLine(p.amen) ? `<br><span style="color:#333">${esc(amenityLine(p.amen))}</span>` : ''}${amenConfirmHTML(p)}`)).addTo(map); });
-  $('#poiList').innerHTML = `<div class="muted small">${esc(note)}</div>` + (ahead.length ? ahead.map(p => `<div class="poi" data-i="${S.pois.indexOf(p)}"><i>${POI_ICON[p.kind]}</i><div><b>${esc(p.name)}</b><br><span class="muted small">${POI_NAME[p.kind]} · in ${fmtDist(p.along - base, U())} · ${p.off < 150 ? 'on route' : '≈' + detourMinutes(p.off) + ' min detour'}${p.tags.opening_hours ? ' · ' + esc(p.tags.opening_hours) : ''}${p.tags['capacity:hgv'] ? ' · ' + esc(p.tags['capacity:hgv']) + ' truck spots' : ''}</span>${S.priceFor?.(p) || ''}${amenityLine(p.amen) ? `<div class="amen small">${esc(amenityLine(p.amen))}${Object.values(p.amen).includes('chain') ? ' <i class="muted">(chain standard — confirm 👍)</i>' : ''}</div>` : ''}</div></div>`).join('') : '<p>No mapped truck stops/rest areas within ~1 mile ahead on this route.</p>');
+  poiMarkers = ahead.filter(p => !p.noPin).map(p => { const el = document.createElement('div'); el.className = 'poi-marker'; el.dataset.kind = p.kind; el.textContent = POI_ICON[p.kind]; el.style.fontSize = '22px'; if (poiHidden(p.kind)) el.style.display = 'none';
+    return new maplibregl.Marker({ element: el }).setLngLat([p.lon, p.lat]).setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(`<b style="color:#111">${esc(p.name)}</b><br><span style="color:#333">${p.featured ? 'Featured · ' : ''}${POI_NAME[p.kind] || 'Place'} · ${fmtDist(p.along - base, U())} ahead · ≈${detourMinutes(p.off)} min detour</span>${p.amen && amenityLine(p.amen) ? `<br><span style="color:#333">${esc(amenityLine(p.amen))}</span>` : ''}${amenConfirmHTML(p)}`)).addTo(map); });
+  $('#poiList').innerHTML = `<div class="muted small">${esc(note)}</div>` + (ahead.length ? ahead.map(p => `<div class="poi" data-lon="${p.lon}" data-lat="${p.lat}"><i>${POI_ICON[p.kind] || '📍'}</i><div><b>${p.featured ? '<span class="feat">Featured</span> ' : ''}${esc(p.name)}</b><br><span class="muted small">${POI_NAME[p.kind] || 'Place'} · in ${fmtDist(p.along - base, U())} · ${p.off < 150 ? 'on route' : '≈' + detourMinutes(p.off) + ' min detour'}${p.tags?.opening_hours ? ' · ' + esc(p.tags.opening_hours) : ''}${p.tags?.['capacity:hgv'] ? ' · ' + esc(p.tags['capacity:hgv']) + ' truck spots' : ''}</span>${S.priceFor?.(p) || ''}${p.amen && amenityLine(p.amen) ? `<div class="amen small">${esc(amenityLine(p.amen))}${Object.values(p.amen).includes('chain') ? ' <i class="muted">(chain standard — confirm 👍)</i>' : ''}</div>` : ''}</div></div>`).join('') : '<p>No mapped truck stops/rest areas within ~1 mile ahead on this route.</p>');
   if (S.layers && !S.layers.pois) poiMarkers.forEach(m => m.getElement().style.display = 'none');
-  $$('.poi').forEach(el => el.onclick = () => { const p = S.pois[+el.dataset.i]; setFollow(false); closePanels(); map.flyTo({ center: [p.lon, p.lat], zoom: 15, pitch: 0 }); });
+  $$('.poi').forEach(el => el.onclick = () => { setFollow(false); closePanels(); map.flyTo({ center: [+el.dataset.lon, +el.dataset.lat], zoom: 15, pitch: 0 }); });
 }
 async function loadPois(quiet) {
   if (!S.route) { toast('Plan a route first'); return; }

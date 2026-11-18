@@ -93,7 +93,17 @@ for (const P of PROFILES) {
   for (const [b, n] of [['#friendsBtn', 'Friends'], ['#loadsBtn', 'Loads']]) { await ev(b => document.querySelector(b)?.click(), b); await p.waitForTimeout(1500); ok(await ev(() => !!document.querySelector('.panel:not(.hidden)')), `${n} opens`); ok(!/sign in|sign up|create account/i.test(await ev(() => document.querySelector('.panel:not(.hidden)')?.innerText || '')), `${n}: no sign-in prompt`); await shot('07-' + n.toLowerCase()); await audit(n); await close(); }
   // Me: settings, Report a Bug (validation), What's New, Help RigRoute grow
   ok(await openPanel('mePanel'), 'Me opens'); await shot('08-me'); await audit('Me'); await axe('Me');
-  await ev(() => { document.querySelector('#bugBox').open = true; }); await p.fill('#bugDesc', ''); await tap('#bugSend'); ok(/at least 5/.test(await p.textContent('#bugMsg')), 'Report a Bug: empty text is refused with a clear message');
+  ok(await ev(() => !!document.querySelector('#openDispatch') && !!document.querySelector('#openDeals') && !document.querySelector('#hosPanel')), 'Me has Get dispatched and Driver Deals, and no hours log');
+  await ev(() => document.querySelector('#openDispatch').click()); await p.waitForTimeout(400);
+  const offer = await p.textContent('#dispatchPanel');
+  ok(/Ace Apps Dispatch: we find loads, negotiate rates and handle paperwork\. 5% of linehaul, no contract/.test(offer) && /RigRoute stays free/.test(offer), 'Get dispatched explains the offer and that the app stays free');
+  ok(!/paywall|subscribe|pro tier|\$\d/i.test(offer), 'Get dispatched does not charge the driver for the app');
+  await shot('15-dispatch'); await audit('Get dispatched'); await close();
+  await openPanel('mePanel'); await ev(() => document.querySelector('#openDeals').click()); await p.waitForTimeout(500);
+  const deals = await p.textContent('#dealsPanel');
+  ok(/Deals coming soon/.test(deals) && /We may earn a commission/.test(deals) && await p.$('#listBiz'), 'Driver Deals shows the empty state, the disclosure, and List your business');
+  await shot('16-deals'); await audit('Driver Deals'); await close();
+  await openPanel('mePanel'); await ev(() => { document.querySelector('#bugBox').open = true; }); await p.fill('#bugDesc', ''); await tap('#bugSend'); ok(/at least 5/.test(await p.textContent('#bugMsg')), 'Report a Bug: empty text is refused with a clear message');
   await ev(() => { document.querySelector('#wnBox') && (document.querySelector('#wnBox').open = true); }); await p.waitForTimeout(300); ok(await ev(() => (document.querySelector('#wnList')?.children.length || 0) > 0), "What's New lists entries");
   { const g = await p.$('#areaOptChk'); if (g) { const v0 = await g.isChecked(); await g.click(); await p.reload(); await p.waitForTimeout(3500); await openPanel('mePanel'); const g2 = await p.$('#areaOptChk'); ok(g2 && (await g2.isChecked()) !== v0, 'Help RigRoute grow toggle persists after reload'); await g2.click(); } else ok(false, 'Help RigRoute grow toggle found'); }
   await close();
