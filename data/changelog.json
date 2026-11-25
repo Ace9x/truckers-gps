@@ -1,5 +1,14 @@
 [
  {
+  "version": "3.34.1",
+  "date": "2026-11-25",
+  "items": [
+   "Tapping OTR, Local, Owner-Op or Fleet confirms the driver type again. The hours log stays gone.",
+   "Height, weight and the other truck numbers show the full value on a phone.",
+   "The truck screen no longer asks for an HOS cycle. RigRoute stays free and still does not track driving hours."
+  ]
+ },
+ {
   "version": "3.34.0",
   "date": "2026-11-18",
   "items": [

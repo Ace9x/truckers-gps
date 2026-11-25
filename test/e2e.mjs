@@ -162,12 +162,12 @@ const gd = await T(g => { const e = TruckNav.route.line.at(-1); return Math.hypo
 ok(gd < 200, `last-mile: route goes to pinned truck entrance (ends ${Math.round(gd)} m from gate)`);
 await T(() => TruckNav.openFac()); await page.waitForTimeout(3500); await shot('14-facility-satellite'); await closeP(); await T(() => TruckNav.map.setLayoutProperty('sat', 'visibility', 'none'));
 
-// RigRoute vision items: driver types, hazmat toggle, HOS 70h cycle, HUD, layer toggles
-const rv = await T(async () => { document.querySelector('[data-dt=local]').click(); const local = { ...TruckNav.truck }; document.querySelector('[data-dt=otr]').click();
+// RigRoute vision items: driver types, hazmat toggle, HUD, layer toggles. The hours log is gone; the tap must still confirm.
+const rv = await T(async () => { const toast = () => document.querySelector('#toast')?.textContent || ''; document.querySelector('[data-dt=local]').click(); const local = { ...TruckNav.truck, toast: toast() }; document.querySelector('[data-dt=otr]').click();
   document.querySelector('#hazBtn').click(); const haz = TruckNav.truck.hazmat; document.querySelector('#hazBtn').click();
-  TruckNav.setHud(true); TruckNav.updateHud(); const hud = !document.querySelector('#hud').classList.contains('hidden') && getComputedStyle(document.querySelector('#hud')).transform !== 'none'; 
-  return { local, otr: TruckNav.truck.weightLbs, haz, hud, cyc: document.querySelector('#hCycle').textContent }; });
-ok(rv.local.lengthFt === 34 && +rv.local.cycle === 60 && rv.otr === 80000 && rv.haz === true && rv.hud && /\d+:\d\d/.test(rv.cyc), `driver-type presets (Local→26k box/60h, OTR→80k/70h), hazmat toggle, HOS cycle ${rv.cyc} left, mirrored HUD mode`);
+  TruckNav.setHud(true); TruckNav.updateHud(); const hud = !document.querySelector('#hud').classList.contains('hidden') && getComputedStyle(document.querySelector('#hud')).transform !== 'none';
+  return { local, otr: TruckNav.truck.weightLbs, otrToast: toast(), haz, hud }; });
+ok(rv.local.lengthFt === 34 && rv.local.weightLbs === 26000 && /Driver type:/.test(rv.local.toast) && rv.otr === 80000 && /Driver type:/.test(rv.otrToast) && rv.haz === true && rv.hud, `driver-type tap confirms (Local→26k box, OTR→80k), hazmat toggle, mirrored HUD mode`);
 await shot('18-hud'); await T(() => TruckNav.setHud(false));
 await closeP(); await page.click('#layersBtn'); await page.uncheck('[data-layer=fuelAll]'); const lv = await T(() => TruckNav.map.getLayoutProperty('fuelAll', 'visibility')); await shot('19-layers'); await page.check('[data-layer=fuelAll]'); await closeP();
 ok(lv === 'none', 'layer toggles hide/show map layers');

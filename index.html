@@ -10,7 +10,7 @@
 <meta name="application-name" content="RigRoute GPS">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="RigRoute GPS — free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops, HOS clock. Not an ELD. Always obey posted signs.">
+<meta name="description" content="RigRoute GPS — free truck GPS for drivers: truck-safe routing by height, weight, length and hazmat, voice turn-by-turn, truck stops. Always obey posted signs.">
 <title>RigRoute GPS – Free truck GPS: low bridges, weight limits, hazmat</title>
 <link rel="canonical" href="https://ace9x.github.io/truckers-gps/">
 <link rel="manifest" href="manifest.webmanifest">
@@ -138,7 +138,7 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
   <p id="dtNote" class="muted small"></p>
   <form id="truckForm" class="grid2">
     <label class="span2">Vehicle<select name="vehicle" id="vehSel"><option value="car">🚗 Car</option><option value="van">🚐 Cargo Van</option><option value="reefervan">🧊 Reefer Van (sprinter or box w/ reefer)</option><option value="box">📦 Box Truck</option><option value="semi">🚛 Semi</option></select></label>
-    <label class="span2" id="truckUIRow" hidden><input type="checkbox" name="truckUI"> Show truck tools (HOS, weigh stations, truck stops)</label>
+    <label class="span2" id="truckUIRow" hidden><input type="checkbox" name="truckUI"> Show truck tools (weigh stations, truck stops)</label>
     <p class="span2 van-note small">Commercial plates: NYC parkways are closed to commercial vehicles — routes avoid them. Commercial-plate vans follow truck routes for through trips.</p>
     <label>Height ft<input name="heightFt" type="number" inputmode="decimal" step="1" min="6" max="15"></label>
     <label>Height in<input name="heightIn" type="number" inputmode="decimal" step="1" min="0" max="11"></label>
@@ -149,7 +149,6 @@ window.__rrSplashDone=bye;setTimeout(bye,2500);})();</script>
     <label class="chk"><input type="checkbox" name="hazmat"> Hazmat load</label>
     <label class="chk"><input type="checkbox" name="avoidTolls"> Avoid tolls</label>
     <label class="chk"><input type="checkbox" name="avoidWeigh"> Avoid weigh stations</label>
-    <label>HOS cycle<select name="cycle"><option value="70">70 h / 8 days</option><option value="60">60 h / 7 days</option></select></label>
     <label>Units<select name="units"><option value="mi">Miles</option><option value="km">Kilometers</option></select></label>
     <label>Map<select name="theme"><option value="auto">Auto (day / night by sunset)</option><option value="night">Night</option><option value="dim">Night – dim (low glare)</option><option value="day">Day</option></select></label>
   </form>

@@ -14,7 +14,7 @@ Built for drivers first: big buttons, night map, voice turn‑by‑turn, and rou
 - **Truck vs car comparison** — see when and why the truck route differs.
 - **Address search** (Photon/OpenStreetMap, biased to your location; Nominatim fallback), long‑press map to drop a pin.
 - **Truck stops, fuel, rest areas, truck parking, weigh stations along your route** from OpenStreetMap (Overpass).
-- **HOS helper clock**: 11‑hour drive, 14‑hour window, 30‑min break after 8h driving, 10‑hour reset (incl. off+sleeper). Auto‑switches to Driving above 5 mph during navigation, back to On‑duty after 5 min stopped. Spoken + on‑screen warnings. **Not an ELD.**
+- **No hours log.** RigRoute does not track duty status or driving hours. It is not an ELD. Use your company's own log.
 - **Load / trip card**: load #, BOL #, pickup/delivery + appointments, dispatcher phone (tap to call), notes; "Navigate to pickup/delivery". Stored only on the phone.
 - **Truck presets**: 53' dry van 80k, 26' box truck, bobtail. Miles/km. Night/day map.
 - **Demo drive**: simulates GPS along the planned route so you can see it work while parked.
@@ -34,7 +34,7 @@ Built for drivers first: big buttons, night map, voice turn‑by‑turn, and rou
 - **Last‑mile facility mode**: under 3 mi from the destination you get the facility card, a satellite view (Esri World Imagery), a truck‑entrance pin (later routes go to the gate) and driver notes for the facility.
 - **Exit prompts at 2 mi, 1 mi and ¼ mi**, a bigger high‑contrast banner, and a dim night theme.
 - **Offline**: tiles along the route are saved automatically when you start navigating (or tap "Save route map"). Navigation resumes after a crash or reload. GPS drops to battery saver after 3 min parked.
-- **HOS**: 11 h / 14 h / 30‑min break plus the **70 h/8‑day (or 60/7) cycle with 34 h restart**. Still a helper, not an ELD.
+- **Hours of service** stay in your company's log. RigRoute does not keep one.
 - **Driver types**: OTR / Local / Owner‑Op / Fleet presets. Also a **Hazmat** quick toggle, a **HUD** mode (mirrored, to reflect on the windshield) and **map layer toggles**.
 - **Voices**: pick any device voice plus speed and pitch, with personalities (Standard, Calm co‑pilot, Old‑school trucker, NYC dispatcher) and a preview button. Road names are read naturally ("I 278 W" → "Interstate 278 West", "NJ Tpke" → "New Jersey Turnpike").
 - **Ace the co‑pilot**: an original animated cone mascot with tips, cheers and reactions. It hides whenever a turn is under 600 m away and can be switched off.
@@ -58,7 +58,7 @@ Built for drivers first: big buttons, night map, voice turn‑by‑turn, and rou
 ## Honest limits
 - Truck restrictions are only as good as **OpenStreetMap tags**. Unmapped low bridges won't be avoided, and an over‑strict tag can cause a detour (e.g. OSM currently tags the GWB upper level `maxweight=50000 lbs`, so an 80k‑lb profile is routed around it). **Always obey posted signs.**
 - The public routing / POI servers are shared, rate‑limited and can be busy; for a whole fleet, self‑host Valhalla + Overpass (both open source).
-- No live traffic. HOS clock is a personal helper, **not an ELD** and not a legal record of duty status.
+- No live traffic. RigRoute is **not an ELD** and does not keep a legal record of duty status.
 - iPhone: keep the app on screen; browsers pause GPS in the background.
 
 ## Develop / test

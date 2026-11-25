@@ -895,7 +895,7 @@ const DRIVER_TYPES = {
 };
 function renderDT() { $$('[data-dt]').forEach(b => b.classList.toggle('on', b.dataset.dt === S.truck.driverType)); $('#dtNote').textContent = DRIVER_TYPES[S.truck.driverType]?.label || '';
   $('#hazBtn').textContent = `☣ Hazmat: ${S.truck.hazmat ? 'ON' : 'off'}`; $('#hazBtn').classList.toggle('on', !!S.truck.hazmat); $('#weighBtn').textContent = `⚖️ Avoid scales: ${S.truck.avoidWeigh ? 'ON' : 'off'}`; $('#weighBtn').classList.toggle('on', !!S.truck.avoidWeigh); }
-$$('[data-dt]').forEach(b => b.onclick = () => { S.truck.driverType = b.dataset.dt; Object.assign(S.truck, DRIVER_TYPES[b.dataset.dt].set); fillTruck(); tf.dispatchEvent(new Event('change')); renderDT(); hosRender(); toast('Driver type: ' + b.textContent.trim()); });
+$$('[data-dt]').forEach(b => b.onclick = () => { S.truck.driverType = b.dataset.dt; Object.assign(S.truck, DRIVER_TYPES[b.dataset.dt].set); fillTruck(); tf.dispatchEvent(new Event('change')); renderDT(); toast('Driver type: ' + b.textContent.trim()); });
 $('#hazBtn').onclick = () => { S.truck.hazmat = !S.truck.hazmat; fillTruck(); tf.dispatchEvent(new Event('change')); renderDT(); toast(S.truck.hazmat ? 'Hazmat ON — routing around hazmat-restricted roads & tunnels' : 'Hazmat off'); };
 $('#weighBtn').onclick = () => { setRouteOpt('avoidWeigh', !S.truck.avoidWeigh); if (S.truck.avoidWeigh) toast('Avoiding scales where possible — you must still stop when signs require it', 5000); };
 tf.addEventListener('change', renderDT); renderDT(); S.DRIVER_TYPES = DRIVER_TYPES;

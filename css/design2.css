@@ -37,9 +37,16 @@ html body.following #followBtn{opacity:0;pointer-events:none}
 #routePanel.snap-full{max-height:88vh!important;overflow:auto}
 .d2-handle{display:block;width:100%;height:28px;border:0;background:transparent;cursor:grab;touch-action:none}
 .d2-handle::before{content:"";display:block;margin:10px auto;width:44px;height:5px;border-radius:3px;background:#64748b}
-/* #11 truck profile values in JetBrains Mono, with steppers */
-#truckForm input[type=number],.wz-stepper output{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.d2-step{display:inline-flex;align-items:center;gap:6px}.d2-step button{min-width:48px;min-height:48px;font:800 22px var(--font)}
+/* #11 truck profile values in JetBrains Mono, with steppers.
+   At 390px the −/+ row was narrower than the number, so the browser spinner sat on the digits: 13 read as 1 / 3 and 80000 lost its last digit. */
+#truckForm.grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+#truckForm label{min-width:0}
+#truckForm input[type=number],.wz-stepper output{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:0}
+#truckForm input[type=number]{min-width:0;padding-left:2px;padding-right:2px;text-align:center;-webkit-appearance:none;-moz-appearance:textfield;appearance:textfield}
+#truckForm input[type=number]::-webkit-outer-spin-button,#truckForm input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;display:none;height:0;width:0}
+.d2-step{display:flex;width:100%;max-width:100%;min-width:0;align-items:center;gap:4px;box-sizing:border-box}
+.d2-step button{flex:0 0 44px;width:44px;min-width:44px;max-width:44px;height:44px;min-height:44px;padding:0;font:800 22px var(--font)}
+#truckForm .d2-step input[type=number]{flex:1 1 auto;width:1px;max-width:100%}
 /* #12 search palette sections + fuel chips */
 .d2-pal h4{margin:10px 0 4px;font:700 12px var(--font);letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
 .d2-pal button{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:52px;text-align:left;gap:8px}

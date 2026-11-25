@@ -114,7 +114,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
 <div id="offGuide" class="hidden" role="alert"><b id="ogArrow">↑</b><div><div id="ogText">Offline — follow the route line</div><small id="ogSub"></small></div></div>
 <div id="drive" class="hidden" aria-label="Drive mode">
  <div id="dTurn"><div id="dArrow">↑</div><div><div id="dDist">--</div><div id="dStreet"></div></div><button type="button" id="dView" aria-label="Switch to flat north-up map">2D</button><button id="dExit" aria-label="Map">Map</button></div>
- <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden"><small>LIMIT </small><b id="dLim">--</b><i id="dLimSrc"></i></div></div>
+ <div id="dMid"><div id="dSpeed"><b id="dSpd">--</b>MPH</div><div id="dEta"><span id="dLeft">--</span><br><small id="dMi"></small></div><div id="dLimit" class="hidden"><small></small><b id="dLim">--</b><i id="dLimSrc"></i></div></div>
  <div id="dBtns"><button id="dReport"><i>⚠️</i>Report</button><button id="dMute"><i>🔊</i>Mute</button><button id="dAce"><i>🎤</i>Ace</button><button id="dCenter"><i>🎯</i>Recenter</button></div>
 </div>
 <div id="dRep" class="hidden"></div>
@@ -215,7 +215,7 @@ body.driving #dock,body.driving #sideBtns,body.driving #banner,body.driving #tri
     $('#dSpd').textContent = U() === 'km' ? Math.round(mph * 1.609) : Math.round(mph);
     const raw = ($('#limitVal')?.textContent || '').trim();
     const lim = $('#limitSign') && !$('#limitSign').classList.contains('hidden') && /^\d+$/.test(raw) ? raw : null;
-    $('#dLimit').classList.toggle('hidden', !lim); if (lim) { $('#dLim').textContent = lim; const src = ($('#limitSrc')?.textContent || '').trim(); if ($('#dLimSrc')) $('#dLimSrc').textContent = src ? ' ' + src : ''; } $('#dLimit').classList.toggle('est', !!$('#limitSign')?.classList.contains('est')); $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
+    $('#dLimit').classList.toggle('hidden', !lim); if (lim) { $('#dLim').textContent = lim; const src = ($('#limitSrc')?.textContent || '').trim(); if ($('#dLimSrc')) $('#dLimSrc').textContent = src; } $('#dLimit').classList.toggle('est', !!$('#limitSign')?.classList.contains('est')); $('#dSpeed').classList.toggle('over', $('#speedBox')?.classList.contains('over'));
     $('#dLeft').textContent = S.remT != null ? fmtDur(S.remT) : '--'; $('#dMi').textContent = $('#tDist') ? `${$('#tDist').textContent} ${U() === 'km' ? 'km' : 'mi'} · ${$('#tEta')?.textContent || ''}` : '';
     $('#dMute i').textContent = S.voiceObj?.enabled ? '🔊' : '🔇'; $('#dMute').lastChild.textContent = S.voiceObj?.enabled ? 'Mute' : 'Unmute'; }
   S.renderDrive = () => renderDrive((S.pos?.speed || 0) * 2.23694);
